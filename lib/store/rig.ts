@@ -42,7 +42,7 @@ export const rig = {
     ty: 0,
     tz: 0,
     fov: 45,
-  } satisfies CameraOverride,
+  } as CameraOverride,
   mountCount: 0,
   drawCalls: 0,
   triangles: 0,

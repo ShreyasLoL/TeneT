@@ -3,11 +3,12 @@
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { usePathname } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
+import { PerfOverlay } from '@/components/dev/PerfOverlay';
+import { triggerTurnstile } from '@/components/stage/Turnstile';
 import { isFixtureMode } from '@/lib/api/fixtures';
 import { useToday } from '@/lib/api/hooks';
 import { COPY } from '@/lib/copy';
 import { modeForPathname, useTenetStore } from '@/lib/store';
-import { rig } from '@/lib/store/rig';
 
 function RuntimeEffects() {
   const pathname = usePathname();
@@ -35,7 +36,7 @@ function RuntimeEffects() {
       prevDayRef.current = today;
       setCursor(today);
       setRolloverNotice(COPY.status.rolloverNotice);
-      rig.turnstileProgress = 1;
+      triggerTurnstile(useTenetStore.getState().quality.reducedMotion);
       void queryClient.invalidateQueries({ queryKey: ['tenet'] });
     }
   }, [queryClient, setCursor, setRolloverNotice, today]);
@@ -79,6 +80,7 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <Suspense fallback={null}>
         <RuntimeEffects />
+        {process.env.NODE_ENV !== 'production' ? <PerfOverlay /> : null}
       </Suspense>
       {children}
     </QueryClientProvider>
