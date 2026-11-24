@@ -1,7 +1,7 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { apply, decide, emptyState, isDayKey } from '@/lib/domain';
 import type { Command, DomainError, DomainEvent, State } from '@/lib/domain/events';
-import { getDb } from './client';
+import { getDb, type Database } from './client';
 import { getUserId } from './config';
 import { days, entries, events, trackables } from './schema';
 import { toTrackable } from './trackables';
@@ -20,17 +20,14 @@ export async function runCommand(
   userId: string,
   command: Command,
   now = new Date(),
+  db: Database = getDb(),
 ): Promise<RunCommandResult> {
-  const db = getDb();
-
   try {
     const emitted = await db.transaction(async (tx) => {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))`);
 
-      const [trackableRows, sealedRows] = await Promise.all([
-        tx.select().from(trackables).where(eq(trackables.userId, userId)),
-        tx.select().from(days).where(eq(days.userId, userId)),
-      ]);
+      const trackableRows = await tx.select().from(trackables).where(eq(trackables.userId, userId));
+      const sealedRows = await tx.select().from(days).where(eq(days.userId, userId));
       const entryRows = isDayKey(command.day)
         ? await tx
             .select()
