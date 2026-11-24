@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/reac
 import { usePathname } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { PerfOverlay } from '@/components/dev/PerfOverlay';
+import { RecapOverlay } from '@/components/ritual/RecapOverlay';
 import { triggerTurnstile } from '@/components/stage/Turnstile';
 import { isFixtureMode } from '@/lib/api/fixtures';
 import { useToday } from '@/lib/api/hooks';
@@ -80,6 +81,7 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <Suspense fallback={null}>
         <RuntimeEffects />
+        <RecapOverlay />
         {process.env.NODE_ENV !== 'production' ? <PerfOverlay /> : null}
       </Suspense>
       {children}

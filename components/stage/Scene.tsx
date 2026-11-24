@@ -13,6 +13,7 @@ import { Fork } from './Fork';
 import { Intro } from './Intro';
 import { Particles } from './Particles';
 import { Postfx } from './Postfx';
+import { Recap } from './Recap';
 import { Rings } from './Rings';
 
 export function Scene() {
@@ -136,6 +137,7 @@ export function Scene() {
       <Rings />
       <Fork />
       <Intro />
+      <Recap />
       <Postfx />
     </>
   );
