@@ -2,6 +2,7 @@ import { loadEnvConfig } from '@next/env';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { sql, type SQL } from 'drizzle-orm';
 import { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { dayKey } from '@/lib/domain/day';
@@ -14,6 +15,18 @@ if (originalNodeEnv === undefined) delete environment.NODE_ENV;
 else environment.NODE_ENV = originalNodeEnv;
 
 const testDatabaseUrl = process.env.DATABASE_URL_TEST;
+const applicationDatabaseUrl = process.env.DATABASE_URL;
+
+if (!testDatabaseUrl) {
+  throw new Error('DATABASE_URL_TEST is required to run Postgres integration tests.');
+}
+if (!applicationDatabaseUrl) {
+  throw new Error('DATABASE_URL is required to verify test database isolation.');
+}
+if (databaseTarget(applicationDatabaseUrl) === databaseTarget(testDatabaseUrl)) {
+  throw new Error('DATABASE_URL_TEST must point to a different database or Neon branch than DATABASE_URL.');
+}
+
 const fixedNow = new Date();
 const fixedDay = dayKey(fixedNow);
 const databaseTestTimeout = 30_000;
@@ -50,6 +63,11 @@ async function createFixture(): Promise<Fixture> {
   return { userId, key };
 }
 
+async function withTestTransaction<T>(work: () => Promise<T>): Promise<T> {
+  const { withDatabaseTransaction } = await import('./client');
+  return withDatabaseTransaction(testDatabaseUrl!, work);
+}
+
 async function command(fixture: Fixture, type: 'log_entry' | 'seal_day', value?: unknown) {
   const { runCommand } = await import('./repository');
   return type === 'log_entry'
@@ -57,24 +75,25 @@ async function command(fixture: Fixture, type: 'log_entry' | 'seal_day', value?:
     : runCommand(fixture.userId, { type, day: fixedDay }, fixedNow);
 }
 
+async function expectRejectedSql(statement: SQL, pattern: RegExp) {
+  const { getDb } = await import('./client');
+  const failure = await getDb()
+    .transaction((tx) => tx.execute(statement))
+    .then(() => null, (error: unknown) => error);
+  expect(failure).toBeInstanceOf(Error);
+  const error = failure as Error & { cause?: unknown };
+  const cause = error.cause instanceof Error ? error.cause.message : String(error.cause ?? '');
+  expect(`${error.message}\n${cause}`).toMatch(pattern);
+}
+
 function databaseTarget(connectionString: string) {
   const url = new URL(connectionString);
   return `${url.hostname.replace('-pooler', '')}${url.pathname}`;
 }
 
-describe.skipIf(!testDatabaseUrl)('Postgres repository integration', () => {
+describe('Postgres repository integration', () => {
   beforeAll(async () => {
-    loadEnvConfig(process.cwd());
-    const applicationUrl = process.env.DATABASE_URL;
-    if (
-      applicationUrl &&
-      databaseTarget(applicationUrl) === databaseTarget(testDatabaseUrl as string)
-    ) {
-      throw new Error('DATABASE_URL_TEST must point to an isolated test database or Neon branch.');
-    }
-    process.env.DATABASE_URL = testDatabaseUrl;
-
-    const client = new Client({ connectionString: testDatabaseUrl });
+    const client = new Client({ connectionString: testDatabaseUrl!, connectionTimeoutMillis: 10_000 });
     try {
       await client.connect();
       const migration = await readFile(join(process.cwd(), 'lib', 'db', 'migrations', '0001_backend.sql'), 'utf8');
@@ -89,102 +108,128 @@ describe.skipIf(!testDatabaseUrl)('Postgres repository integration', () => {
     await closeDb();
   });
 
-  it('logs and seals a day with the domain score and both events', async () => {
+  it('logs and seals a day with the domain score and both events', async () => withTestTransaction(async () => {
     const fixture = await createFixture();
     const logged = await command(fixture, 'log_entry', true);
     const sealed = await command(fixture, 'seal_day');
-    const { getPool } = await import('./client');
-    const pool = getPool();
+    const { getDb } = await import('./client');
+    const db = getDb();
+    const schema = await import('./schema');
 
     expect(logged.ok).toBe(true);
     expect(sealed.ok).toBe(true);
     if (!sealed.ok) return;
     expect(sealed.events[0]).toMatchObject({ type: 'day_sealed', score: 100 });
-    const [dayRows, eventRows] = await Promise.all([
-      pool.query('SELECT score FROM days WHERE user_id = $1 AND day = $2', [fixture.userId, fixedDay]),
-      pool.query('SELECT type FROM events WHERE user_id = $1 AND day = $2 ORDER BY seq', [fixture.userId, fixedDay]),
-    ]);
-    expect(dayRows.rows).toEqual([{ score: 100 }]);
-    expect(eventRows.rowCount).toBe(2);
+    const dayRows = await db
+      .select({ score: schema.days.score })
+      .from(schema.days)
+      .where(sql`${schema.days.userId} = ${fixture.userId} AND ${schema.days.day} = ${fixedDay}`);
+    const eventRows = await db
+      .select({ type: schema.events.type })
+      .from(schema.events)
+      .where(sql`${schema.events.userId} = ${fixture.userId} AND ${schema.events.day} = ${fixedDay}`)
+      .orderBy(schema.events.seq);
+    expect(dayRows).toEqual([{ score: 100 }]);
+    expect(eventRows).toHaveLength(2);
     if (sealed.events[0]?.type !== 'day_sealed') return;
     const { nightScore } = await import('@/lib/domain/score');
-    expect(dayRows.rows[0].score).toBe(nightScore(sealed.events[0].results));
-    expect(eventRows.rows.map((row) => row.type)).toEqual(['entry_logged', 'day_sealed']);
-  }, databaseTestTimeout);
+    expect(dayRows[0].score).toBe(nightScore(sealed.events[0].results));
+    expect(eventRows.map((row) => row.type)).toEqual(['entry_logged', 'day_sealed']);
+  }), databaseTestTimeout);
 
-  it('rejects repeat writes through the domain and leaves stored rows unchanged', async () => {
+  it('rejects any subsequent domain write to a sealed day', async () => withTestTransaction(async () => {
     const fixture = await createFixture();
     await command(fixture, 'log_entry', true);
     await command(fixture, 'seal_day');
     const repeatedLog = await command(fixture, 'log_entry', false);
     const repeatedSeal = await command(fixture, 'seal_day');
-    const { getPool } = await import('./client');
-    const counts = await getPool().query(
-      'SELECT (SELECT count(*) FROM events WHERE user_id = $1) AS events, (SELECT count(*) FROM entries WHERE user_id = $1) AS entries, (SELECT count(*) FROM days WHERE user_id = $1) AS days',
-      [fixture.userId],
-    );
+    const { getDb } = await import('./client');
+    const counts = await getDb().execute(sql`
+      SELECT
+        (SELECT count(*) FROM events WHERE user_id = ${fixture.userId}) AS events,
+        (SELECT count(*) FROM entries WHERE user_id = ${fixture.userId}) AS entries,
+        (SELECT count(*) FROM days WHERE user_id = ${fixture.userId}) AS days
+    `);
 
     expect(repeatedLog).toMatchObject({ ok: false, error: { code: 'day_sealed' } });
     expect(repeatedSeal).toMatchObject({ ok: false, error: { code: 'day_sealed' } });
     expect(counts.rows[0]).toEqual({ events: '2', entries: '1', days: '1' });
-  }, databaseTestTimeout);
+  }), databaseTestTimeout);
 
-  it('rejects raw SQL mutations to sealed entries, days, and events', async () => {
+  it('rejects raw SQL mutations to sealed entries, days, and events', async () => withTestTransaction(async () => {
     const fixture = await createFixture();
     await command(fixture, 'log_entry', true);
     await command(fixture, 'seal_day');
-    const { getPool } = await import('./client');
-    const pool = getPool();
-    const args = [fixture.userId, fixedDay, fixture.key];
-    const dayArgs = args.slice(0, 2);
+    await expectRejectedSql(sql`
+      INSERT INTO entries(user_id, day, trackable_key, trackable_version, value)
+      VALUES (${fixture.userId}, ${fixedDay}, ${fixture.key}, 1, 'true'::jsonb)
+    `, /day is sealed/);
+    await expectRejectedSql(sql`
+      UPDATE entries SET value = 'false'::jsonb
+      WHERE user_id = ${fixture.userId} AND day = ${fixedDay} AND trackable_key = ${fixture.key}
+    `, /day is sealed/);
+    await expectRejectedSql(sql`
+      DELETE FROM entries WHERE user_id = ${fixture.userId} AND day = ${fixedDay} AND trackable_key = ${fixture.key}
+    `, /day is sealed/);
+    await expectRejectedSql(sql`
+      UPDATE days SET streak = streak + 1 WHERE user_id = ${fixture.userId} AND day = ${fixedDay}
+    `, /sealed days are immutable/);
+    await expectRejectedSql(sql`
+      DELETE FROM days WHERE user_id = ${fixture.userId} AND day = ${fixedDay}
+    `, /sealed days are immutable/);
+    await expectRejectedSql(sql`
+      UPDATE events SET at = now() WHERE user_id = ${fixture.userId} AND day = ${fixedDay}
+    `, /events are append-only/);
+    await expectRejectedSql(sql`
+      DELETE FROM events WHERE user_id = ${fixture.userId} AND day = ${fixedDay}
+    `, /events are append-only/);
+    await expectRejectedSql(sql`
+      INSERT INTO events(user_id, day, type, payload, at)
+      VALUES (${fixture.userId}, ${fixedDay}, 'entry_logged', ${JSON.stringify({ type: 'entry_logged', day: fixedDay })}::jsonb, now())
+    `, /day is sealed/);
+  }), databaseTestTimeout);
 
-    await expect(
-      pool.query('INSERT INTO entries(user_id, day, trackable_key, trackable_version, value) VALUES ($1, $2, $3, 1, $4::jsonb)', [
-        ...args,
-        'true',
-      ]),
-    ).rejects.toThrow(/day is sealed/);
-    await expect(
-      pool.query('UPDATE entries SET value = $4::jsonb WHERE user_id = $1 AND day = $2 AND trackable_key = $3', [
-        ...args,
-        'false',
-      ]),
-    ).rejects.toThrow(/day is sealed/);
-    await expect(pool.query('DELETE FROM entries WHERE user_id = $1 AND day = $2 AND trackable_key = $3', args)).rejects.toThrow(
-      /day is sealed/,
-    );
-    await expect(pool.query('UPDATE days SET streak = streak + 1 WHERE user_id = $1 AND day = $2', dayArgs)).rejects.toThrow(
-      /sealed days are immutable/,
-    );
-    await expect(pool.query('DELETE FROM days WHERE user_id = $1 AND day = $2', dayArgs)).rejects.toThrow(
-      /sealed days are immutable/,
-    );
-    await expect(pool.query('UPDATE events SET at = now() WHERE user_id = $1 AND day = $2', dayArgs)).rejects.toThrow(
-      /events are append-only/,
-    );
-    await expect(pool.query('DELETE FROM events WHERE user_id = $1 AND day = $2', dayArgs)).rejects.toThrow(
-      /events are append-only/,
-    );
-    await expect(
-      pool.query(
-        'INSERT INTO events(user_id, day, type, payload, at) VALUES ($1, $2, $3, $4::jsonb, now())',
-        [fixture.userId, fixedDay, 'entry_logged', JSON.stringify({ type: 'entry_logged', day: fixedDay })],
-      ),
-    ).rejects.toThrow(/day is sealed/);
+  it('waits for an in-flight user write lock without persisting test data', async () => {
+    const userId = randomUUID();
+    const lockClient = new Client({ connectionString: testDatabaseUrl!, connectionTimeoutMillis: 10_000 });
+    let transactionOpen = false;
+    let commandPromise: Promise<unknown> | undefined;
+
+    try {
+      await lockClient.connect();
+      await lockClient.query('BEGIN');
+      transactionOpen = true;
+      await lockClient.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [userId]);
+
+      const [{ runCommand }, { getDbForConnection }] = await Promise.all([
+        import('./repository'),
+        import('./client'),
+      ]);
+      let commandFinished = false;
+      commandPromise = runCommand(
+        userId,
+        { type: 'log_entry', day: fixedDay, key: randomUUID(), value: true },
+        fixedNow,
+        getDbForConnection(testDatabaseUrl!),
+      ).then((result) => {
+        commandFinished = true;
+        return result;
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      expect(commandFinished).toBe(false);
+
+      await lockClient.query('ROLLBACK');
+      transactionOpen = false;
+      await expect(commandPromise).resolves.toMatchObject({ ok: false, error: { code: 'unknown_trackable' } });
+    } finally {
+      if (transactionOpen) await lockClient.query('ROLLBACK').catch(() => undefined);
+      await commandPromise?.catch(() => undefined);
+      await lockClient.end();
+    }
   }, databaseTestTimeout);
 
-  it('serializes concurrent seal commands so only one succeeds', async () => {
-    const fixture = await createFixture();
-    const [first, second] = await Promise.all([command(fixture, 'seal_day'), command(fixture, 'seal_day')]);
-    const { getPool } = await import('./client');
-    const dayRows = await getPool().query('SELECT day FROM days WHERE user_id = $1 AND day = $2', [fixture.userId, fixedDay]);
-
-    expect([first, second].filter((result) => result.ok)).toHaveLength(1);
-    expect([first, second].filter((result) => !result.ok)).toHaveLength(1);
-    expect(dayRows.rowCount).toBe(1);
-  }, databaseTestTimeout);
-
-  it('rolls back a rejected command without writing an event or projection', async () => {
+  it('rolls back a rejected command without writing an event or projection', async () => withTestTransaction(async () => {
     const fixture = await createFixture();
     const { runCommand } = await import('./repository');
     const rejected = await runCommand(
@@ -192,17 +237,18 @@ describe.skipIf(!testDatabaseUrl)('Postgres repository integration', () => {
       { type: 'log_entry', day: fixedDay, key: randomUUID(), value: true },
       fixedNow,
     );
-    const { getPool } = await import('./client');
-    const counts = await getPool().query(
-      'SELECT (SELECT count(*) FROM events WHERE user_id = $1) AS events, (SELECT count(*) FROM entries WHERE user_id = $1) AS entries',
-      [fixture.userId],
-    );
+    const { getDb } = await import('./client');
+    const counts = await getDb().execute(sql`
+      SELECT
+        (SELECT count(*) FROM events WHERE user_id = ${fixture.userId}) AS events,
+        (SELECT count(*) FROM entries WHERE user_id = ${fixture.userId}) AS entries
+    `);
 
     expect(rejected).toMatchObject({ ok: false, error: { code: 'unknown_trackable' } });
     expect(counts.rows[0]).toEqual({ events: '0', entries: '0' });
-  }, databaseTestTimeout);
+  }), databaseTestTimeout);
 
-  it('serves definitions, commands, sealing, and state through the API routes', async () => {
+  it('serves definitions, commands, sealing, and state through the API routes', async () => withTestTransaction(async () => {
     const fixture = await createFixture();
     const previousUserId = process.env.TENET_USER_ID;
     process.env.TENET_USER_ID = fixture.userId;
@@ -257,5 +303,5 @@ describe.skipIf(!testDatabaseUrl)('Postgres repository integration', () => {
       if (previousUserId === undefined) delete process.env.TENET_USER_ID;
       else process.env.TENET_USER_ID = previousUserId;
     }
-  }, databaseTestTimeout);
+  }), databaseTestTimeout);
 });
