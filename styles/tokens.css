@@ -19,7 +19,10 @@
   --status-warning: #EF9F27;
   --status-danger: #E24B4A;
 
-  /* Display typography */
+  /* Typography (Geist Sans & Geist Mono loaded via next/font in app/layout.tsx) */
+  --font-ui: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-data: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-hero: var(--font-ui);
   --tracking-display: -0.04em;
 
   /* Motion: single expo-out curve, no bounce */
