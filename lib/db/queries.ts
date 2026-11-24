@@ -4,7 +4,7 @@ import type { DayKey } from '@/lib/domain/types';
 import { getDb } from './client';
 import { getUserId } from './config';
 import { areas, days, entries, goals, trackables } from './schema';
-import { toTrackable } from './trackables';
+import { toApiTrackable, toTrackable } from './trackables';
 
 export async function getDefinitions(userId = getUserId(), now = new Date()) {
   const db = getDb();
@@ -35,11 +35,24 @@ export async function getDefinitions(userId = getUserId(), now = new Date()) {
     .orderBy(asc(goals.createdAt));
   const trackableRows = await db.select().from(trackables).where(eq(trackables.userId, userId));
 
+  const areaSlugById = new Map(areaRows.map((area) => [area.id, area.slug]));
+  const rowByKeyVersion = new Map(
+    trackableRows.map((row) => [`${row.key}@${row.version}`, row] as const),
+  );
+
   const currentDay = dayKey(now);
+  const active = activeTrackables(trackableRows.map(toTrackable), currentDay).map((item) => {
+    const row = rowByKeyVersion.get(`${item.key}@${item.version}`);
+    if (!row) {
+      return { ...item, areaId: '', areaSlug: '', goalId: null };
+    }
+    return toApiTrackable(row, areaSlugById.get(row.areaId) ?? '');
+  });
+
   return {
     areas: areaRows,
     goals: goalRows,
-    trackables: activeTrackables(trackableRows.map(toTrackable), currentDay),
+    trackables: active,
   };
 }
 
