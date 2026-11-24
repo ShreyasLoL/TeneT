@@ -1,0 +1,40 @@
+:root {
+  /* Base & surfaces */
+  --bg: #0B0910;
+  --surface: #13111B;
+  --line: rgba(255, 255, 255, 0.08);
+
+  /* Text */
+  --text: #F5F3F7;
+  --text-dim: #A19DAA;
+  --text-faint: #85818F;
+
+  /* Accent ("Comb-jelly Orchid") */
+  --accent: #E04DEA;
+  --accent-dim: #9E2FA6;
+  --accent-abyss: #5F1764;
+
+  /* Functional status (rare) */
+  --status-success: #5DCAA5;
+  --status-warning: #EF9F27;
+  --status-danger: #E24B4A;
+
+  /* Display typography */
+  --tracking-display: -0.04em;
+
+  /* Motion: single expo-out curve, no bounce */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Durations */
+  --duration-micro: 160ms;
+  --duration-ui: 280ms;
+  --duration-scene: 900ms;
+  --duration-hero: 3500ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-scene: 200ms;
+    --duration-hero: 280ms;
+  }
+}
