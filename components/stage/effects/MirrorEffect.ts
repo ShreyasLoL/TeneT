@@ -18,11 +18,11 @@ const mirrorFragmentShader = /* glsl */ `
 
     float blurStep = 0.002 + dy * 0.014;
     vec3 refl = vec3(0.0);
-    refl += texture(inputBuffer, clamp(sampleUv + vec2(0.0, -2.0 * blurStep), 0.0, 1.0)).rgb * 0.15;
-    refl += texture(inputBuffer, clamp(sampleUv + vec2(0.0, -blurStep), 0.0, 1.0)).rgb * 0.22;
-    refl += texture(inputBuffer, sampleUv).rgb * 0.26;
-    refl += texture(inputBuffer, clamp(sampleUv + vec2(0.0, blurStep), 0.0, 1.0)).rgb * 0.22;
-    refl += texture(inputBuffer, clamp(sampleUv + vec2(0.0, 2.0 * blurStep), 0.0, 1.0)).rgb * 0.15;
+    refl += texture2D(inputBuffer, clamp(sampleUv + vec2(0.0, -2.0 * blurStep), 0.0, 1.0)).rgb * 0.15;
+    refl += texture2D(inputBuffer, clamp(sampleUv + vec2(0.0, -blurStep), 0.0, 1.0)).rgb * 0.22;
+    refl += texture2D(inputBuffer, sampleUv).rgb * 0.26;
+    refl += texture2D(inputBuffer, clamp(sampleUv + vec2(0.0, blurStep), 0.0, 1.0)).rgb * 0.22;
+    refl += texture2D(inputBuffer, clamp(sampleUv + vec2(0.0, 2.0 * blurStep), 0.0, 1.0)).rgb * 0.15;
 
     float fresnel = pow(1.0 - dy, 3.0) * 0.18;
     outputColor = vec4(inputColor.rgb + refl * fresnel, inputColor.a);

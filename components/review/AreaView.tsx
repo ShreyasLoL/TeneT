@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { LoadingFallback } from '@/components/chrome/LoadingFallback';
 import { SatorGlyph } from '@/components/chrome/SatorGlyph';
 import { Scrim } from '@/components/chrome/Scrim';
@@ -23,6 +24,43 @@ import {
 import { useSmoothScroll } from '@/lib/viz/useSmoothScroll';
 import { Sparkline } from './Sparkline';
 
+const EMPTY_GOALS: LocalGoal[] = [];
+const GOALS_EVENT = 'tenet-local-goals-change';
+let cachedGoals: LocalGoal[] | null = null;
+
+function getGoalsSnapshot(): LocalGoal[] {
+  if (typeof window === 'undefined') return EMPTY_GOALS;
+  if (cachedGoals === null) {
+    cachedGoals = loadLocalGoals();
+  }
+  return cachedGoals;
+}
+
+function getGoalsServerSnapshot(): LocalGoal[] {
+  return EMPTY_GOALS;
+}
+
+function subscribeGoals(cb: () => void) {
+  if (typeof window === 'undefined') return () => {};
+  const invalidateAndNotify = () => {
+    cachedGoals = null;
+    cb();
+  };
+  window.addEventListener('storage', invalidateAndNotify);
+  window.addEventListener(GOALS_EVENT, invalidateAndNotify);
+  return () => {
+    window.removeEventListener('storage', invalidateAndNotify);
+    window.removeEventListener(GOALS_EVENT, invalidateAndNotify);
+  };
+}
+
+function updateCachedGoals(next: LocalGoal[]) {
+  cachedGoals = next;
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(GOALS_EVENT));
+  }
+}
+
 export function AreaView() {
   useSmoothScroll();
   const params = useParams<{ slug: string }>();
@@ -31,7 +69,11 @@ export function AreaView() {
   const { data, isLoading, isError } = useTenetState();
   const setDensity = useTenetStore((s) => s.setDensity);
 
-  const [localGoals, setLocalGoals] = useState<LocalGoal[]>(() => loadLocalGoals());
+  const localGoals = useSyncExternalStore(
+    subscribeGoals,
+    getGoalsSnapshot,
+    getGoalsServerSnapshot,
+  );
   const [targetInput, setTargetInput] = useState('');
 
   const area = data?.definitions.areas.find((a) => a.slug === slug) ?? null;
@@ -80,8 +122,14 @@ export function AreaView() {
   }
   if (!area) {
     return (
-      <main className="flex flex-1 items-center justify-center p-6">
+      <main className="flex flex-1 flex-col items-center justify-center gap-6 p-6">
         <SatorGlyph caption={COPY.status.unknownArea} />
+        <Link
+          href="/dashboard"
+          className="inline-flex min-h-10 items-center border border-line px-3 font-mono text-[11px] uppercase tracking-[0.12em] text-text-dim transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:text-text"
+        >
+          {COPY.doors.lookBack}
+        </Link>
       </main>
     );
   }
@@ -208,7 +256,7 @@ export function AreaView() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => setLocalGoals(removeLocalGoal(primaryNumeric.key))}
+                  onClick={() => updateCachedGoals(removeLocalGoal(primaryNumeric.key))}
                   className="font-mono text-[11px] uppercase tracking-[0.12em]"
                 >
                   clear
@@ -229,7 +277,7 @@ export function AreaView() {
                   target: parsed,
                   direction: dir,
                 });
-                setLocalGoals(next);
+                updateCachedGoals(next);
                 setTargetInput('');
               }}
               className="flex flex-wrap items-center gap-3"

@@ -30,7 +30,7 @@ function SimplifiedLensQuad() {
   });
 
   return (
-    <mesh renderOrder={99}>
+    <mesh renderOrder={99} frustumCulled={false}>
       <planeGeometry args={[2, 2]} />
       <shaderMaterial
         ref={matRef}
@@ -92,7 +92,7 @@ export function Postfx() {
     (lens.uniforms.get('uOrchid')?.value as THREE.Vector3).set(ar, ag, ab);
     (lens.uniforms.get('uOrchidAbyss')?.value as THREE.Vector3).set(abr, abg, abb);
     (lens.uniforms.get('uOrchidHot')?.value as THREE.Vector3).set(hr, hg, hb);
-  }, []);
+  }, [profile.lensMode]);
 
   useEffect(() => {
     return () => {

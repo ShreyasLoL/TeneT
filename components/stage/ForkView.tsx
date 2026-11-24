@@ -23,10 +23,17 @@ export function ForkView() {
   const leftRef = useRef<HTMLAnchorElement>(null);
   const rightRef = useRef<HTMLAnchorElement>(null);
   const divingRef = useRef(false);
+  const diveTweenRef = useRef<gsap.core.Tween | null>(null);
+  const diveReleaseRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     setDensity(0.1);
     return () => {
+      diveTweenRef.current?.kill();
+      diveTweenRef.current = null;
+      diveReleaseRef.current?.();
+      diveReleaseRef.current = null;
+      divingRef.current = false;
       rig.doorHover = 0;
       rig.cameraOverride.active = false;
     };
@@ -59,6 +66,7 @@ export function ForkView() {
     const door = side === 'left' ? left : right;
     const durationSec = Math.max(0.35, readMotionTokens().sceneMs / 1000);
     const release = acquireFrames('fork-dive');
+    diveReleaseRef.current = release;
 
     rig.cameraOverride.active = true;
     rig.cameraOverride.px = 0;
@@ -70,7 +78,7 @@ export function ForkView() {
     rig.cameraOverride.fov = 44;
 
     let pushed = false;
-    gsap.to(rig.cameraOverride, {
+    diveTweenRef.current = gsap.to(rig.cameraOverride, {
       px: door.x,
       py: door.y,
       pz: 0.9,
@@ -87,7 +95,11 @@ export function ForkView() {
         if (!pushed) router.push(href);
         rig.cameraOverride.active = false;
         divingRef.current = false;
-        release();
+        diveTweenRef.current = null;
+        if (diveReleaseRef.current) {
+          diveReleaseRef.current();
+          diveReleaseRef.current = null;
+        }
       },
     });
   };

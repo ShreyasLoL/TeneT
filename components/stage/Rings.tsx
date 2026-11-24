@@ -222,6 +222,9 @@ export function Rings() {
   }, [camera, gl.domElement, mode, rings, select, setCursor]);
 
   useFrame((_state, delta) => {
+    if (meshRef.current) {
+      meshRef.current.visible = mode !== 'fork' && rig.introProgress > 0.72;
+    }
     const mat = matRef.current;
     if (!mat) return;
     const dt = Math.min(delta, 1 / 20);
@@ -244,7 +247,7 @@ export function Rings() {
       ref={meshRef}
       args={[geometry, undefined, MAX_INSTANCES]}
       frustumCulled={false}
-      visible={mode !== 'fork' && rig.introProgress > 0.72}
+      visible={false}
     >
       <shaderMaterial
         ref={matRef}

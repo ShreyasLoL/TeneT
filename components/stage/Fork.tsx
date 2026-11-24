@@ -17,6 +17,7 @@ export function Fork() {
   const liveScore = useTenetStore((s) => s.livePreview.score);
 
   const layout = useMemo(() => forkLayout(), []);
+  const groupRef = useRef<THREE.Group | null>(null);
   const leftMatRef = useRef<THREE.ShaderMaterial | null>(null);
   const rightMatRef = useRef<THREE.ShaderMaterial | null>(null);
 
@@ -58,6 +59,9 @@ export function Fork() {
 
   useFrame((frameState, delta) => {
     const dt = Math.min(delta, 1 / 20);
+    if (groupRef.current) {
+      groupRef.current.visible = rig.introProgress >= 0.72;
+    }
     const lm = leftMatRef.current;
     const rm = rightMatRef.current;
     if (!lm || !rm) return;
@@ -85,10 +89,10 @@ export function Fork() {
     rm.uniforms.uSealed.value = tonightSealed ? 1 : 0;
   });
 
-  if (mode !== 'fork' || rig.introProgress < 0.72) return null;
+  if (mode !== 'fork') return null;
 
   return (
-    <group>
+    <group ref={groupRef} visible={false}>
       <mesh position={[layout.left.x, layout.left.y, 0.4]}>
         <planeGeometry args={[layout.left.width, layout.left.height]} />
         <shaderMaterial
