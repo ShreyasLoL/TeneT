@@ -4,10 +4,6 @@ import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/reac
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
-import { PerfOverlay } from '@/components/dev/PerfOverlay';
-import { RecapOverlay } from '@/components/ritual/RecapOverlay';
-import { triggerTurnstile } from '@/components/stage/Turnstile';
-import { isFixtureMode } from '@/lib/api/fixtures';
 import { useToday } from '@/lib/api/hooks';
 import { COPY } from '@/lib/copy';
 import { modeForPathname, useTenetStore } from '@/lib/store';
@@ -16,6 +12,16 @@ const LazyCommandPalette = dynamic(() => import('@/components/chrome/CommandPale
   ssr: false,
   loading: () => null,
 });
+
+const LazyRecapOverlay = dynamic(
+  () => import('@/components/ritual/RecapOverlay').then((m) => ({ default: m.RecapOverlay })),
+  { ssr: false, loading: () => null },
+);
+
+const LazyPerfOverlay = dynamic(
+  () => import('@/components/dev/PerfOverlay').then((m) => ({ default: m.PerfOverlay })),
+  { ssr: false, loading: () => null },
+);
 
 function RuntimeEffects() {
   const pathname = usePathname();
@@ -31,7 +37,9 @@ function RuntimeEffects() {
   const prevDayRef = useRef(today);
 
   useEffect(() => {
-    isFixtureMode();
+    if (process.env.NODE_ENV !== 'production') {
+      void import('@/lib/api/fixtures').then((m) => m.isFixtureMode());
+    }
   }, [pathname]);
 
   useEffect(() => {
@@ -43,7 +51,9 @@ function RuntimeEffects() {
       prevDayRef.current = today;
       setCursor(today);
       setRolloverNotice(COPY.status.rolloverNotice);
-      triggerTurnstile(useTenetStore.getState().quality.reducedMotion);
+      void import('@/components/stage/Turnstile').then((m) =>
+        m.triggerTurnstile(useTenetStore.getState().quality.reducedMotion),
+      );
       void queryClient.invalidateQueries({ queryKey: ['tenet'] });
     }
   }, [queryClient, setCursor, setRolloverNotice, today]);
@@ -72,6 +82,7 @@ function RuntimeEffects() {
 
 export function Providers({ children }: { children: ReactNode }) {
   const paletteOpen = useTenetStore((s) => s.paletteOpen);
+  const hasRecap = useTenetStore((s) => s.recap !== null);
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -88,9 +99,9 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <Suspense fallback={null}>
         <RuntimeEffects />
-        <RecapOverlay />
+        {hasRecap ? <LazyRecapOverlay /> : null}
         {paletteOpen ? <LazyCommandPalette /> : null}
-        {process.env.NODE_ENV !== 'production' ? <PerfOverlay /> : null}
+        {process.env.NODE_ENV !== 'production' ? <LazyPerfOverlay /> : null}
       </Suspense>
       {children}
     </QueryClientProvider>

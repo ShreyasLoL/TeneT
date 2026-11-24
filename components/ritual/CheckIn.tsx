@@ -15,6 +15,7 @@ import { evaluateDay, nightScore } from '@/lib/domain/score';
 import type { DayKey } from '@/lib/domain/types';
 import { useTenetStore } from '@/lib/store';
 import { LiveScore } from './LiveScore';
+import { Pull } from './Pull';
 import { Reflection } from './Reflection';
 import { SealControl } from './SealControl';
 import { TrackableRow, type RowSaveState } from './TrackableRow';
@@ -291,6 +292,16 @@ function CheckInForm({ today }: { today: DayKey }) {
           </section>
         ))}
       </div>
+
+      <Pull
+        day={today}
+        active={activeApi}
+        entries={mergedEntries}
+        days={data.days}
+        liveScore={sealedToday ? sealedToday.score : liveScore}
+        isSealed={Boolean(sealedToday)}
+        defaultExpanded={false}
+      />
 
       <Reflection
         value={sealedToday ? (sealedToday.reflection ?? '') : reflection}

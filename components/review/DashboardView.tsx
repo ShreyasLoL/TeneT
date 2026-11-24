@@ -8,10 +8,12 @@ import { SatorGlyph } from '@/components/chrome/SatorGlyph';
 import { Scrim } from '@/components/chrome/Scrim';
 import { Ledger } from '@/components/review/Ledger';
 import { NightPanel } from '@/components/review/NightPanel';
+import { Pull } from '@/components/ritual/Pull';
 import { StaticOrbit } from '@/components/stage/StaticOrbit';
 import { Button } from '@/components/ui/button';
 import { useLivePreview, useStreaks, useTenetState, useToday } from '@/lib/api/hooks';
 import { COPY } from '@/lib/copy';
+import { activeTrackables } from '@/lib/domain/schedule';
 import { useTenetStore } from '@/lib/store';
 import { useSmoothScroll } from '@/lib/viz/useSmoothScroll';
 
@@ -44,6 +46,22 @@ export function DashboardView() {
     () => data?.days.find((d) => d.day === selectedDay) ?? null,
     [data?.days, selectedDay],
   );
+
+  const sealedToday = useMemo(
+    () => data?.days.find((d) => d.day === today) ?? null,
+    [data?.days, today],
+  );
+
+  const activeTodayApi = useMemo(() => {
+    if (!data) return [];
+    const active = activeTrackables(data.definitions.trackables, today);
+    const byKeyVersion = new Map(
+      data.definitions.trackables.map((t) => [`${t.key}@${t.version}`, t] as const),
+    );
+    return active
+      .map((t) => byKeyVersion.get(`${t.key}@${t.version}`))
+      .filter((t): t is NonNullable<typeof t> => t !== undefined);
+  }, [data, today]);
 
   if (isLoading) return <LoadingFallback />;
 
@@ -178,6 +196,16 @@ export function DashboardView() {
           </div>
         </div>
       )}
+
+      <Pull
+        day={today}
+        active={activeTodayApi}
+        entries={preview.entriesMap}
+        days={data.days}
+        liveScore={sealedToday ? sealedToday.score : preview.score}
+        isSealed={Boolean(sealedToday)}
+        defaultExpanded
+      />
     </main>
   );
 }
