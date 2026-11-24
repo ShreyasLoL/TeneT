@@ -13,6 +13,47 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    files: ["lib/domain/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "react",
+                "react/*",
+                "react-dom",
+                "react-dom/*",
+                "next",
+                "next/*",
+                "drizzle-orm",
+                "drizzle-orm/*",
+                "node:*",
+                "fs",
+                "path",
+                "pg",
+                "@neondatabase/*",
+                "@/lib/db*",
+                "@/components/*",
+                "@/app/*",
+                "zustand",
+                "@tanstack/*",
+                "three",
+                "@react-three/*",
+                "gsap",
+                "motion",
+                "lenis",
+              ],
+              message:
+                "lib/domain/ must remain pure TypeScript (no React, Next, DB, UI, or I/O).",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;
