@@ -7,6 +7,8 @@ import { addDays, isoWeekday, weekStart } from '@/lib/domain/day';
 import { valueSchema } from '@/lib/domain/primitives';
 import { effectiveRule } from '@/lib/domain/rules';
 import type { DayKey, DueStatus, SatisfiedOn } from '@/lib/domain/types';
+import { WorkoutLens } from '@/components/lenses/workout';
+import { lensFor } from '@/lib/viz/lens';
 import { ruleLabel } from '@/lib/viz/ruleLabel';
 import { ChoiceSet } from './controls/ChoiceSet';
 import { DurationDial } from './controls/DurationDial';
@@ -167,6 +169,16 @@ export function TrackableRow({
           />
         );
       case 'log':
+        if (lensFor(trackable) === 'workout') {
+          return (
+            <WorkoutLens
+              trackable={trackable}
+              value={value}
+              disabled={disabled}
+              onChange={(rows) => handleUpdate(rows)}
+            />
+          );
+        }
         return (
           <p className="font-mono text-xs text-text-dim tabular-nums">
             {Array.isArray(value) ? `${value.length} rows` : '0 rows'}

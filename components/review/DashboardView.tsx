@@ -13,8 +13,10 @@ import { Button } from '@/components/ui/button';
 import { useLivePreview, useStreaks, useTenetState, useToday } from '@/lib/api/hooks';
 import { COPY } from '@/lib/copy';
 import { useTenetStore } from '@/lib/store';
+import { useSmoothScroll } from '@/lib/viz/useSmoothScroll';
 
 export function DashboardView() {
+  useSmoothScroll();
   const today = useToday();
   const { data, isLoading, isError } = useTenetState();
   const streaks = useStreaks();

@@ -1,6 +1,7 @@
 'use client';
 
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { PerfOverlay } from '@/components/dev/PerfOverlay';
@@ -10,6 +11,11 @@ import { isFixtureMode } from '@/lib/api/fixtures';
 import { useToday } from '@/lib/api/hooks';
 import { COPY } from '@/lib/copy';
 import { modeForPathname, useTenetStore } from '@/lib/store';
+
+const LazyCommandPalette = dynamic(() => import('@/components/chrome/CommandPalette'), {
+  ssr: false,
+  loading: () => null,
+});
 
 function RuntimeEffects() {
   const pathname = usePathname();
@@ -65,6 +71,7 @@ function RuntimeEffects() {
 }
 
 export function Providers({ children }: { children: ReactNode }) {
+  const paletteOpen = useTenetStore((s) => s.paletteOpen);
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -82,6 +89,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <Suspense fallback={null}>
         <RuntimeEffects />
         <RecapOverlay />
+        {paletteOpen ? <LazyCommandPalette /> : null}
         {process.env.NODE_ENV !== 'production' ? <PerfOverlay /> : null}
       </Suspense>
       {children}

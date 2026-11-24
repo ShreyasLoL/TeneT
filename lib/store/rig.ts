@@ -54,3 +54,19 @@ export const rig = {
   isSoftwareRenderer: false,
   injectedFrameMs: 0,
 };
+
+export function setRigScrub(velocity: number, dir: number, pulse?: number) {
+  rig.cursorVelocity = velocity;
+  rig.uDir = dir;
+  if (pulse !== undefined) {
+    rig.turnstilePulse = pulse;
+  }
+}
+
+export function setRigTurnstilePulse(pulse: number) {
+  rig.turnstilePulse = pulse;
+}
+
+export function clearRigCursorVelocity() {
+  rig.cursorVelocity = 0;
+}
