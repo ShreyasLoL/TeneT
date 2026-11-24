@@ -54,4 +54,5 @@ skills-lock.json
 # local docs & task briefs
 /*.md
 !/README.md
+!/TODO.md
 /Tasks/
