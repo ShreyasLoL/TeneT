@@ -162,26 +162,28 @@ export function DashboardView() {
                 onSelectDay={(day) => select({ kind: 'ring', day })}
               />
             ) : (
-              <div className="flex min-h-[420px] flex-col justify-between rounded-xl border border-line/50 p-5">
-                <div className="flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.12em] text-text-faint">
-                  <span>live orbital stage</span>
-                  <span>click ring or pick below</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5 pt-4">
-                  {data.days.slice(-14).reverse().map((d) => (
-                    <button
-                      key={d.day}
-                      type="button"
-                      onClick={() => select({ kind: 'ring', day: d.day })}
-                      className={`min-h-9 rounded border px-2 font-mono text-[11px] tabular-nums transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] ${
-                        selectedDay === d.day
-                          ? 'border-accent text-accent'
-                          : 'border-line bg-bg/70 text-text-dim hover:text-text'
-                      }`}
-                    >
-                      {d.day.slice(5)}
-                    </button>
-                  ))}
+              <div className="flex min-h-[420px] flex-col justify-end rounded-xl border border-line/50 p-5">
+                <div className="space-y-2.5 pt-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint sm:text-[11px]">
+                    <span>live orbital stage</span>
+                    <span>click ring or pick night</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {data.days.slice(-14).reverse().map((d) => (
+                      <button
+                        key={d.day}
+                        type="button"
+                        onClick={() => select({ kind: 'ring', day: d.day })}
+                        className={`min-h-9 rounded border px-2 font-mono text-[11px] tabular-nums transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] ${
+                          selectedDay === d.day
+                            ? 'border-accent text-accent'
+                            : 'border-line bg-bg/70 text-text-dim hover:text-text'
+                        }`}
+                      >
+                        {d.day.slice(5)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
