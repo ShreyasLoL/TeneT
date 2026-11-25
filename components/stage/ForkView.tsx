@@ -36,25 +36,17 @@ export function ForkView() {
 
   return (
     <main
-      className={`flex flex-1 flex-col items-center justify-between px-4 py-8 transition-opacity duration-[var(--duration-scene)] ease-[var(--ease-out)] sm:px-8 sm:py-12 ${
-        diving ? 'pointer-events-none opacity-0' : 'opacity-100'
-      }`}
-    >
-      <div
-        className={`mt-4 text-center transition-opacity duration-[var(--duration-scene)] ease-[var(--ease-out)] ${
-          showChrome ? 'opacity-100' : 'pointer-events-none opacity-0'
+      className={`flex flex-1 flex-col items-center justify-between px-4 py-8 transition-opacity duration-[var(--duration-scene)] ease-[var(--ease-out)] sm:px-8 sm:py-12 ${diving ? 'pointer-events-none opacity-0' : 'opacity-100'
         }`}
-      >
-        <h1 className="font-display select-none text-[clamp(3.25rem,9vw,7.25rem)] font-medium leading-none tracking-[var(--tracking-display)] text-text">
-          {COPY.brand}
-        </h1>
+    >
+      <div className="sr-only">
+        <h1>{COPY.brand}</h1>
       </div>
 
       <Scrim
         direction="radial"
-        className={`mt-auto w-full max-w-5xl py-4 transition-opacity duration-[var(--duration-scene)] ease-[var(--ease-out)] sm:mt-0 ${
-          showChrome ? 'opacity-100' : 'pointer-events-none opacity-0'
-        }`}
+        className={`mt-auto w-full max-w-5xl py-4 transition-opacity duration-[var(--duration-scene)] ease-[var(--ease-out)] sm:mt-0 ${showChrome ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
       >
         <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-20 lg:gap-48">
           <Link
@@ -74,11 +66,10 @@ export function ForkView() {
               rig.doorHover = 0;
             }}
             onKeyDown={(e) => onDoorKeyDown('left', e)}
-            className={`group flex min-h-40 flex-col items-center justify-between rounded-t-full border px-4 py-6 text-center transition-[border-color,color,transform] duration-[var(--duration-ui)] ease-[var(--ease-out)] active:scale-[0.98] sm:min-h-52 sm:p-8 ${
-              tonightSealed
-                ? 'border-accent/65 bg-surface/65 text-text'
-                : 'border-line bg-surface/40 text-text-dim hover:border-text-dim hover:text-text'
-            }`}
+            className={`group flex min-h-40 flex-col items-center justify-between rounded-t-full border px-4 py-6 text-center transition-[border-color,color,transform] duration-[var(--duration-ui)] ease-[var(--ease-out)] active:scale-[0.98] sm:min-h-52 sm:p-8 ${tonightSealed
+              ? 'border-accent/65 bg-surface/65 text-text'
+              : 'border-line bg-surface/40 text-text-dim hover:border-text-dim hover:text-text'
+              }`}
           >
             <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-text-faint sm:text-[11px]">
               retrograde
@@ -108,11 +99,10 @@ export function ForkView() {
               rig.doorHover = 0;
             }}
             onKeyDown={(e) => onDoorKeyDown('right', e)}
-            className={`group flex min-h-40 flex-col items-center justify-between rounded-t-full border px-4 py-6 text-center transition-[border-color,color,transform] duration-[var(--duration-ui)] ease-[var(--ease-out)] active:scale-[0.98] sm:min-h-52 sm:p-8 ${
-              tonightSealed
-                ? 'border-line bg-surface/25 text-text-dim'
-                : 'border-accent/70 bg-surface/60 text-text hover:border-accent'
-            }`}
+            className={`group flex min-h-40 flex-col items-center justify-between rounded-t-full border px-4 py-6 text-center transition-[border-color,color,transform] duration-[var(--duration-ui)] ease-[var(--ease-out)] active:scale-[0.98] sm:min-h-52 sm:p-8 ${tonightSealed
+              ? 'border-line bg-surface/25 text-text-dim'
+              : 'border-accent/70 bg-surface/60 text-text hover:border-accent'
+              }`}
           >
             <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-accent sm:text-[11px]">
               prograde
