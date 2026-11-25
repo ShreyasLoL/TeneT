@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import type { Rule } from '@/lib/domain/types';
 import { DrivenSpring } from '@/lib/stage/spring';
 import { useTenetStore } from '@/lib/store';
@@ -17,6 +17,7 @@ const MAX_DIAL_MINUTES = 360;
 const DIAL_SIZE = 104;
 const DIAL_CENTER = DIAL_SIZE / 2;
 const DIAL_RADIUS = 38;
+const DIAL_CIRC = 2 * Math.PI * DIAL_RADIUS;
 
 function polarPoint(angleRad: number, radius: number) {
   return {
@@ -38,20 +39,32 @@ export const DurationDial = memo(function DurationDial({
 }: DurationDialProps) {
   const reducedMotion = useTenetStore((s) => s.quality.reducedMotion);
   const svgRef = useRef<SVGSVGElement>(null);
+  const arcRef = useRef<SVGCircleElement>(null);
+  const thumbRef = useRef<SVGCircleElement>(null);
   const draggingRef = useRef(false);
 
   const current = typeof value === 'number' && Number.isFinite(value) ? clampMinutes(value) : 0;
   const hasValue = typeof value === 'number';
   const targetFrac = Math.min(1, current / MAX_DIAL_MINUTES);
-
-  const [displayFrac, setDisplayFrac] = useState(targetFrac);
   const springRef = useRef<DrivenSpring | null>(null);
 
   useEffect(() => {
-    const spring = new DrivenSpring(targetFrac, 24, (v) => {
-      setDisplayFrac(Math.min(1, Math.max(0, v)));
-    });
+    const applyVisual = (rawFrac: number) => {
+      const clamped = Math.min(1, Math.max(0, rawFrac));
+      const arcLength = clamped * DIAL_CIRC;
+      if (arcRef.current) {
+        arcRef.current.setAttribute('stroke-dasharray', `${arcLength.toFixed(2)} ${DIAL_CIRC.toFixed(2)}`);
+      }
+      if (thumbRef.current) {
+        const pt = polarPoint(clamped * Math.PI * 2 - Math.PI / 2, DIAL_RADIUS);
+        thumbRef.current.setAttribute('cx', pt.x.toFixed(2));
+        thumbRef.current.setAttribute('cy', pt.y.toFixed(2));
+      }
+    };
+
+    const spring = new DrivenSpring(targetFrac, 24, applyVisual);
     springRef.current = spring;
+    applyVisual(targetFrac);
     return () => {
       spring.stop();
       springRef.current = null;
@@ -77,13 +90,10 @@ export const DurationDial = memo(function DurationDial({
   const thresholdFrac =
     thresholdValue !== null ? Math.min(1, Math.max(0, thresholdValue / MAX_DIAL_MINUTES)) : null;
 
-  const circumference = 2 * Math.PI * DIAL_RADIUS;
-  const arcLength = displayFrac * circumference;
   const thresholdAngle = thresholdFrac !== null ? thresholdFrac * Math.PI * 2 - Math.PI / 2 : null;
   const thresholdPt =
     thresholdAngle !== null ? polarPoint(thresholdAngle, DIAL_RADIUS) : null;
-  const thumbAngle = displayFrac * Math.PI * 2 - Math.PI / 2;
-  const thumbPt = polarPoint(thumbAngle, DIAL_RADIUS);
+  const initialThumbPt = polarPoint(targetFrac * Math.PI * 2 - Math.PI / 2, DIAL_RADIUS);
 
   const updateFromPointer = (clientX: number, clientY: number) => {
     if (disabled || !svgRef.current) return;
@@ -148,9 +158,8 @@ export const DurationDial = memo(function DurationDial({
         onPointerCancel={() => {
           draggingRef.current = false;
         }}
-        className={`size-20 shrink-0 touch-none select-none rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-24 ${
-          disabled ? 'opacity-45' : 'cursor-pointer'
-        }`}
+        className={`size-20 shrink-0 touch-none select-none rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-24 ${disabled ? 'opacity-45' : 'cursor-pointer'
+          }`}
       >
         <circle
           cx={DIAL_CENTER}
@@ -162,6 +171,7 @@ export const DurationDial = memo(function DurationDial({
         />
 
         <circle
+          ref={arcRef}
           cx={DIAL_CENTER}
           cy={DIAL_CENTER}
           r={DIAL_RADIUS}
@@ -169,7 +179,7 @@ export const DurationDial = memo(function DurationDial({
           stroke="var(--accent)"
           strokeOpacity={hasValue ? 0.9 : 0.3}
           strokeWidth={4}
-          strokeDasharray={`${arcLength.toFixed(2)} ${circumference.toFixed(2)}`}
+          strokeDasharray={`${(targetFrac * DIAL_CIRC).toFixed(2)} ${DIAL_CIRC.toFixed(2)}`}
           transform={`rotate(-90 ${DIAL_CENTER} ${DIAL_CENTER})`}
         />
 
@@ -184,7 +194,7 @@ export const DurationDial = memo(function DurationDial({
           />
         ) : null}
 
-        <circle cx={thumbPt.x} cy={thumbPt.y} r={3.5} fill="var(--accent)" />
+        <circle ref={thumbRef} cx={initialThumbPt.x} cy={initialThumbPt.y} r={3.5} fill="var(--accent)" />
 
         <text
           x={DIAL_CENTER}
@@ -225,11 +235,10 @@ export const DurationDial = memo(function DurationDial({
               type="button"
               disabled={disabled}
               onClick={() => onChange(mins)}
-              className={`min-h-9 rounded border px-2 font-mono text-[11px] tabular-nums transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] ${
-                hasValue && current === mins
-                  ? 'border-accent text-accent'
-                  : 'border-line text-text-dim hover:border-text-dim hover:text-text'
-              }`}
+              className={`min-h-9 rounded border px-2 font-mono text-[11px] tabular-nums transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] ${hasValue && current === mins
+                ? 'border-accent text-accent'
+                : 'border-line text-text-dim hover:border-text-dim hover:text-text'
+                }`}
             >
               {mins}
             </button>

@@ -16,7 +16,7 @@ export function Mirror({
       <div
         aria-hidden="true"
         inert={true}
-        className="pointer-events-none -mt-1 max-h-[0.65em] select-none overflow-hidden leading-none opacity-[0.18] blur-[1.5px]"
+        className="pointer-events-none -mt-1 max-h-[0.65em] select-none overflow-hidden leading-none opacity-[0.16]"
         style={{
           transform: 'scaleY(-1)',
           maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.88), transparent 68%)',

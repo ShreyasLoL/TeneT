@@ -2,6 +2,7 @@
 
 import { Canvas } from '@react-three/fiber';
 import { useEffect } from 'react';
+import { stageClock } from '@/lib/stage/clock';
 import { LADDER_PROFILES, type QualityLevel } from '@/lib/stage/tiers';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
@@ -19,10 +20,10 @@ export default function StageCanvas() {
   return (
     <Canvas
       dpr={[1, profile.dprMax]}
-      frameloop="demand"
+      frameloop="never"
       camera={{ position: [0, 0.3, 11.4], fov: 44, near: 0.1, far: 120 }}
       gl={{ antialias: false, powerPreference: 'high-performance' }}
-      onCreated={({ gl, invalidate }) => {
+      onCreated={({ gl, advance }) => {
         const bg = getComputedStyle(document.documentElement)
           .getPropertyValue('--bg')
           .trim();
@@ -35,11 +36,11 @@ export default function StageCanvas() {
         };
         const onRestored = () => {
           setQuality({ webgl: 'ok' });
-          invalidate();
+          advance(stageClock.getElapsedSec());
         };
         canvas.addEventListener('webglcontextlost', onLost, false);
         canvas.addEventListener('webglcontextrestored', onRestored, false);
-        invalidate();
+        advance(stageClock.getElapsedSec());
       }}
     >
       <Scene />

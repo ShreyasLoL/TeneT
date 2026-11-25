@@ -58,10 +58,12 @@ export function Fork() {
   }, [layout.right.flowDir]);
 
   useFrame((_state, delta) => {
+    const group = groupRef.current;
+    const isVisible = mode === 'fork' && rig.introProgress >= 0.72;
+    if (group) group.visible = isVisible;
+    if (!isVisible) return;
+
     const dt = Math.min(delta, 1 / 20);
-    if (groupRef.current) {
-      groupRef.current.visible = rig.introProgress >= 0.72;
-    }
     const lm = leftMatRef.current;
     const rm = rightMatRef.current;
     if (!lm || !rm) return;
@@ -89,11 +91,10 @@ export function Fork() {
     rm.uniforms.uSealed.value = tonightSealed ? 1 : 0;
   });
 
-  if (mode !== 'fork') return null;
-
+  // Keep arches mounted with frustumCulled={false} so gl.compileAsync warms shaders once at startup
   return (
     <group ref={groupRef} visible={false}>
-      <mesh position={[layout.left.x, layout.left.y, 0.4]}>
+      <mesh position={[layout.left.x, layout.left.y, 0.4]} frustumCulled={false}>
         <planeGeometry args={[layout.left.width, layout.left.height]} />
         <shaderMaterial
           ref={leftMatRef}
@@ -105,7 +106,7 @@ export function Fork() {
           fragmentShader={doorFragmentShader}
         />
       </mesh>
-      <mesh position={[layout.right.x, layout.right.y, 0.4]}>
+      <mesh position={[layout.right.x, layout.right.y, 0.4]} frustumCulled={false}>
         <planeGeometry args={[layout.right.width, layout.right.height]} />
         <shaderMaterial
           ref={rightMatRef}

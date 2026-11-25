@@ -47,7 +47,7 @@ export const SealControl = memo(function SealControl({
 
   if (isSealed) {
     return (
-      <section className="flex min-h-44 flex-col items-center justify-center rounded-xl border border-accent/45 bg-surface p-6 text-center">
+      <section className="flex min-h-52 flex-col items-center justify-center rounded-xl border border-accent/45 bg-surface p-6 text-center">
         <p className="font-mono text-xs uppercase tracking-[0.16em] text-accent">
           {COPY.doors.sealed}
         </p>
@@ -58,14 +58,12 @@ export const SealControl = memo(function SealControl({
   return (
     <section
       aria-label="Seal tonight"
-      className="rounded-xl border border-line bg-surface p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+      className="flex min-h-52 flex-col items-center justify-center rounded-xl border border-line bg-surface p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
     >
-      <div className="flex flex-col items-center gap-4 text-center">
-        {unloggedRequiredCount > 0 ? (
-          <p className="font-mono text-xs text-status-warning tabular-nums">
-            {unloggedRequiredCount} unlogged count as missed.
-          </p>
-        ) : null}
+      <div className="flex flex-col items-center gap-3 text-center">
+        <p className="min-h-5 font-mono text-xs text-status-warning tabular-nums">
+          {unloggedRequiredCount > 0 ? `${unloggedRequiredCount} unlogged count as missed.` : '\u00A0'}
+        </p>
 
         {reducedMotion && confirmOpen ? (
           <div className="space-y-3">

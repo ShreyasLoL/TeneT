@@ -76,7 +76,7 @@ function getEffortServerSnapshot(): Readonly<Record<string, number>> {
 }
 
 function subscribeEffort(cb: () => void) {
-  if (typeof window === 'undefined') return () => {};
+  if (typeof window === 'undefined') return () => { };
   const onStorage = (e: StorageEvent) => {
     if (e.key === null || e.key === EFFORT_STORAGE_KEY) cb();
   };
@@ -182,14 +182,16 @@ export const Pull = memo(function Pull({
       aria-label="pull guidance"
       className="rounded-xl border border-line bg-surface px-5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-baseline gap-3">
-          <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-baseline gap-3">
+          <span className="shrink-0 font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
             pull
           </span>
-          <span className="font-mono text-xs text-text-dim tabular-nums">{primarySummary}</span>
+          <span className="min-w-0 truncate font-mono text-xs text-text-dim tabular-nums">
+            {primarySummary}
+          </span>
           {risk.atRisk ? (
-            <span className="font-mono text-[11px] text-status-warning">
+            <span className="hidden shrink-0 font-mono text-[11px] text-status-warning sm:inline">
               streak {risk.current} at risk until sealed
             </span>
           ) : null}
@@ -199,7 +201,7 @@ export const Pull = memo(function Pull({
           type="button"
           aria-expanded={expanded}
           onClick={() => setExpanded((v) => !v)}
-          className="inline-flex min-h-9 items-center border border-line px-3 font-mono text-[11px] uppercase tracking-[0.12em] text-text-dim transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:text-text"
+          className="inline-flex min-h-9 shrink-0 items-center border border-line px-3 font-mono text-[11px] uppercase tracking-[0.12em] text-text-dim transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:text-text"
         >
           {expanded ? 'collapse' : 'inspect pull'}
         </button>

@@ -52,7 +52,10 @@ export function Disk() {
     const mat = matRef.current;
     const mesh = meshRef.current;
     if (!mat || !mesh) return;
-    mesh.visible = showDisk || rig.recapBeat > 0;
+    const isVisible = showDisk || rig.recapBeat > 0;
+    mesh.visible = isVisible;
+    if (!isVisible) return;
+
     const dt = Math.min(delta, 1 / 20);
     const targetHeat = showDisk ? (liveScore === null ? 0.16 : 0.25 + (liveScore / 100) * 0.75) : 0;
 
@@ -74,6 +77,7 @@ export function Disk() {
     <mesh
       ref={meshRef}
       rotation={[-Math.PI / 2, 0, 0]}
+      frustumCulled={false}
       visible={showDisk}
     >
       <planeGeometry args={[4.1, 4.1, 1, 1]} />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import { acquireFrames } from '@/lib/stage/activity';
 import { stageClock } from '@/lib/stage/clock';
 import type { QualityState } from '@/lib/store';
@@ -121,7 +121,7 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
 
       const { left, right } = forkLayout();
       const door = side === 'left' ? left : right;
-      const durationSec = Math.max(0.35, readMotionTokens().sceneMs / 1000);
+      const durationSec = Math.min(0.48, Math.max(0.35, (readMotionTokens().sceneMs / 1000) * 0.55));
       diveReleaseRef.current?.();
       diveReleaseRef.current = acquireFrames('fork-dive');
 
@@ -145,13 +145,15 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
         duration: durationSec,
         ease: 'expo.out',
         onUpdate: function () {
-          if (!pushed && divingRef.current && this.progress() >= 0.58) {
+          if (!pushed && divingRef.current && this.progress() >= 0.85) {
             pushed = true;
-            router.push(href);
+            startTransition(() => router.push(href));
           }
         },
         onComplete: () => {
-          if (!pushed && divingRef.current) router.push(href);
+          if (!pushed && divingRef.current) {
+            startTransition(() => router.push(href));
+          }
           rig.cameraOverride.active = false;
           divingRef.current = false;
           diveTweenRef.current = null;

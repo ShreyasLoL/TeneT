@@ -4,6 +4,8 @@ import type { buildCohortMap } from '@/lib/viz/cohorts';
 
 export const MAX_PARTICLES = 200_000;
 const WORDMARK_COUNT = 6_000;
+const R_IN = 2.05;
+const R_OUT = 9.4;
 
 type CohortMap = ReturnType<typeof buildCohortMap>;
 
@@ -33,44 +35,53 @@ export function createCohortTexture(): DataTexture {
   return tex;
 }
 
-export function buildStaticParticleBuffers(): {
-  positions: Float32Array;
-  seeds: Float32Array;
+/**
+ * Builds static particle attributes sized to `capacity` (avoiding 10MB 200k allocations at L1).
+ * `position` stores symmetric wordmark targets directly; `aSeed.x` stores precomputed orbital `aBase`.
+ */
+export function buildStaticParticleBuffers(capacity: number): {
   targets: Float32Array;
+  seeds: Float32Array;
 } {
+  const count = Math.min(MAX_PARTICLES, Math.max(1, capacity));
   const rng = mulberry32(99173);
-  const positions = new Float32Array(MAX_PARTICLES * 3);
-  const seeds = new Float32Array(MAX_PARTICLES * 4);
-  const targets = new Float32Array(MAX_PARTICLES * 3);
-  const wordmark = buildWordmarkTargets(WORDMARK_COUNT, 7);
+  const targets = new Float32Array(count * 3);
+  const seeds = new Float32Array(count * 4);
+  const wordmark = buildWordmarkTargets(Math.min(WORDMARK_COUNT, count), 7);
+  const wordLen = Math.floor(wordmark.length / 3);
 
-  for (let i = 0; i < MAX_PARTICLES; i++) {
-    seeds[i * 4] = rng();
+  for (let i = 0; i < count; i++) {
+    const r = rng();
+    // Precompute Keplerian semi-major axis so the vertex shader skips `pow(r, 1.6)` per frame
+    seeds[i * 4] = R_IN + (R_OUT - R_IN) * Math.pow(r, 1.6);
     seeds[i * 4 + 1] = rng();
     seeds[i * 4 + 2] = rng();
     seeds[i * 4 + 3] = rng();
 
-    if (i < WORDMARK_COUNT) {
+    if (i < wordLen) {
       targets[i * 3] = wordmark[i * 3];
       targets[i * 3 + 1] = wordmark[i * 3 + 1];
       targets[i * 3 + 2] = wordmark[i * 3 + 2];
     }
   }
 
-  return { positions, seeds, targets };
+  return { targets, seeds };
 }
 
-export function buildCohortParticleBuffers(cohortMap: CohortMap | null): {
-  cohorts: Float32Array;
-  areas: Float32Array;
-} {
-  const cohorts = new Float32Array(MAX_PARTICLES);
-  const areas = new Float32Array(MAX_PARTICLES);
+/**
+ * Packs `(cohortSlot, areaIndex)` into a single vec2 attribute `aMeta` (-25% vertex fetch bandwidth).
+ */
+export function buildCohortParticleBuffers(
+  cohortMap: CohortMap | null,
+  capacity: number,
+): Float32Array {
+  const count = Math.min(MAX_PARTICLES, Math.max(1, capacity));
+  const meta = new Float32Array(count * 2);
   const slotCount = cohortMap?.slots.length || 3;
-  for (let i = 0; i < MAX_PARTICLES; i++) {
+  for (let i = 0; i < count; i++) {
     const slot = cohortMap?.slots[i % slotCount];
-    cohorts[i] = slot ? slot.slotIndex : i % 3;
-    areas[i] = slot ? slot.areaIndex % 3 : i % 3;
+    meta[i * 2] = slot ? slot.slotIndex : i % 3;
+    meta[i * 2 + 1] = slot ? slot.areaIndex % 3 : i % 3;
   }
-  return { cohorts, areas };
+  return meta;
 }

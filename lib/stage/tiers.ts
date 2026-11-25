@@ -25,7 +25,7 @@ export const LADDER_PROFILES: Record<QualityLevel, LadderProfile> = {
   1: {
     level: 1,
     particles: 60_000,
-    dprMax: 1.5,
+    dprMax: 1.25,
     bloom: true,
     mirror: false,
     grain: true,
@@ -35,7 +35,7 @@ export const LADDER_PROFILES: Record<QualityLevel, LadderProfile> = {
   2: {
     level: 2,
     particles: 60_000,
-    dprMax: 1.25,
+    dprMax: 1.15,
     bloom: false,
     mirror: false,
     grain: false,

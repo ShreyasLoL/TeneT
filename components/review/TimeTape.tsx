@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import type { ApiSealedDay } from '@/lib/api/types';
 import { addDays, diffDays } from '@/lib/domain/day';
 import type { DayKey } from '@/lib/domain/types';
@@ -19,6 +19,7 @@ type TimeTapeProps = {
 };
 
 const PX_PER_DAY = 18;
+const MAX_TICK_HEIGHT = 52;
 
 export const TimeTape = memo(function TimeTape({
   from,
@@ -36,13 +37,13 @@ export const TimeTape = memo(function TimeTape({
     releaseLease: (() => void) | null;
   } | null>(null);
 
+  const trackRef = useRef<HTMLDivElement>(null);
   const lastSignRef = useRef<number>(1);
   const pulseTimerRef = useRef<number | null>(null);
   const pendingDayRef = useRef<DayKey | null>(null);
   const flushUnsubRef = useRef<(() => void) | null>(null);
   const cursorRef = useRef<DayKey>(cursor);
-
-  const [rubberShiftPx, setRubberShiftPx] = useState(0);
+  const rubberNonZeroRef = useRef(false);
   const rubberSpringRef = useRef<DrivenSpring | null>(null);
 
   useEffect(() => {
@@ -51,7 +52,15 @@ export const TimeTape = memo(function TimeTape({
 
   useEffect(() => {
     const spring = new DrivenSpring(0, 22, (v) => {
-      setRubberShiftPx(Math.abs(v) < 0.2 ? 0 : v);
+      const el = trackRef.current;
+      if (!el) return;
+      if (Math.abs(v) < 0.2) {
+        rubberNonZeroRef.current = false;
+        el.style.transform = 'translate3d(0px, 0, 0)';
+      } else {
+        rubberNonZeroRef.current = true;
+        el.style.transform = `translate3d(${v.toFixed(1)}px, 0, 0)`;
+      }
     });
     rubberSpringRef.current = spring;
     return () => {
@@ -211,7 +220,7 @@ export const TimeTape = memo(function TimeTape({
             rubberSpringRef.current?.snap(rubberBand(diffDays(from, unclampedDay) * PX_PER_DAY, 64));
           } else if (unclampedDay > to) {
             rubberSpringRef.current?.snap(-rubberBand(diffDays(unclampedDay, to) * PX_PER_DAY, 64));
-          } else if (rubberShiftPx !== 0) {
+          } else if (rubberNonZeroRef.current) {
             rubberSpringRef.current?.snap(0);
           }
 
@@ -231,18 +240,12 @@ export const TimeTape = memo(function TimeTape({
           className="pointer-events-none absolute top-0 bottom-0 left-1/2 z-10 w-px -translate-x-1/2 bg-accent"
         />
 
-        <div
-          className="absolute inset-0 will-change-transform"
-          style={
-            rubberShiftPx !== 0
-              ? { transform: `translate3d(${rubberShiftPx.toFixed(1)}px, 0, 0)` }
-              : undefined
-          }
-        >
+        <div ref={trackRef} className="absolute inset-0 will-change-transform">
           {visibleTicks.map((tick) => {
             const height = tick.isVoid
               ? 14
               : Math.max(18, Math.round(18 + ((tick.score ?? 30) / 100) * 34));
+            const scaleY = height / MAX_TICK_HEIGHT;
             const isCurrent = tick.day === cursor;
             return (
               <button
@@ -252,10 +255,9 @@ export const TimeTape = memo(function TimeTape({
                 aria-label={tick.day}
                 onClick={() => moveTo(tick.day, true)}
                 style={{
-                  left: `calc(50% + ${tick.xPx.toFixed(1)}px)`,
-                  height: `${height}px`,
+                  transform: `translate3d(calc(-50% + ${tick.xPx.toFixed(1)}px), 0, 0) scaleY(${scaleY.toFixed(3)})`,
                 }}
-                className={`absolute bottom-3 w-1.5 -translate-x-1/2 rounded-full transition-[height,opacity] duration-[var(--duration-micro)] ease-[var(--ease-out)] ${
+                className={`absolute bottom-3 left-1/2 h-[52px] w-1.5 origin-bottom rounded-full transition-opacity duration-[var(--duration-micro)] ease-[var(--ease-out)] will-change-transform ${
                   isCurrent
                     ? 'bg-accent'
                     : tick.isVoid

@@ -120,9 +120,11 @@ export function Rings() {
   }, [camera, gl.domElement, mode, rings, select, setCursor]);
 
   useFrame((_state, delta) => {
-    if (meshRef.current) {
-      meshRef.current.visible = mode !== 'fork' && rig.introProgress > 0.72;
-    }
+    const mesh = meshRef.current;
+    const isVisible = mode !== 'fork' && rig.introProgress > 0.72;
+    if (mesh) mesh.visible = isVisible;
+    if (!isVisible) return;
+
     const mat = matRef.current;
     if (!mat) return;
     const dt = Math.min(delta, 1 / 20);
@@ -143,6 +145,7 @@ export function Rings() {
     <instancedMesh
       ref={meshRef}
       args={[geometry, undefined, MAX_RING_INSTANCES]}
+      frustumCulled={false}
       visible={false}
     >
       <shaderMaterial

@@ -27,7 +27,7 @@ const LazyPull = dynamic(() => import('./Pull').then((m) => m.Pull), {
 });
 
 const LazySealControl = dynamic(() => import('./SealControl').then((m) => m.SealControl), {
-  loading: () => <div className="min-h-48 rounded-xl border border-line bg-surface p-6" />,
+  loading: () => <div className="min-h-52 rounded-xl border border-line bg-surface p-6" />,
 });
 
 function CheckInForm({ today }: { today: DayKey }) {

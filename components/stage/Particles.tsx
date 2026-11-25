@@ -1,7 +1,7 @@
 'use client';
 
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AdditiveBlending,
   type BufferGeometry,
@@ -35,6 +35,15 @@ export function Particles() {
   const level = useTenetStore((s) => s.quality.level) as QualityLevel;
   const profile = profileForLevel(level, isTouchDevice());
 
+  // Grow VBO capacity only upward (never allocate 200k at L1, never reallocate on step-down)
+  const [capacity, setCapacity] = useState(() => Math.max(15_000, profile.particles));
+  useEffect(() => {
+    if (profile.particles > capacity) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCapacity(profile.particles);
+    }
+  }, [capacity, profile.particles]);
+
   const matRef = useRef<ShaderMaterial | null>(null);
   const geomRef = useRef<BufferGeometry | null>(null);
 
@@ -54,8 +63,11 @@ export function Particles() {
     );
   }, [areasDef, trackablesDef, sealedDays]);
 
-  const staticBuffers = useMemo(() => buildStaticParticleBuffers(), []);
-  const cohortBuffers = useMemo(() => buildCohortParticleBuffers(cohortMap), [cohortMap]);
+  const staticBuffers = useMemo(() => buildStaticParticleBuffers(capacity), [capacity]);
+  const cohortMeta = useMemo(
+    () => buildCohortParticleBuffers(cohortMap, capacity),
+    [capacity, cohortMap],
+  );
 
   const targetDirRef = useRef(new Float32Array(16).fill(1));
 
@@ -116,7 +128,7 @@ export function Particles() {
         geomRef.current.boundingSphere = new Sphere(new Vector3(0, 0, 0), 18);
       }
     }
-  }, [profile.particles]);
+  }, [capacity, profile.particles]);
 
   useFrame((_state, delta) => {
     const mat = matRef.current;
@@ -162,13 +174,11 @@ export function Particles() {
   if (profile.particles <= 0) return null;
 
   return (
-    <points>
-      <bufferGeometry ref={geomRef}>
-        <bufferAttribute attach="attributes-position" args={[staticBuffers.positions, 3]} />
+    <points frustumCulled={false}>
+      <bufferGeometry key={capacity} ref={geomRef}>
+        <bufferAttribute attach="attributes-position" args={[staticBuffers.targets, 3]} />
         <bufferAttribute attach="attributes-aSeed" args={[staticBuffers.seeds, 4]} />
-        <bufferAttribute attach="attributes-aCohort" args={[cohortBuffers.cohorts, 1]} />
-        <bufferAttribute attach="attributes-aArea" args={[cohortBuffers.areas, 1]} />
-        <bufferAttribute attach="attributes-aTarget" args={[staticBuffers.targets, 3]} />
+        <bufferAttribute attach="attributes-aMeta" args={[cohortMeta, 2]} />
       </bufferGeometry>
       <shaderMaterial
         ref={matRef}

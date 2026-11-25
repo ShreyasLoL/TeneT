@@ -78,7 +78,7 @@ export function createTenetComposer(
     luminanceSmoothing: 0.2,
     intensity: 0.65,
     radius: 0.78,
-    levels: 5,
+    levels: 4,
   });
 
   const composer = new EffectComposer(renderer, {

@@ -154,9 +154,9 @@ function RecapDialog({
         aria-live="polite"
         className="w-full max-w-xl space-y-8 rounded-xl border border-line bg-surface p-8 text-center outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
       >
-        <div className="flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
-          <span>{sealed.day}</span>
-          <span>
+        <div className="flex items-center justify-between gap-3 font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+          <span className="shrink-0">{sealed.day}</span>
+          <span className="truncate">
             {effectiveBeat < 5 && effectiveCanSkip
               ? 'press space or esc to finish'
               : COPY.ritual.recapEnd}
@@ -170,13 +170,12 @@ function RecapDialog({
                 {labelFor(activeJudge.key, { trackables: state.definitions.trackables })}
               </p>
               <p
-                className={`font-mono text-xs uppercase tracking-[0.14em] ${
-                  activeJudge.status === 'off'
-                    ? 'text-text-faint'
-                    : activeJudge.satisfied
-                      ? 'text-accent'
-                      : 'text-text-dim'
-                }`}
+                className={`font-mono text-xs uppercase tracking-[0.14em] ${activeJudge.status === 'off'
+                  ? 'text-text-faint'
+                  : activeJudge.satisfied
+                    ? 'text-accent'
+                    : 'text-text-dim'
+                  }`}
               >
                 {activeJudge.status === 'off'
                   ? 'rest'
@@ -188,10 +187,10 @@ function RecapDialog({
           ) : (
             <Mirror>
               <span
-                className={`inline-block font-mono text-[clamp(4rem,12vw,7rem)] font-light leading-none text-text tabular-nums transition-[filter,letter-spacing,opacity] duration-[var(--duration-scene)] ease-[var(--ease-out)] ${
+                className={`inline-block font-mono text-[clamp(4rem,12vw,7rem)] font-light leading-none tracking-[-0.04em] text-text tabular-nums transition-[transform,opacity] duration-[var(--duration-scene)] ease-[var(--ease-out)] will-change-transform ${
                   focusPullResolved
-                    ? 'blur-0 tracking-[-0.04em] opacity-100'
-                    : 'blur-[12px] tracking-[0.12em] opacity-40'
+                    ? 'scale-100 opacity-100'
+                    : 'scale-[1.08] opacity-35'
                 }`}
               >
                 {sealed.score === null ? '—' : sealed.score}
@@ -201,10 +200,12 @@ function RecapDialog({
         </div>
 
         <div className="min-h-24 space-y-2 text-sm text-text-dim">
-          {lines.slice(0, effectiveVisibleLines).map((line, idx) => (
+          {lines.map((line, idx) => (
             <p
               key={idx}
-              className="transition-opacity duration-[var(--duration-ui)] ease-[var(--ease-out)]"
+              className={`transition-opacity duration-[var(--duration-ui)] ease-[var(--ease-out)] ${
+                idx < effectiveVisibleLines ? 'opacity-100' : 'opacity-0'
+              }`}
             >
               {line}
             </p>
@@ -213,9 +214,8 @@ function RecapDialog({
 
         <div
           aria-hidden={effectiveBeat < 5}
-          className={`flex flex-col items-center gap-5 border-t border-line pt-6 transition-opacity duration-[var(--duration-ui)] ease-[var(--ease-out)] ${
-            effectiveBeat >= 5 ? 'opacity-100' : 'pointer-events-none invisible opacity-0'
-          }`}
+          className={`flex flex-col items-center gap-5 border-t border-line pt-6 transition-opacity duration-[var(--duration-ui)] ease-[var(--ease-out)] ${effectiveBeat >= 5 ? 'opacity-100' : 'pointer-events-none invisible opacity-0'
+            }`}
         >
           <SatorGlyph compact caption={COPY.ritual.recapEnd} />
           <div className="flex items-center gap-3">

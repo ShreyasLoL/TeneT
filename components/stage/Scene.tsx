@@ -17,13 +17,12 @@ import { Postfx } from './Postfx';
 import { Recap } from './Recap';
 import { Rings } from './Rings';
 
-// ~30fps ambient cadence driven from single VSync clock (every ~32ms)
-const AMBIENT_MIN_INTERVAL_MS = 31;
 const POINTER_MOVE_THROTTLE_MS = 250;
 
 export function Scene() {
   const gl = useThree((s) => s.gl);
-  const invalidate = useThree((s) => s.invalidate);
+  const advance = useThree((s) => s.advance);
+  const size = useThree((s) => s.size);
 
   const level = useTenetStore((s) => s.quality.level);
   const lowPower = useTenetStore((s) => s.quality.lowPower);
@@ -33,7 +32,7 @@ export function Scene() {
   const setQuality = useTenetStore((s) => s.setQuality);
 
   const governorRef = useRef<FrameGovernor | null>(null);
-  const lastBurstFrameRef = useRef<number>(0);
+  const lastActiveFrameRef = useRef<number>(0);
   const touchRef = useRef(false);
 
   useEffect(() => {
@@ -53,12 +52,18 @@ export function Scene() {
       alwaysAlive,
       touch: touchRef.current,
     });
-    if (!forcePaused) invalidate();
-  }, [alwaysAlive, invalidate, level, lowPower, reducedMotion, webglStatus]);
+    if (!forcePaused) stageClock.requestRender();
+  }, [alwaysAlive, level, lowPower, reducedMotion, webglStatus]);
 
   useEffect(() => {
-    let unsubClock: (() => void) | null = null;
-    let lastAmbientAt = 0;
+    const q = useTenetStore.getState().quality;
+    if (!q.lowPower && !q.reducedMotion && q.level < 4 && q.webgl === 'ok') {
+      stageClock.requestRender();
+    }
+  }, [size.height, size.width]);
+
+  useEffect(() => {
+    let unsubRender: (() => void) | null = null;
     let lastPointerMoveAt = 0;
 
     const ensureClockSubscription = () => {
@@ -67,39 +72,29 @@ export function Scene() {
       rig.activityLevel = act;
 
       if (act === 'still') {
-        lastBurstFrameRef.current = 0;
-        if (unsubClock) {
-          unsubClock();
-          unsubClock = null;
+        lastActiveFrameRef.current = 0;
+        if (unsubRender) {
+          unsubRender();
+          unsubRender = null;
         }
         return;
       }
 
-      if (unsubClock !== null) return;
+      if (unsubRender !== null) return;
 
-      unsubClock = stageClock.subscribe((tickNow) => {
+      // Both 'burst' and 'ambient' execute at full locked VSync via advance(elapsedSec)
+      unsubRender = stageClock.subscribeRender((tickNow) => {
         const currentAct = stageActivity.getLevel(tickNow);
         rig.activityLevel = currentAct;
 
         if (currentAct === 'still') {
-          lastBurstFrameRef.current = 0;
-          unsubClock = null;
+          lastActiveFrameRef.current = 0;
+          unsubRender = null;
           return false;
         }
 
-        if (currentAct === 'burst') {
-          rig.elapsedTime = stageClock.getElapsedSec();
-          invalidate();
-          return true;
-        }
-
-        // 'ambient': ~30fps gated on the shared VSync loop, zero setInterval timers
-        lastBurstFrameRef.current = 0;
-        if (tickNow - lastAmbientAt >= AMBIENT_MIN_INTERVAL_MS) {
-          lastAmbientAt = tickNow;
-          rig.elapsedTime = stageClock.getElapsedSec();
-          invalidate();
-        }
+        rig.elapsedTime = stageClock.getElapsedSec();
+        advance(rig.elapsedTime);
         return true;
       });
     };
@@ -107,14 +102,13 @@ export function Scene() {
     const unsubAct = stageActivity.subscribe(ensureClockSubscription);
     const unsubDemand = stageActivity.onDemandFrame(() => {
       if (stageActivity.getLevel(performance.now()) !== 'still' || !useTenetStore.getState().quality.lowPower) {
-        rig.elapsedTime = stageClock.getElapsedSec();
-        invalidate();
+        stageClock.requestRender();
       }
     });
     const unsubStore = useTenetStore.subscribe(() => {
       const q = useTenetStore.getState().quality;
       if (!q.lowPower && q.level < 4 && q.webgl === 'ok') {
-        invalidate();
+        stageClock.requestRender();
       }
     });
 
@@ -123,7 +117,7 @@ export function Scene() {
       stageClock.setHidden(hidden);
       stageActivity.configure({ hidden });
       if (!hidden) {
-        lastBurstFrameRef.current = 0;
+        lastActiveFrameRef.current = 0;
         ensureClockSubscription();
       }
     };
@@ -151,31 +145,29 @@ export function Scene() {
       unsubAct();
       unsubDemand();
       unsubStore();
-      if (unsubClock) {
-        unsubClock();
-        unsubClock = null;
+      if (unsubRender) {
+        unsubRender();
+        unsubRender = null;
       }
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerdown', onDiscreteInput);
       window.removeEventListener('keydown', onDiscreteInput);
     };
-  }, [invalidate]);
+  }, [advance]);
 
   useFrame(() => {
     const now = performance.now();
     rig.drawCalls = gl.info.render.calls;
     rig.triangles = gl.info.render.triangles;
 
-    // Feed FrameGovernor ONLY during full-rate 'burst' frames so ~30fps ambient intervals
-    // never masquerade as slow 33ms+ renders (fixes F-01).
-    if (rig.activityLevel !== 'burst') {
-      lastBurstFrameRef.current = 0;
+    if (rig.activityLevel === 'still') {
+      lastActiveFrameRef.current = 0;
       return;
     }
 
-    const prev = lastBurstFrameRef.current;
-    lastBurstFrameRef.current = now;
+    const prev = lastActiveFrameRef.current;
+    lastActiveFrameRef.current = now;
 
     if (prev > 0 && governorRef.current) {
       const elapsed = now - prev;
