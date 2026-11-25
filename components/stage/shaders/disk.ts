@@ -95,8 +95,8 @@ export const diskFragmentShader = /* glsl */ `
     // Retrograde contracts calmly inward; Prograde expands outward
     float radialWarp = 1.0 - retro * uWarp * 0.22 + prog * uWarp * 0.38;
     float r = length(vLocalPos) / max(0.35, radialWarp);
-    float rMin = 0.91;
-    float rMax = 5.95;
+    float rMin = 0.89;
+    float rMax = 4.25;
     if (r < rMin || r > rMax) discard;
 
     float rn = (r - rMin) / (rMax - rMin);

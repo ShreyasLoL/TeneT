@@ -12,9 +12,9 @@ export type CameraPose = {
  */
 export const MODE_CAMERA_POSES: Record<Mode, CameraPose> = {
   fork: {
-    position: [0, 1.18, 5.45],
+    position: [0, 0, 10.6],
     target: [0, 0, 0],
-    fov: 46,
+    fov: 45,
   },
   ritual: {
     position: [0, 2.55, 12.2],

@@ -45,12 +45,12 @@ export function buildIntroTimeline(
 
   rig.cameraOverride.active = true;
   rig.cameraOverride.px = 0;
-  rig.cameraOverride.py = 0.82;
-  rig.cameraOverride.pz = 4.15;
+  rig.cameraOverride.py = 0;
+  rig.cameraOverride.pz = 7.4;
   rig.cameraOverride.tx = 0;
   rig.cameraOverride.ty = 0;
   rig.cameraOverride.tz = 0;
-  rig.cameraOverride.fov = 48;
+  rig.cameraOverride.fov = 47;
 
   gsap.set(assemblyEl, { scale: 1, opacity: 1 });
   gsap.set(wordEl, { scale: 1, opacity: 1 });
@@ -90,7 +90,7 @@ export function buildIntroTimeline(
   tl.to(rig, { introTick: 0, duration: 0.95 * s, ease: expoBezierEase }, 0.8 * s);
   tl.to(rig, { introProgress: 0.92, duration: 1.35 * s, ease: expoBezierEase }, 0.8 * s);
   tl.to(rig, { introSpin: 0, duration: 1.75 * s, ease: expoBezierEase }, 0.8 * s);
-  tl.to(rig.cameraOverride, { py: 0.96, pz: 4.55, duration: 1.2 * s, ease: expoBezierEase }, 0.8 * s);
+  tl.to(rig.cameraOverride, { py: 0, pz: 8.4, duration: 1.2 * s, ease: expoBezierEase }, 0.8 * s);
 
   // 3. 2.0-3.2s: TENET letter reveal + timer ring fill + HH:MM:SS IST count-up + NIGHT BEGINS
   spans.forEach((sp, idx) => {
@@ -128,7 +128,7 @@ export function buildIntroTimeline(
   tl.to(assemblyEl, { scale: 0.72, opacity: 0, duration: 0.56 * s, ease: expoBezierEase }, 3.2 * s);
   tl.to(
     rig.cameraOverride,
-    { py: 1.18, pz: 5.45, fov: 46, duration: 0.8 * s, ease: expoBezierEase },
+    { py: 0, pz: 10.6, fov: 45, duration: 0.8 * s, ease: expoBezierEase },
     3.2 * s,
   );
 

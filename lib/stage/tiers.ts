@@ -11,8 +11,10 @@ export type LadderProfile = {
   simplifiedDisk: boolean;
 };
 
-export const NORMAL_PARTICLES = 45_000;
-export const LOW_POWER_PARTICLES = 11_250;
+export const NORMAL_PARTICLES = 14_000;
+export const LOW_POWER_PARTICLES = 3_500;
+export const NORMAL_GALAXY_PARTICLES = 34_000;
+export const LOW_POWER_GALAXY_PARTICLES = 8_500;
 
 export const LADDER_PROFILES: Record<QualityLevel, LadderProfile> = {
   0: {
@@ -37,7 +39,7 @@ export const LADDER_PROFILES: Record<QualityLevel, LadderProfile> = {
   },
   2: {
     level: 2,
-    particles: 30_000,
+    particles: 9_500,
     dprMax: 1.25,
     bloom: false,
     mirror: false,
@@ -69,7 +71,7 @@ export const LADDER_PROFILES: Record<QualityLevel, LadderProfile> = {
 
 const TOUCH_LEVEL_0_PROFILE: LadderProfile = {
   ...LADDER_PROFILES[0],
-  particles: 32_000,
+  particles: 10_000,
 };
 
 const LOW_POWER_PROFILE: LadderProfile = {

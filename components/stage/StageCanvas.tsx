@@ -33,7 +33,7 @@ export default function StageCanvas() {
     <Canvas
       dpr={[1, profile.dprMax]}
       frameloop={frameloop}
-      camera={{ position: [0, 1.18, 5.45], fov: 46, near: 0.1, far: 120 }}
+      camera={{ position: [0, 0, 10.6], fov: 45, near: 0.1, far: 160 }}
       gl={{ alpha: true, antialias: false, powerPreference: 'high-performance', stencil: false }}
       onCreated={({ gl, invalidate }) => {
         gl.setClearColor(0x000000, 0);

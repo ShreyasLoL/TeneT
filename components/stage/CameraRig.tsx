@@ -24,7 +24,7 @@ export function CameraRig() {
       targetLook.set(rig.cameraOverride.tx, rig.cameraOverride.ty, rig.cameraOverride.tz);
     } else {
       const zDrift =
-        mode === 'fork' && !reducedMotion ? Math.sin(rig.elapsedTime * 0.32) * 0.18 : 0;
+        mode === 'fork' && !reducedMotion ? Math.sin(rig.elapsedTime * 0.28) * 0.28 : 0;
       targetPos.set(pose.position[0], pose.position[1], pose.position[2] + zDrift);
       targetLook.set(pose.target[0], pose.target[1], pose.target[2]);
     }

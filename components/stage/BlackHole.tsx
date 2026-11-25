@@ -64,6 +64,7 @@ export function BlackHole() {
     const haloMesh = haloMeshRef.current;
     if (haloMesh) {
       haloMesh.quaternion.copy(state.camera.quaternion);
+      haloMesh.rotateZ(-0.39);
     }
 
     const hMat = horizonMatRef.current;

@@ -101,12 +101,12 @@ export function IntroWordmark() {
     const resetRigCamera = () => {
       rig.cameraOverride.active = false;
       rig.cameraOverride.px = 0;
-      rig.cameraOverride.py = 1.18;
-      rig.cameraOverride.pz = 5.45;
+      rig.cameraOverride.py = 0;
+      rig.cameraOverride.pz = 10.6;
       rig.cameraOverride.tx = 0;
       rig.cameraOverride.ty = 0;
       rig.cameraOverride.tz = 0;
-      rig.cameraOverride.fov = 46;
+      rig.cameraOverride.fov = 45;
     };
 
     const finish = () => {

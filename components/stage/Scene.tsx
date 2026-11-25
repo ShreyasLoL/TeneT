@@ -10,6 +10,7 @@ import { notifyCanvasReady, rig } from '@/lib/store/rig';
 import { BlackHole } from './BlackHole';
 import { CameraRig } from './CameraRig';
 import { Disk } from './Disk';
+import { Galaxy } from './Galaxy';
 import { Intro } from './Intro';
 import { Particles } from './Particles';
 import { Postfx } from './Postfx';
@@ -105,8 +106,13 @@ export function Scene() {
     <>
       <CameraRig />
       <BlackHole />
-      <Disk />
-      <Particles />
+      <group rotation={[0, 0, -0.39]}>
+        <group rotation={[0.65, 0, 0]}>
+          <Galaxy />
+          <Disk />
+          <Particles />
+        </group>
+      </group>
       <Rings />
       <Intro />
       <Recap />
