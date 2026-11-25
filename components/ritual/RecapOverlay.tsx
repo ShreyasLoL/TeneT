@@ -20,33 +20,28 @@ type RecapRigSnapshot = {
   canSkip: boolean;
 };
 
-let lastSnap: RecapRigSnapshot = {
-  beat: 1,
-  itemIndex: -1,
-  visibleLines: 0,
-  canSkip: false,
-};
+let lastSnap: RecapRigSnapshot = { beat: 1, itemIndex: -1, visibleLines: 0, canSkip: false };
 
 function getRecapRigSnapshot(): RecapRigSnapshot {
   const beat = rig.recapBeat > 0 ? rig.recapBeat : 1;
-  const itemIndex = rig.recapItemIndex;
-  const visibleLines = rig.recapVisibleLines;
-  const canSkip = rig.recapCanSkip;
   if (
     lastSnap.beat === beat &&
-    lastSnap.itemIndex === itemIndex &&
-    lastSnap.visibleLines === visibleLines &&
-    lastSnap.canSkip === canSkip
+    lastSnap.itemIndex === rig.recapItemIndex &&
+    lastSnap.visibleLines === rig.recapVisibleLines &&
+    lastSnap.canSkip === rig.recapCanSkip
   ) {
     return lastSnap;
   }
-  lastSnap = { beat, itemIndex, visibleLines, canSkip };
+  lastSnap = {
+    beat,
+    itemIndex: rig.recapItemIndex,
+    visibleLines: rig.recapVisibleLines,
+    canSkip: rig.recapCanSkip,
+  };
   return lastSnap;
 }
 
-function getRecapRigServerSnapshot(): RecapRigSnapshot {
-  return lastSnap;
-}
+const getRecapRigServerSnapshot = () => lastSnap;
 
 function RecapDialog({
   recap,
@@ -68,7 +63,6 @@ function RecapDialog({
     getRecapRigSnapshot,
     getRecapRigServerSnapshot,
   );
-
   const regionRef = useRef<HTMLDivElement>(null);
   const doneLinkRef = useRef<HTMLAnchorElement>(null);
 

@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { memo, useDeferredValue, useMemo, useState, useSyncExternalStore } from 'react';
+import { memo, useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { ApiSealedDay, ApiTrackable } from '@/lib/api/types';
 import { COPY } from '@/lib/copy';
 import {
@@ -125,6 +125,13 @@ export const Pull = memo(function Pull({
 }: PullProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const deferredEntries = useDeferredValue(entries);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      void import('./PullExpanded');
+    }, 350);
+    return () => window.clearTimeout(id);
+  }, []);
   const effortMap = useSyncExternalStore(
     subscribeEffort,
     getEffortSnapshot,
