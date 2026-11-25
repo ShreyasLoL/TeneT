@@ -32,6 +32,9 @@ export const rig = {
   recapBeat: 0,
   recapProgress: 0,
   recapJudgeIndex: -1,
+  recapItemIndex: -1,
+  recapVisibleLines: 0,
+  recapCanSkip: false,
   recapSpike: 0,
   ringShift: 0,
   cameraOverride: {
@@ -70,4 +73,17 @@ export function setRigTurnstilePulse(pulse: number) {
 
 export function clearRigCursorVelocity() {
   rig.cursorVelocity = 0;
+}
+
+const recapListeners = new Set<() => void>();
+
+export function subscribeRecapRig(cb: () => void): () => void {
+  recapListeners.add(cb);
+  return () => {
+    recapListeners.delete(cb);
+  };
+}
+
+export function notifyRecapRig() {
+  for (const cb of recapListeners) cb();
 }

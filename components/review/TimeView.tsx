@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo } from 'react';
 import { LoadingFallback } from '@/components/chrome/LoadingFallback';
 import { SatorGlyph } from '@/components/chrome/SatorGlyph';
 import { Scrim } from '@/components/chrome/Scrim';
@@ -36,12 +36,25 @@ export function TimeView() {
     return cursor;
   }, [cursor, data, today]);
 
-  const sealedDay = useMemo(
-    () => data?.days.find((d) => d.day === activeDay) ?? null,
-    [activeDay, data?.days],
+  // Defer heavy panel/SVG filtering under rapid 120Hz scrubbing so TimeTape & WebGL stay locked at VSync
+  const deferredDay = useDeferredValue(activeDay);
+
+  const sealedByDay = useMemo(
+    () => new Map(data?.days.map((d) => [d.day, d]) ?? []),
+    [data?.days],
+  );
+  const sealedDay = sealedByDay.get(deferredDay) ?? null;
+
+  const handleScrubCursor = useCallback(
+    (nextDay: string) => {
+      startTransition(() => {
+        setCursor(nextDay);
+      });
+    },
+    [setCursor],
   );
 
-  if (isLoading) return <LoadingFallback />;
+  if (isLoading) return <LoadingFallback variant="wide" />;
   if (isError || !data) {
     return (
       <main className="flex flex-1 items-center justify-center p-6">
@@ -53,20 +66,21 @@ export function TimeView() {
   const earliest = data.days[0]?.day ?? addDays(today, -30);
   const showStaticOrbit =
     quality.lowPower || quality.reducedMotion || quality.level >= 4 || quality.webgl !== 'ok';
-  const visibleDays = data.days.filter((d) => d.day <= activeDay);
+  const visibleDays = data.days.filter((d) => d.day <= deferredDay);
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-between gap-6 px-4 py-8 sm:px-8">
+      <h1 className="sr-only">Time scrubber</h1>
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
         <div className="lg:col-span-7">
           {showStaticOrbit ? (
             <StaticOrbit
               days={visibleDays}
-              range={{ from: earliest, to: activeDay }}
+              range={{ from: earliest, to: deferredDay }}
               areas={data.definitions.areas}
               trackables={data.definitions.trackables}
-              selectedDay={activeDay}
-              onSelectDay={setCursor}
+              selectedDay={deferredDay}
+              onSelectDay={handleScrubCursor}
             />
           ) : (
             <Scrim className="flex min-h-[340px] flex-col justify-between rounded-xl border border-line/40 p-5">
@@ -83,10 +97,10 @@ export function TimeView() {
 
         <div className="lg:col-span-5">
           <NightPanel
-            day={activeDay}
+            day={deferredDay}
             sealedDay={sealedDay}
             trackables={data.definitions.trackables}
-            isToday={activeDay === today}
+            isToday={deferredDay === today}
           />
         </div>
       </div>
@@ -96,7 +110,7 @@ export function TimeView() {
         to={today}
         cursor={activeDay}
         days={data.days}
-        onChangeCursor={setCursor}
+        onChangeCursor={handleScrubCursor}
       />
     </main>
   );

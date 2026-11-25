@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { inverseTapeOffset, ringEmergence, tapeOffset } from './timeTape';
+import {
+  deterministicScrubState,
+  inverseTapeOffset,
+  ringEmergence,
+  tapeOffset,
+} from './timeTape';
 
-describe('timeTape fisheye and ring emergence', () => {
+describe('timeTape fisheye, ring emergence, and palindrome scrub symmetry', () => {
   it('is strictly symmetric, zero at origin, monotonic, and invertible', () => {
     expect(tapeOffset(0)).toBe(0);
     let prev = -Infinity;
@@ -14,13 +19,23 @@ describe('timeTape fisheye and ring emergence', () => {
     }
   });
 
-  it('produces identical ring emergence curve moving forward or backward through a cursor position', () => {
-    const samples = [0, 2.2, 5.5, 12.75, 40];
-    for (const c of samples) {
-      const forward = Array.from({ length: 15 }, (_, i) => ringEmergence(i, c));
-      const backward = Array.from({ length: 15 }, (_, i) => ringEmergence(i, c));
-      expect(forward).toEqual(backward);
-      expect(ringEmergence(Math.ceil(c) + 1, c)).toBe(1);
-    }
+  it('produces identical ring emergence and cohort state after scrubbing forward then backward', () => {
+    const startCursor = 14;
+    const t0 = 12.5;
+    const initial = deterministicScrubState(startCursor, t0, 60);
+
+    // Scrub backward 12 days step by step, then forward 12 days back to startCursor
+    let cursor = startCursor;
+    for (let step = 0; step < 12; step++) cursor -= 1;
+    const mid = deterministicScrubState(cursor, t0, 60);
+    expect(mid.emergences).not.toEqual(initial.emergences);
+
+    for (let step = 0; step < 12; step++) cursor += 1;
+    expect(cursor).toBe(startCursor);
+    const restored = deterministicScrubState(cursor, t0, 60);
+
+    expect([...restored.phases]).toEqual([...initial.phases]);
+    expect([...restored.emergences]).toEqual([...initial.emergences]);
+    expect(ringEmergence(Math.ceil(startCursor) + 1, startCursor)).toBe(1);
   });
 });

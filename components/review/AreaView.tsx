@@ -112,7 +112,7 @@ export function AreaView() {
     return evaluateLocalGoal(areaGoal, data.entries, data.definitions.trackables);
   }, [areaGoal, data]);
 
-  if (isLoading) return <LoadingFallback />;
+  if (isLoading) return <LoadingFallback variant="wide" />;
   if (isError || !data) {
     return (
       <main className="flex flex-1 items-center justify-center p-6">

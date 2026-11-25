@@ -4,7 +4,7 @@ import { DashboardView } from '@/components/review/DashboardView';
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <Suspense fallback={<LoadingFallback variant="wide" />}>
       <DashboardView />
     </Suspense>
   );

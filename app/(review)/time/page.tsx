@@ -4,7 +4,7 @@ import { TimeView } from '@/components/review/TimeView';
 
 export default function TimePage() {
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <Suspense fallback={<LoadingFallback variant="wide" />}>
       <TimeView />
     </Suspense>
   );

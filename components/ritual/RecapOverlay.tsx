@@ -1,36 +1,73 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { Mirror } from '@/components/chrome/Mirror';
 import { SatorGlyph } from '@/components/chrome/SatorGlyph';
 import { useTenetState } from '@/lib/api/hooks';
 import type { ApiSealedDay, StateResponse } from '@/lib/api/types';
 import { COPY } from '@/lib/copy';
 import { useTenetStore, type RecapState } from '@/lib/store';
+import { rig, subscribeRecapRig } from '@/lib/store/rig';
 import { loadLocalGoals } from '@/lib/viz/localGoals';
 import { buildReviewForDay } from '@/lib/viz/review';
 import { labelFor } from '@/lib/viz/ringLayout';
+
+type RecapRigSnapshot = {
+  beat: number;
+  itemIndex: number;
+  visibleLines: number;
+  canSkip: boolean;
+};
+
+let lastSnap: RecapRigSnapshot = {
+  beat: 1,
+  itemIndex: -1,
+  visibleLines: 0,
+  canSkip: false,
+};
+
+function getRecapRigSnapshot(): RecapRigSnapshot {
+  const beat = rig.recapBeat > 0 ? rig.recapBeat : 1;
+  const itemIndex = rig.recapItemIndex;
+  const visibleLines = rig.recapVisibleLines;
+  const canSkip = rig.recapCanSkip;
+  if (
+    lastSnap.beat === beat &&
+    lastSnap.itemIndex === itemIndex &&
+    lastSnap.visibleLines === visibleLines &&
+    lastSnap.canSkip === canSkip
+  ) {
+    return lastSnap;
+  }
+  lastSnap = { beat, itemIndex, visibleLines, canSkip };
+  return lastSnap;
+}
+
+function getRecapRigServerSnapshot(): RecapRigSnapshot {
+  return lastSnap;
+}
 
 function RecapDialog({
   recap,
   sealed,
   state,
-  reducedMotion,
+  isInstant,
   skipRecap,
   endRecap,
 }: {
   recap: NonNullable<RecapState>;
   sealed: ApiSealedDay;
   state: StateResponse;
-  reducedMotion: boolean;
+  isInstant: boolean;
   skipRecap: () => void;
   endRecap: () => void;
 }) {
-  const [beat, setBeat] = useState<number>(1);
-  const [visibleLines, setVisibleLines] = useState<number>(0);
-  const [judgedIndex, setJudgedIndex] = useState<number>(-1);
-  const [canSkip, setCanSkip] = useState<boolean>(false);
+  const rigState = useSyncExternalStore(
+    subscribeRecapRig,
+    getRecapRigSnapshot,
+    getRecapRigServerSnapshot,
+  );
 
   const regionRef = useRef<HTMLDivElement>(null);
   const doneLinkRef = useRef<HTMLAnchorElement>(null);
@@ -47,75 +84,53 @@ function RecapDialog({
     [recap.day, state.days, state.definitions.trackables, state.entries],
   );
 
-  const results = useMemo(() => sealed.results, [sealed.results]);
-  const lines = useMemo(() => review?.lines ?? [], [review]);
-  const isInstant = reducedMotion || recap.skipped;
+  const results = sealed.results;
+  const lines = review?.lines ?? [];
+
+  const effectiveBeat = isInstant ? 5 : rigState.beat;
+  const effectiveJudgedIndex = isInstant ? results.length : rigState.itemIndex;
+  const effectiveVisibleLines = isInstant ? lines.length : rigState.visibleLines;
+  const effectiveCanSkip = isInstant ? true : rigState.canSkip;
 
   useEffect(() => {
     regionRef.current?.focus();
-    if (isInstant) return;
-
-    const timers: number[] = [];
-    timers.push(window.setTimeout(() => setCanSkip(true), 1500));
-
-    const beat2Ms = Math.min(2600, Math.max(1200, results.length * 340));
-    const beat3Ms = 1800;
-    const beat4Ms = Math.min(2700, Math.max(900, lines.length * 900));
-
-    timers.push(
-      window.setTimeout(() => {
-        setBeat(2);
-        const perItem = beat2Ms / Math.max(1, results.length);
-        for (let i = 0; i < results.length; i++) {
-          timers.push(window.setTimeout(() => setJudgedIndex(i), Math.round(i * perItem)));
-        }
-      }, 900),
-    );
-
-    timers.push(window.setTimeout(() => setBeat(3), 900 + beat2Ms));
-
-    timers.push(
-      window.setTimeout(() => {
-        setBeat(4);
-        const perLine = beat4Ms / Math.max(1, lines.length);
-        for (let i = 0; i < lines.length; i++) {
-          timers.push(window.setTimeout(() => setVisibleLines(i + 1), Math.round(i * perLine)));
-        }
-      }, 900 + beat2Ms + beat3Ms),
-    );
-
-    timers.push(
-      window.setTimeout(() => {
-        setBeat(5);
-        setVisibleLines(lines.length);
-        doneLinkRef.current?.focus();
-      }, 900 + beat2Ms + beat3Ms + beat4Ms),
-    );
-
-    return () => {
-      for (const id of timers) window.clearTimeout(id);
-    };
-  }, [isInstant, lines.length, results.length]);
+  }, []);
 
   useEffect(() => {
-    if (isInstant) return;
-    const onSkip = (e: KeyboardEvent | PointerEvent) => {
-      if (!canSkip) return;
-      if (e instanceof KeyboardEvent && e.key === 'Tab') return;
+    if (effectiveBeat >= 5) {
+      doneLinkRef.current?.focus();
+    }
+  }, [effectiveBeat]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') return;
+      if (effectiveBeat >= 5 && e.key === 'Escape') {
+        e.preventDefault();
+        endRecap();
+        return;
+      }
+      if (!isInstant && effectiveCanSkip && effectiveBeat < 5) {
+        if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          skipRecap();
+        }
+      }
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      if (isInstant || !effectiveCanSkip || effectiveBeat >= 5) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('a, button')) return;
       skipRecap();
     };
-    window.addEventListener('keydown', onSkip);
-    window.addEventListener('pointerdown', onSkip);
-    return () => {
-      window.removeEventListener('keydown', onSkip);
-      window.removeEventListener('pointerdown', onSkip);
-    };
-  }, [canSkip, isInstant, skipRecap]);
 
-  const effectiveBeat = isInstant ? 5 : beat;
-  const effectiveJudgedIndex = isInstant ? results.length : judgedIndex;
-  const effectiveVisibleLines = isInstant ? lines.length : visibleLines;
-  const effectiveCanSkip = isInstant ? true : canSkip;
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [effectiveBeat, effectiveCanSkip, endRecap, isInstant, skipRecap]);
 
   const activeJudge =
     effectiveJudgedIndex >= 0 && effectiveJudgedIndex < results.length
@@ -139,7 +154,9 @@ function RecapDialog({
         <div className="flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
           <span>{sealed.day}</span>
           <span>
-            {effectiveBeat < 5 && effectiveCanSkip ? 'press any key to finish' : COPY.ritual.recapEnd}
+            {effectiveBeat < 5 && effectiveCanSkip
+              ? 'press space or esc to finish'
+              : COPY.ritual.recapEnd}
           </span>
         </div>
 
@@ -222,12 +239,16 @@ export function RecapOverlay() {
   const recap = useTenetStore((s) => s.recap);
   const skipRecap = useTenetStore((s) => s.skipRecap);
   const endRecap = useTenetStore((s) => s.endRecap);
-  const reducedMotion = useTenetStore((s) => s.quality.reducedMotion);
+  const quality = useTenetStore((s) => s.quality);
   const { data: state } = useTenetState();
 
   if (!recap || !state) return null;
   const sealed = state.days.find((d) => d.day === recap.day);
   if (!sealed) return null;
+
+  const stagePaused =
+    quality.reducedMotion || quality.lowPower || quality.level >= 4 || quality.webgl !== 'ok';
+  const isInstant = stagePaused || recap.skipped;
 
   return (
     <RecapDialog
@@ -235,7 +256,7 @@ export function RecapOverlay() {
       recap={recap}
       sealed={sealed}
       state={state}
-      reducedMotion={reducedMotion}
+      isInstant={isInstant}
       skipRecap={skipRecap}
       endRecap={endRecap}
     />

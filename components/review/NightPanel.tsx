@@ -1,10 +1,10 @@
 'use client';
 
+import { memo, useMemo } from 'react';
 import type { ApiSealedDay, ApiTrackable } from '@/lib/api/types';
 import { Mirror } from '@/components/chrome/Mirror';
 import { COPY } from '@/lib/copy';
 import type { DayKey } from '@/lib/domain/types';
-import { labelFor } from '@/lib/viz/ringLayout';
 
 type NightPanelProps = {
   day: DayKey;
@@ -13,7 +13,20 @@ type NightPanelProps = {
   isToday?: boolean;
 };
 
-export function NightPanel({ day, sealedDay, trackables, isToday = false }: NightPanelProps) {
+export const NightPanel = memo(function NightPanel({
+  day,
+  sealedDay,
+  trackables,
+  isToday = false,
+}: NightPanelProps) {
+  const labelMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of trackables) {
+      map.set(t.key, t.label);
+    }
+    return map;
+  }, [trackables]);
+
   if (!sealedDay) {
     return (
       <section
@@ -72,9 +85,9 @@ export function NightPanel({ day, sealedDay, trackables, isToday = false }: Nigh
               key={`${r.key}-${r.version}`}
               className="flex items-center justify-between gap-4 border-b border-line/60 pb-2 text-sm last:border-b-0 last:pb-0"
             >
-              <span className="text-text">{labelFor(r.key, { trackables })}</span>
+              <span className="min-w-0 truncate text-text">{labelMap.get(r.key) ?? r.key}</span>
               <span
-                className={`font-mono text-[11px] uppercase tracking-[0.12em] tabular-nums ${
+                className={`shrink-0 font-mono text-[11px] uppercase tracking-[0.12em] tabular-nums ${
                   r.satisfied
                     ? 'text-accent'
                     : r.status === 'off' || r.status === 'optional'
@@ -100,4 +113,4 @@ export function NightPanel({ day, sealedDay, trackables, isToday = false }: Nigh
       </div>
     </section>
   );
-}
+});

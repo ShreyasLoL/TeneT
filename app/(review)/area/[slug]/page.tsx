@@ -4,7 +4,7 @@ import { AreaView } from '@/components/review/AreaView';
 
 export default function AreaPage() {
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <Suspense fallback={<LoadingFallback variant="wide" />}>
       <AreaView />
     </Suspense>
   );

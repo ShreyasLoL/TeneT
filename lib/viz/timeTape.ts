@@ -26,3 +26,26 @@ export function ringEmergence(ringIndex: number, cursorIndex: number, feather: n
   const t = delta / feather;
   return t * t * (3 - 2 * t);
 }
+
+/**
+ * Pure deterministic orbital phase as a function of `(cursorOffsetDays, elapsedSec, slotIndex)`.
+ * Guarantees palindrome scrub symmetry: scrubbing forward `+N` days and backward `-N` days
+ * at a given clock instant yields the exact identical phase.
+ */
+export function deterministicScrubState(
+  cursorOffsetDays: number,
+  elapsedSec: number,
+  ringCount: number,
+): { phases: Float64Array; emergences: Float64Array } {
+  const phases = new Float64Array(16);
+  for (let i = 0; i < 16; i++) {
+    const omega0 = 0.28 + (i % 3) * 0.08;
+    phases[i] = (elapsedSec + cursorOffsetDays * 0.65) * omega0;
+  }
+
+  const emergences = new Float64Array(ringCount);
+  for (let r = 0; r < ringCount; r++) {
+    emergences[r] = ringEmergence(r, cursorOffsetDays);
+  }
+  return { phases, emergences };
+}

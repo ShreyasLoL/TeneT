@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LoadingFallback } from '@/components/chrome/LoadingFallback';
@@ -15,10 +16,15 @@ import { evaluateDay, nightScore } from '@/lib/domain/score';
 import type { DayKey } from '@/lib/domain/types';
 import { useTenetStore } from '@/lib/store';
 import { LiveScore } from './LiveScore';
-import { Pull } from './Pull';
 import { Reflection } from './Reflection';
 import { SealControl } from './SealControl';
 import { TrackableRow, type RowSaveState } from './TrackableRow';
+
+const LazyPull = dynamic(() => import('./Pull').then((m) => m.Pull), {
+  loading: () => (
+    <div className="min-h-[62px] rounded-xl border border-line bg-surface px-5 py-3" />
+  ),
+});
 
 const IMMEDIATE_KINDS = new Set(['check', 'rating', 'choice']);
 const COALESCE_MS = 150;
@@ -385,7 +391,7 @@ function CheckInForm({ today }: { today: DayKey }) {
         ))}
       </div>
 
-      <Pull
+      <LazyPull
         day={today}
         active={activeApi}
         entries={mergedEntries}

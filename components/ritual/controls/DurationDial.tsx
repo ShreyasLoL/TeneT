@@ -1,7 +1,9 @@
 'use client';
 
-import { memo, useRef } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type { Rule } from '@/lib/domain/types';
+import { DrivenSpring } from '@/lib/stage/spring';
+import { useTenetStore } from '@/lib/store';
 
 type DurationDialProps = {
   value: number | undefined;
@@ -34,10 +36,37 @@ export const DurationDial = memo(function DurationDial({
   label,
   onChange,
 }: DurationDialProps) {
+  const reducedMotion = useTenetStore((s) => s.quality.reducedMotion);
   const svgRef = useRef<SVGSVGElement>(null);
+  const draggingRef = useRef(false);
+
   const current = typeof value === 'number' && Number.isFinite(value) ? clampMinutes(value) : 0;
   const hasValue = typeof value === 'number';
-  const dialFrac = Math.min(1, current / MAX_DIAL_MINUTES);
+  const targetFrac = Math.min(1, current / MAX_DIAL_MINUTES);
+
+  const [displayFrac, setDisplayFrac] = useState(targetFrac);
+  const springRef = useRef<DrivenSpring | null>(null);
+
+  useEffect(() => {
+    const spring = new DrivenSpring(targetFrac, 24, (v) => {
+      setDisplayFrac(Math.min(1, Math.max(0, v)));
+    });
+    springRef.current = spring;
+    return () => {
+      spring.stop();
+      springRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!springRef.current) return;
+    if (reducedMotion || draggingRef.current) {
+      springRef.current.snap(targetFrac);
+    } else {
+      springRef.current.to(targetFrac);
+    }
+  }, [reducedMotion, targetFrac]);
 
   const thresholdValue =
     rule.op === 'gte' || rule.op === 'lte'
@@ -49,11 +78,11 @@ export const DurationDial = memo(function DurationDial({
     thresholdValue !== null ? Math.min(1, Math.max(0, thresholdValue / MAX_DIAL_MINUTES)) : null;
 
   const circumference = 2 * Math.PI * DIAL_RADIUS;
-  const arcLength = dialFrac * circumference;
+  const arcLength = displayFrac * circumference;
   const thresholdAngle = thresholdFrac !== null ? thresholdFrac * Math.PI * 2 - Math.PI / 2 : null;
   const thresholdPt =
     thresholdAngle !== null ? polarPoint(thresholdAngle, DIAL_RADIUS) : null;
-  const thumbAngle = dialFrac * Math.PI * 2 - Math.PI / 2;
+  const thumbAngle = displayFrac * Math.PI * 2 - Math.PI / 2;
   const thumbPt = polarPoint(thumbAngle, DIAL_RADIUS);
 
   const updateFromPointer = (clientX: number, clientY: number) => {
@@ -102,11 +131,22 @@ export const DurationDial = memo(function DurationDial({
         onKeyDown={onKeyDown}
         onPointerDown={(e) => {
           if (disabled) return;
-          e.currentTarget.setPointerCapture(e.pointerId);
+          draggingRef.current = true;
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } catch {
+            // ignore synthetic pointer capture errors
+          }
           updateFromPointer(e.clientX, e.clientY);
         }}
         onPointerMove={(e) => {
-          if (e.buttons === 1) updateFromPointer(e.clientX, e.clientY);
+          if (draggingRef.current) updateFromPointer(e.clientX, e.clientY);
+        }}
+        onPointerUp={() => {
+          draggingRef.current = false;
+        }}
+        onPointerCancel={() => {
+          draggingRef.current = false;
         }}
         className={`size-24 shrink-0 touch-none select-none rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
           disabled ? 'opacity-45' : 'cursor-pointer'
@@ -173,7 +213,7 @@ export const DurationDial = memo(function DurationDial({
               const num = Number(raw);
               if (Number.isFinite(num)) onChange(clampMinutes(num));
             }}
-            className="h-11 w-24 rounded-md border border-line bg-bg px-3 font-mono text-sm text-text tabular-nums outline-none focus:border-accent"
+            className="h-11 w-24 rounded-md border border-line bg-bg px-3 font-mono text-base text-text tabular-nums outline-none focus:border-accent"
           />
           <span className="font-mono text-xs text-text-faint">min</span>
         </div>

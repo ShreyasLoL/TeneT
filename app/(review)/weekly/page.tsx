@@ -4,7 +4,7 @@ import { WeeklyView } from '@/components/review/WeeklyView';
 
 export default function WeeklyPage() {
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <Suspense fallback={<LoadingFallback variant="wide" />}>
       <WeeklyView />
     </Suspense>
   );

@@ -1,9 +1,12 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import type { ApiSealedDay } from '@/lib/api/types';
 import { addDays, diffDays } from '@/lib/domain/day';
 import type { DayKey } from '@/lib/domain/types';
+import { acquireFrames } from '@/lib/stage/activity';
+import { stageClock } from '@/lib/stage/clock';
+import { DrivenSpring, rubberBand } from '@/lib/stage/spring';
 import { clearRigCursorVelocity, setRigScrub, setRigTurnstilePulse } from '@/lib/store/rig';
 import { tapeOffset } from '@/lib/viz/timeTape';
 
@@ -15,6 +18,8 @@ type TimeTapeProps = {
   onChangeCursor: (day: DayKey) => void;
 };
 
+const PX_PER_DAY = 18;
+
 function formatAriaDay(day: DayKey, today: DayKey, score: number | null | undefined): string {
   const [y, m, d] = day.split('-').map(Number);
   const utc = new Date(Date.UTC(y, m - 1, d));
@@ -24,10 +29,54 @@ function formatAriaDay(day: DayKey, today: DayKey, score: number | null | undefi
   return `${d} ${month}, ${scorePart}, ${ago} nights ago`;
 }
 
-export function TimeTape({ from, to, cursor, days, onChangeCursor }: TimeTapeProps) {
-  const dragStartRef = useRef<{ x: number; startDay: DayKey } | null>(null);
+export const TimeTape = memo(function TimeTape({
+  from,
+  to,
+  cursor,
+  days,
+  onChangeCursor,
+}: TimeTapeProps) {
+  const dragRef = useRef<{
+    startX: number;
+    lastX: number;
+    lastTs: number;
+    velocityPxPerSec: number;
+    startDay: DayKey;
+    releaseLease: (() => void) | null;
+  } | null>(null);
+
   const lastSignRef = useRef<number>(1);
   const pulseTimerRef = useRef<number | null>(null);
+  const pendingDayRef = useRef<DayKey | null>(null);
+  const flushUnsubRef = useRef<(() => void) | null>(null);
+  const cursorRef = useRef<DayKey>(cursor);
+
+  const [rubberShiftPx, setRubberShiftPx] = useState(0);
+  const rubberSpringRef = useRef<DrivenSpring | null>(null);
+
+  useEffect(() => {
+    cursorRef.current = cursor;
+  }, [cursor]);
+
+  useEffect(() => {
+    const spring = new DrivenSpring(0, 22, (v) => {
+      setRubberShiftPx(Math.abs(v) < 0.2 ? 0 : v);
+    });
+    rubberSpringRef.current = spring;
+    return () => {
+      spring.stop();
+      rubberSpringRef.current = null;
+      if (flushUnsubRef.current) {
+        flushUnsubRef.current();
+        flushUnsubRef.current = null;
+      }
+      if (pulseTimerRef.current !== null) {
+        window.clearTimeout(pulseTimerRef.current);
+      }
+      dragRef.current?.releaseLease?.();
+      clearRigCursorVelocity();
+    };
+  }, []);
 
   const sealedByDay = useMemo(() => new Map(days.map((d) => [d.day, d])), [days]);
   const totalSpan = Math.max(1, diffDays(to, from));
@@ -50,11 +99,27 @@ export function TimeTape({ from, to, cursor, days, onChangeCursor }: TimeTapePro
     return out;
   }, [cursor, from, sealedByDay, to]);
 
-  const moveTo = (nextDay: DayKey) => {
-    const clamped = nextDay < from ? from : nextDay > to ? to : nextDay;
-    if (clamped === cursor) return;
+  const scheduleCursorCommit = (clamped: DayKey) => {
+    pendingDayRef.current = clamped;
+    if (flushUnsubRef.current !== null) return;
+    flushUnsubRef.current = stageClock.subscribe(() => {
+      flushUnsubRef.current = null;
+      const next = pendingDayRef.current;
+      pendingDayRef.current = null;
+      if (next && next !== cursorRef.current) {
+        cursorRef.current = next;
+        onChangeCursor(next);
+      }
+      return false;
+    });
+  };
 
-    const delta = diffDays(clamped, cursor);
+  const moveTo = (rawCandidateDay: DayKey, immediateCommit = false) => {
+    const clamped = rawCandidateDay < from ? from : rawCandidateDay > to ? to : rawCandidateDay;
+    const base = pendingDayRef.current ?? cursorRef.current;
+    if (clamped === base) return;
+
+    const delta = diffDays(clamped, base);
     const nextSign = delta < 0 ? -1 : 1;
     const flipped = nextSign !== lastSignRef.current;
     setRigScrub(delta * 2.2, nextSign, flipped ? 1 : undefined);
@@ -67,29 +132,53 @@ export function TimeTape({ from, to, cursor, days, onChangeCursor }: TimeTapePro
       }, 280);
     }
 
-    onChangeCursor(clamped);
+    if (immediateCommit) {
+      pendingDayRef.current = null;
+      cursorRef.current = clamped;
+      onChangeCursor(clamped);
+    } else {
+      scheduleCursorCommit(clamped);
+    }
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const base = pendingDayRef.current ?? cursorRef.current;
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      moveTo(addDays(cursor, -1));
+      moveTo(addDays(base, -1));
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
-      moveTo(addDays(cursor, 1));
+      moveTo(addDays(base, 1));
     } else if (e.key === 'PageUp') {
       e.preventDefault();
-      moveTo(addDays(cursor, -7));
+      moveTo(addDays(base, -7));
     } else if (e.key === 'PageDown') {
       e.preventDefault();
-      moveTo(addDays(cursor, 7));
+      moveTo(addDays(base, 7));
     } else if (e.key === 'Home') {
       e.preventDefault();
-      moveTo(from);
+      moveTo(from, true);
     } else if (e.key === 'End') {
       e.preventDefault();
-      moveTo(to);
+      moveTo(to, true);
     }
+  };
+
+  const endDrag = () => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    dragRef.current = null;
+
+    // Project momentum smoothly on release (~120ms horizon) and snap to day
+    const projectedDays = Math.round((drag.velocityPxPerSec * 0.12) / PX_PER_DAY);
+    if (projectedDays !== 0) {
+      const base = pendingDayRef.current ?? cursorRef.current;
+      moveTo(addDays(base, -projectedDays));
+    }
+
+    rubberSpringRef.current?.to(0);
+    drag.releaseLease?.();
+    clearRigCursorVelocity();
   };
 
   const activeSealed = sealedByDay.get(cursor);
@@ -111,61 +200,98 @@ export function TimeTape({ from, to, cursor, days, onChangeCursor }: TimeTapePro
         aria-valuetext={formatAriaDay(cursor, to, activeSealed?.score)}
         onKeyDown={onKeyDown}
         onPointerDown={(e) => {
-          e.currentTarget.setPointerCapture(e.pointerId);
-          dragStartRef.current = { x: e.clientX, startDay: cursor };
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } catch {
+            // ignore synthetic pointer capture errors
+          }
+          rubberSpringRef.current?.stop();
+          dragRef.current = {
+            startX: e.clientX,
+            lastX: e.clientX,
+            lastTs: performance.now(),
+            velocityPxPerSec: 0,
+            startDay: cursorRef.current,
+            releaseLease: acquireFrames('time-scrub'),
+          };
         }}
         onPointerMove={(e) => {
-          if (!dragStartRef.current) return;
-          const dx = e.clientX - dragStartRef.current.x;
-          const dayDelta = Math.round(dx / 18);
-          moveTo(addDays(dragStartRef.current.startDay, dayDelta));
+          const drag = dragRef.current;
+          if (!drag) return;
+          const now = performance.now();
+          const dtSec = Math.max(0.004, (now - drag.lastTs) / 1000);
+          const instVel = (e.clientX - drag.lastX) / dtSec;
+          drag.velocityPxPerSec = drag.velocityPxPerSec * 0.6 + instVel * 0.4;
+          drag.lastX = e.clientX;
+          drag.lastTs = now;
+
+          // Dragging tape right pulls past days toward center; dragging left advances toward tonight
+          const dx = e.clientX - drag.startX;
+          const rawDayDelta = -Math.round(dx / PX_PER_DAY);
+          const unclampedDay = addDays(drag.startDay, rawDayDelta);
+
+          if (unclampedDay < from) {
+            const overshootDays = diffDays(from, unclampedDay);
+            rubberSpringRef.current?.snap(rubberBand(overshootDays * PX_PER_DAY, 64));
+          } else if (unclampedDay > to) {
+            const overshootDays = diffDays(unclampedDay, to);
+            rubberSpringRef.current?.snap(-rubberBand(overshootDays * PX_PER_DAY, 64));
+          } else if (rubberShiftPx !== 0) {
+            rubberSpringRef.current?.snap(0);
+          }
+
+          moveTo(unclampedDay);
         }}
-        onPointerUp={() => {
-          dragStartRef.current = null;
-          clearRigCursorVelocity();
-        }}
-        onPointerCancel={() => {
-          dragStartRef.current = null;
-          clearRigCursorVelocity();
-        }}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
         onWheel={(e) => {
+          const base = pendingDayRef.current ?? cursorRef.current;
           const dir = e.deltaY > 0 || e.deltaX > 0 ? 1 : -1;
-          moveTo(addDays(cursor, dir));
+          moveTo(addDays(base, dir));
         }}
         className="relative h-20 w-full touch-none select-none overflow-hidden rounded-lg border border-line bg-bg outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {/* Center symmetric axis */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute top-0 bottom-0 left-1/2 w-px -translate-x-1/2 bg-accent"
+          className="pointer-events-none absolute top-0 bottom-0 left-1/2 z-10 w-px -translate-x-1/2 bg-accent"
         />
 
-        {visibleTicks.map((tick) => {
-          const height = tick.isVoid
-            ? 14
-            : Math.max(18, Math.round(18 + ((tick.score ?? 30) / 100) * 34));
-          const isCurrent = tick.day === cursor;
-          return (
-            <button
-              key={tick.day}
-              type="button"
-              tabIndex={-1}
-              aria-label={tick.day}
-              onClick={() => moveTo(tick.day)}
-              style={{
-                left: `calc(50% + ${tick.xPx.toFixed(1)}px)`,
-                height: `${height}px`,
-              }}
-              className={`absolute bottom-3 w-1.5 -translate-x-1/2 rounded-full transition-[height,opacity] duration-[var(--duration-micro)] ease-[var(--ease-out)] ${
-                isCurrent
-                  ? 'bg-accent'
-                  : tick.isVoid
-                    ? 'border border-text-faint/45 bg-transparent'
-                    : 'bg-text-dim/65 hover:bg-text'
-              }`}
-            />
-          );
-        })}
+        <div
+          className="absolute inset-0 will-change-transform"
+          style={
+            rubberShiftPx !== 0
+              ? { transform: `translate3d(${rubberShiftPx.toFixed(1)}px, 0, 0)` }
+              : undefined
+          }
+        >
+          {visibleTicks.map((tick) => {
+            const height = tick.isVoid
+              ? 14
+              : Math.max(18, Math.round(18 + ((tick.score ?? 30) / 100) * 34));
+            const isCurrent = tick.day === cursor;
+            return (
+              <button
+                key={tick.day}
+                type="button"
+                tabIndex={-1}
+                aria-label={tick.day}
+                onClick={() => moveTo(tick.day, true)}
+                style={{
+                  left: `calc(50% + ${tick.xPx.toFixed(1)}px)`,
+                  height: `${height}px`,
+                }}
+                className={`absolute bottom-3 w-1.5 -translate-x-1/2 rounded-full transition-[height,opacity] duration-[var(--duration-micro)] ease-[var(--ease-out)] ${
+                  isCurrent
+                    ? 'bg-accent'
+                    : tick.isVoid
+                      ? 'border border-text-faint/45 bg-transparent'
+                      : 'bg-text-dim/65 hover:bg-text'
+                }`}
+              />
+            );
+          })}
+        </div>
       </div>
 
       <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
@@ -173,4 +299,4 @@ export function TimeTape({ from, to, cursor, days, onChangeCursor }: TimeTapePro
       </p>
     </div>
   );
-}
+});

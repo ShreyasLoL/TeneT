@@ -63,7 +63,7 @@ export function DashboardView() {
       .filter((t): t is NonNullable<typeof t> => t !== undefined);
   }, [data, today]);
 
-  if (isLoading) return <LoadingFallback />;
+  if (isLoading) return <LoadingFallback variant="wide" />;
 
   if (isError || !data) {
     return (

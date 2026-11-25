@@ -70,6 +70,20 @@ export const SealControl = memo(function SealControl({
   }, []);
 
   useEffect(() => {
+    if (!holding) return;
+    const endFromWindow = () => cancelHold();
+    window.addEventListener('pointerup', endFromWindow);
+    window.addEventListener('pointercancel', endFromWindow);
+    window.addEventListener('blur', endFromWindow);
+    return () => {
+      window.removeEventListener('pointerup', endFromWindow);
+      window.removeEventListener('pointercancel', endFromWindow);
+      window.removeEventListener('blur', endFromWindow);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holding]);
+
+  useEffect(() => {
     if (!isPending) firedRef.current = false;
   }, [isPending]);
 
@@ -238,16 +252,10 @@ export const SealControl = memo(function SealControl({
             aria-label={COPY.ritual.sealIdle}
             onPointerDown={(e) => {
               if (e.pointerType === 'mouse' && e.button !== 0) return;
-              try {
-                e.currentTarget.setPointerCapture(e.pointerId);
-              } catch {
-                // synthetic pointer events may not have an active pointerId
-              }
               beginHold();
             }}
             onPointerUp={cancelHold}
             onPointerCancel={cancelHold}
-            onLostPointerCapture={cancelHold}
             onKeyDown={onKeyDown}
             className="group relative inline-flex min-h-20 min-w-52 touch-none select-none items-center justify-center gap-4 rounded-full border border-line bg-bg px-6 py-3 transition-[border-color,transform] duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:border-accent/60 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
           >
