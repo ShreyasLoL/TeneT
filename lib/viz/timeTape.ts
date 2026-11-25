@@ -1,3 +1,7 @@
+import type { ApiSealedDay } from '@/lib/api/types';
+import { addDays, diffDays } from '@/lib/domain/day';
+import type { DayKey } from '@/lib/domain/types';
+
 /**
  * Symmetric fisheye warp for TimeTape ticks around cursor delta `d` (in days).
  * `x(d) = sign(d) * k * log1p(|d| / s)`
@@ -48,4 +52,47 @@ export function deterministicScrubState(
     emergences[r] = ringEmergence(r, cursorOffsetDays);
   }
   return { phases, emergences };
+}
+
+export type VisibleTapeTick = {
+  day: DayKey;
+  delta: number;
+  xPx: number;
+  score: number | null;
+  isVoid: boolean;
+};
+
+export function formatAriaDay(
+  day: DayKey,
+  today: DayKey,
+  score: number | null | undefined,
+): string {
+  const [y, m, d] = day.split('-').map(Number);
+  const utc = new Date(Date.UTC(y, m - 1, d));
+  const month = utc.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }).toLowerCase();
+  const ago = Math.max(0, diffDays(today, day));
+  const scorePart = score === null || score === undefined ? 'void' : `score ${score}`;
+  return `${d} ${month}, ${scorePart}, ${ago} nights ago`;
+}
+
+export function buildVisibleTapeTicks(
+  cursor: DayKey,
+  from: DayKey,
+  to: DayKey,
+  sealedByDay: ReadonlyMap<DayKey, ApiSealedDay>,
+): VisibleTapeTick[] {
+  const out: VisibleTapeTick[] = [];
+  for (let offset = -36; offset <= 36; offset++) {
+    const day = addDays(cursor, offset);
+    if (day < from || day > to) continue;
+    const sealed = sealedByDay.get(day);
+    out.push({
+      day,
+      delta: offset,
+      xPx: tapeOffset(offset, 92, 3.5),
+      score: sealed ? sealed.score : null,
+      isVoid: !sealed,
+    });
+  }
+  return out;
 }

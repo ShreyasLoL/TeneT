@@ -8,7 +8,7 @@ import { acquireFrames } from '@/lib/stage/activity';
 import { stageClock } from '@/lib/stage/clock';
 import { DrivenSpring, rubberBand } from '@/lib/stage/spring';
 import { clearRigCursorVelocity, setRigScrub, setRigTurnstilePulse } from '@/lib/store/rig';
-import { tapeOffset } from '@/lib/viz/timeTape';
+import { buildVisibleTapeTicks, formatAriaDay } from '@/lib/viz/timeTape';
 
 type TimeTapeProps = {
   from: DayKey;
@@ -19,15 +19,6 @@ type TimeTapeProps = {
 };
 
 const PX_PER_DAY = 18;
-
-function formatAriaDay(day: DayKey, today: DayKey, score: number | null | undefined): string {
-  const [y, m, d] = day.split('-').map(Number);
-  const utc = new Date(Date.UTC(y, m - 1, d));
-  const month = utc.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }).toLowerCase();
-  const ago = Math.max(0, diffDays(today, day));
-  const scorePart = score === null || score === undefined ? 'void' : `score ${score}`;
-  return `${d} ${month}, ${scorePart}, ${ago} nights ago`;
-}
 
 export const TimeTape = memo(function TimeTape({
   from,
@@ -82,22 +73,10 @@ export const TimeTape = memo(function TimeTape({
   const totalSpan = Math.max(1, diffDays(to, from));
   const currentOffset = Math.min(totalSpan, Math.max(0, diffDays(to, cursor)));
 
-  const visibleTicks = useMemo(() => {
-    const out: { day: DayKey; delta: number; xPx: number; score: number | null; isVoid: boolean }[] = [];
-    for (let offset = -36; offset <= 36; offset++) {
-      const day = addDays(cursor, offset);
-      if (day < from || day > to) continue;
-      const sealed = sealedByDay.get(day);
-      out.push({
-        day,
-        delta: offset,
-        xPx: tapeOffset(offset, 92, 3.5),
-        score: sealed ? sealed.score : null,
-        isVoid: !sealed,
-      });
-    }
-    return out;
-  }, [cursor, from, sealedByDay, to]);
+  const visibleTicks = useMemo(
+    () => buildVisibleTapeTicks(cursor, from, to, sealedByDay),
+    [cursor, from, sealedByDay, to],
+  );
 
   const scheduleCursorCommit = (clamped: DayKey) => {
     pendingDayRef.current = clamped;
@@ -169,7 +148,6 @@ export const TimeTape = memo(function TimeTape({
     if (!drag) return;
     dragRef.current = null;
 
-    // Project momentum smoothly on release (~120ms horizon) and snap to day
     const projectedDays = Math.round((drag.velocityPxPerSec * 0.12) / PX_PER_DAY);
     if (projectedDays !== 0) {
       const base = pendingDayRef.current ?? cursorRef.current;
@@ -225,17 +203,14 @@ export const TimeTape = memo(function TimeTape({
           drag.lastX = e.clientX;
           drag.lastTs = now;
 
-          // Dragging tape right pulls past days toward center; dragging left advances toward tonight
           const dx = e.clientX - drag.startX;
           const rawDayDelta = -Math.round(dx / PX_PER_DAY);
           const unclampedDay = addDays(drag.startDay, rawDayDelta);
 
           if (unclampedDay < from) {
-            const overshootDays = diffDays(from, unclampedDay);
-            rubberSpringRef.current?.snap(rubberBand(overshootDays * PX_PER_DAY, 64));
+            rubberSpringRef.current?.snap(rubberBand(diffDays(from, unclampedDay) * PX_PER_DAY, 64));
           } else if (unclampedDay > to) {
-            const overshootDays = diffDays(unclampedDay, to);
-            rubberSpringRef.current?.snap(-rubberBand(overshootDays * PX_PER_DAY, 64));
+            rubberSpringRef.current?.snap(-rubberBand(diffDays(unclampedDay, to) * PX_PER_DAY, 64));
           } else if (rubberShiftPx !== 0) {
             rubberSpringRef.current?.snap(0);
           }
@@ -251,7 +226,6 @@ export const TimeTape = memo(function TimeTape({
         }}
         className="relative h-20 w-full touch-none select-none overflow-hidden rounded-lg border border-line bg-bg outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {/* Center symmetric axis */}
         <div
           aria-hidden="true"
           className="pointer-events-none absolute top-0 bottom-0 left-1/2 z-10 w-px -translate-x-1/2 bg-accent"
