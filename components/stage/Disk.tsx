@@ -92,7 +92,7 @@ export function Disk() {
       rotation={[-Math.PI / 2, 0, 0]}
       frustumCulled={false}
     >
-      <planeGeometry args={[9.9, 9.9, 1, 1]} />
+      <planeGeometry args={[10.8, 10.8, 1, 1]} />
       <shaderMaterial
         ref={matRef}
         glslVersion={GLSL3}

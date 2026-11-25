@@ -98,8 +98,22 @@ export function BlackHole() {
 
   return (
     <>
-      <mesh ref={haloMeshRef} renderOrder={1} frustumCulled={false}>
-        <planeGeometry args={[7.6, 7.6, 1, 1]} />
+      <mesh ref={horizonMeshRef} renderOrder={0} frustumCulled={false}>
+        <sphereGeometry args={[1.12, 48, 32]} />
+        <shaderMaterial
+          ref={horizonMatRef}
+          glslVersion={GLSL3}
+          transparent
+          depthWrite
+          depthTest
+          uniforms={horizonUniforms}
+          vertexShader={horizonVertexShader}
+          fragmentShader={horizonFragmentShader}
+        />
+      </mesh>
+
+      <mesh ref={haloMeshRef} renderOrder={5} frustumCulled={false}>
+        <planeGeometry args={[8.8, 8.8, 1, 1]} />
         <shaderMaterial
           ref={haloMatRef}
           glslVersion={GLSL3}
@@ -110,20 +124,6 @@ export function BlackHole() {
           uniforms={haloUniforms}
           vertexShader={haloVertexShader}
           fragmentShader={haloFragmentShader}
-        />
-      </mesh>
-
-      <mesh ref={horizonMeshRef} renderOrder={2} frustumCulled={false}>
-        <sphereGeometry args={[0.86, 48, 32]} />
-        <shaderMaterial
-          ref={horizonMatRef}
-          glslVersion={GLSL3}
-          transparent
-          depthWrite
-          depthTest
-          uniforms={horizonUniforms}
-          vertexShader={horizonVertexShader}
-          fragmentShader={horizonFragmentShader}
         />
       </mesh>
     </>

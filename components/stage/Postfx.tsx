@@ -13,7 +13,7 @@ function computeHoleScreenRadius(camera: unknown): number {
   if (camera instanceof PerspectiveCamera) {
     const dist = Math.max(1.8, camera.position.length());
     const halfH = dist * Math.tan(MathUtils.degToRad(camera.fov * 0.5));
-    return MathUtils.clamp(0.86 / Math.max(0.5, halfH * 2), 0.04, 0.34);
+    return MathUtils.clamp(1.12 / Math.max(0.5, halfH * 2), 0.04, 0.36);
   }
   return 0.18;
 }
@@ -128,7 +128,7 @@ export function Postfx() {
       const progradeFlare =
         profile.bloom && rig.forkMode > 0 ? rig.forkMode * rig.forkWarp * 0.85 : 0;
       if (profile.bloom) {
-        composerRig.bloom.intensity = 0.72 + progradeFlare;
+        composerRig.bloom.intensity = 0.68 + progradeFlare;
       }
 
       const u = composerRig.tenet.uniforms;
@@ -146,7 +146,7 @@ export function Postfx() {
       u.get('uAspect')!.value = aspect;
       u.get('uSpike')!.value = rig.recapSpike + rig.turnstilePulse * 0.4;
       u.get('uTime')!.value = rig.elapsedTime;
-      u.get('uMirrorEnabled')!.value = 0.0;
+      u.get('uChroma')!.value = lowPower || !profile.grain ? 0.0 : 0.0055;
       u.get('uGrainEnabled')!.value = profile.grain && !lowPower ? 1.0 : 0.0;
 
       composerRig.renderFrame(dt);

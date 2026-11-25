@@ -69,8 +69,8 @@ export function Galaxy() {
         uBrightness: { value: 1 },
         uAmber: { value: new Vector3(amr, amg, amb) },
         uOrchid: { value: new Vector3(ar, ag, ab) },
-        uViolet: { value: new Vector3(abr * 1.2 + 0.02, abg * 1.1 + 0.01, abb * 1.9 + 0.08) },
-        uColdBlue: { value: new Vector3(0.05, 0.28, 0.92) },
+        uViolet: { value: new Vector3(abr * 1.3 + 0.03, abg * 1.1 + 0.015, abb * 2.2 + 0.12) },
+        uColdBlue: { value: new Vector3(0.20, 0.52, 1.0) },
       },
       dustUniforms: {
         uTime: { value: 0 },
@@ -119,7 +119,7 @@ export function Galaxy() {
 
   return (
     <>
-      <points renderOrder={0} frustumCulled={false}>
+      <points renderOrder={1} frustumCulled={false}>
         <bufferGeometry ref={geomRef}>
           <bufferAttribute attach="attributes-position" args={[buffers.origins, 3]} />
           <bufferAttribute attach="attributes-aSeed" args={[buffers.seeds, 4]} />
@@ -129,6 +129,7 @@ export function Galaxy() {
           ref={starMatRef}
           glslVersion={GLSL3}
           transparent
+          depthTest
           depthWrite={false}
           blending={AdditiveBlending}
           uniforms={starUniforms}
@@ -138,12 +139,13 @@ export function Galaxy() {
       </points>
 
       {/* Absorbing dark dust lanes along the inner concave edge of the 2 main spiral arms */}
-      <mesh renderOrder={1} rotation={[-Math.PI / 2, 0, 0]} frustumCulled={false}>
+      <mesh renderOrder={2} rotation={[-Math.PI / 2, 0, 0]} frustumCulled={false}>
         <planeGeometry args={[42, 42, 1, 1]} />
         <shaderMaterial
           ref={dustMatRef}
           glslVersion={GLSL3}
           transparent
+          depthTest
           depthWrite={false}
           side={DoubleSide}
           blending={NormalBlending}

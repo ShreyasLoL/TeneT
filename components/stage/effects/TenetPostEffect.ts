@@ -30,9 +30,8 @@ export class TenetPostEffect extends Effect {
         ['uHold', new Uniform(0.0)],
         ['uAspect', new Uniform(1.77)],
         ['uSpike', new Uniform(0.0)],
-        ['uHorizonY', new Uniform(0.24)],
         ['uTime', new Uniform(0.0)],
-        ['uMirrorEnabled', new Uniform(1.0)],
+        ['uChroma', new Uniform(0.0055)],
         ['uGrainEnabled', new Uniform(1.0)],
         ['uGrain', new Uniform(0.004)],
         ['uBg', new Uniform(new Vector3(0.0033, 0.0027, 0.0052))],
@@ -78,9 +77,9 @@ export function createTenetComposer(
   const bloom = new BloomEffect({
     blendFunction: BlendFunction.ADD,
     mipmapBlur: true,
-    luminanceThreshold: 0.66,
-    luminanceSmoothing: 0.18,
-    intensity: 0.72,
+    luminanceThreshold: 0.68,
+    luminanceSmoothing: 0.2,
+    intensity: 0.68,
     radius: 0.64,
     levels: 4,
   });
@@ -111,7 +110,7 @@ export function createTenetComposer(
     bloom,
     effectPass,
     syncBloom(enabled: boolean) {
-      bloom.intensity = enabled ? 0.72 : 0;
+      bloom.intensity = enabled ? 0.68 : 0;
       bloom.blendMode.setBlendFunction(enabled ? BlendFunction.ADD : BlendFunction.SKIP);
     },
     renderFrame(delta: number) {

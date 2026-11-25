@@ -1,4 +1,6 @@
 export const horizonVertexShader = /* glsl */ `
+  precision highp float;
+
   out vec3 vNormalView;
   out vec3 vViewDir;
   out vec3 vLocalPos;
@@ -13,6 +15,8 @@ export const horizonVertexShader = /* glsl */ `
 `;
 
 export const horizonFragmentShader = /* glsl */ `
+  precision highp float;
+
   uniform float uIntro;
   uniform float uHold;
   uniform float uMode; // -1 retrograde, 0 landing, +1 prograde
@@ -67,6 +71,8 @@ export const horizonFragmentShader = /* glsl */ `
 `;
 
 export const haloVertexShader = /* glsl */ `
+  precision highp float;
+
   out vec2 vUv;
 
   void main() {
@@ -76,6 +82,8 @@ export const haloVertexShader = /* glsl */ `
 `;
 
 export const haloFragmentShader = /* glsl */ `
+  precision highp float;
+
   uniform float uTime;
   uniform float uIntro;
   uniform float uHold;
@@ -124,17 +132,17 @@ export const haloFragmentShader = /* glsl */ `
     float horizonFade = smoothstep(0.58, 0.98, uIntro);
     if (diskIgnition <= 0.002) discard;
 
-    vec2 p = (vUv - 0.5) * 7.6;
+    vec2 p = (vUv - 0.5) * 8.8;
     float r = length(p);
-    float rH = 0.86 * (1.0 + uHold * 0.06);
+    float rH = 1.12 * (1.0 + uHold * 0.06);
 
     float retro = clamp(-uMode, 0.0, 1.0) * uHue;
     float prog = clamp(uMode, 0.0, 1.0) * uHue;
     float starMorph = smoothstep(0.35, 0.78, uWarp);
 
-    if (r > 3.7) discard;
-    if (r < rH * 0.88 && starMorph < 0.05) discard;
-    float innerMask = mix(smoothstep(rH * 0.88, rH * 0.995, r), 1.0, starMorph);
+    if (r > 4.2) discard;
+    if (r < rH * 0.96 && starMorph < 0.05) discard;
+    float innerMask = mix(smoothstep(rH * 0.96, rH * 1.005, r), 1.0, starMorph);
 
     float vert = abs(p.y) / max(0.001, r);
     float theta = atan(p.y, p.x);

@@ -1,4 +1,6 @@
 export const particlesVertexShader = /* glsl */ `
+  precision highp float;
+
   in vec4 aSeed;     // x: aBase, y: eccRand, z: phase, w: inclRand
   in vec2 aMeta;     // x: cohort slot 0..15, y: area (0..2) or 10+area for dust shell
 
@@ -23,17 +25,47 @@ export const particlesVertexShader = /* glsl */ `
   out float vDoppler;
   out float vShell;
   out float vMemoryBody;
+  out float vStarBright;
 
   const float TAU = 6.28318530718;
-  const float R_IN = 0.96;
-  const float R_SPAN = 4.0;
-  const float A0 = 2.2;
+  const float R_IN = 1.18;
+  const float R_SPAN = 4.1;
+  const float A0 = 2.4;
+
+  vec3 hash33(vec3 p) {
+    p = fract(p * vec3(0.1031, 0.1030, 0.0973));
+    p += dot(p, p.yxz + 33.33);
+    return fract((p.xxy + p.yxx) * p.zyx) * 2.0 - 1.0;
+  }
+
+  float gradNoise3(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+    vec3 u = f * f * (3.0 - 2.0 * f);
+    return mix(
+      mix(
+        mix(dot(hash33(i + vec3(0.0, 0.0, 0.0)), f - vec3(0.0, 0.0, 0.0)),
+            dot(hash33(i + vec3(1.0, 0.0, 0.0)), f - vec3(1.0, 0.0, 0.0)), u.x),
+        mix(dot(hash33(i + vec3(0.0, 1.0, 0.0)), f - vec3(0.0, 1.0, 0.0)),
+            dot(hash33(i + vec3(1.0, 1.0, 0.0)), f - vec3(1.0, 1.0, 0.0)), u.x),
+        u.y
+      ),
+      mix(
+        mix(dot(hash33(i + vec3(0.0, 0.0, 1.0)), f - vec3(0.0, 0.0, 1.0)),
+            dot(hash33(i + vec3(1.0, 0.0, 1.0)), f - vec3(1.0, 0.0, 1.0)), u.x),
+        mix(dot(hash33(i + vec3(0.0, 1.0, 1.0)), f - vec3(0.0, 1.0, 1.0)),
+            dot(hash33(i + vec3(1.0, 1.0, 1.0)), f - vec3(1.0, 1.0, 1.0)), u.x),
+        u.y
+      ),
+      u.z
+    );
+  }
 
   vec3 curlOffset(vec3 p, float t) {
-    float s1 = sin(p.y * 1.3 + t) * cos(p.z * 1.1 - t * 0.7);
-    float s2 = sin(p.z * 1.2 - t * 0.8) * cos(p.x * 1.4 + t * 0.6);
-    float s3 = sin(p.x * 1.1 + t * 0.5) * cos(p.y * 1.3 - t * 0.9);
-    return vec3(s1, s2, s3) * 0.28;
+    float n1 = gradNoise3(p + vec3(0.0, t, 0.0));
+    float n2 = gradNoise3(p.yzx - vec3(t * 0.8, 0.0, 0.0));
+    float n3 = gradNoise3(p.zxy + vec3(0.0, 0.0, t * 0.6));
+    return vec3(n2 - n3, (n3 - n1) * 0.45, n1 - n2) * 0.28;
   }
 
   void main() {
@@ -52,33 +84,30 @@ export const particlesVertexShader = /* glsl */ `
     float progWarp = prog * uWarp;
 
     float satisfied = clamp(dirSmooth * 0.5 + 0.5, 0.0, 1.0);
-    float coherence = mix(uLive * satisfied, 0.25, isShell);
-    // Retrograde settles into calm concentric memory rings; Prograde ignites outward
-    coherence = clamp(coherence + retroWarp * 0.75, 0.0, 1.0);
+    float coherence = clamp(mix(uLive * satisfied, 0.25, isShell) + retroWarp * 0.75, 0.0, 1.0);
 
-    float baseEcc = isShell > 0.5 ? 0.28 : (aArea < 0.5 ? 0.04 : (aArea < 1.5 ? 0.14 : 0.28));
-    float baseIncl = isShell > 0.5 ? 1.25 : (aArea < 0.5 ? 0.045 : (aArea < 1.5 ? 0.14 : 0.34));
+    float area0 = 1.0 - step(0.5, aArea);
+    float area1 = step(0.5, aArea) * (1.0 - step(1.5, aArea));
+    float baseEcc = mix(area0 * 0.04 + area1 * 0.14 + (1.0 - area0 - area1) * 0.28, 0.28, isShell);
+    float baseIncl = mix(area0 * 0.045 + area1 * 0.14 + (1.0 - area0 - area1) * 0.34, 1.25, isShell);
     float ecc = mix(min(0.45, baseEcc + 0.12), baseEcc * 0.5, coherence) * (0.65 + 0.65 * aSeed.y);
     float incl = mix(baseIncl, baseIncl * 0.22, coherence) * (aSeed.w * 2.0 - 1.0);
 
-    float shellRadius = mix(1.08, 2.85, aSeed.y);
+    float shellRadius = mix(1.05, 2.75, aSeed.y);
     float aTarget = mix(aSeed.x, shellRadius, isShell);
     float a = mix(aTarget, R_IN * 0.94, uHold * 0.48 * (1.0 - isShell * 0.6));
 
-    // Retrograde: contract & quantize into calm ringed orbits with small memory bodies
-    float quantizedRing = floor(a * 2.2 + 0.5) / 2.2;
-    a = mix(a, quantizedRing * 0.82, retroWarp * 0.72);
-    // Prograde: accelerate & burst radially outward
+    float quantizedRing = floor(a * 2.4 + 0.5) / 2.4;
+    a = mix(a, quantizedRing * 0.85, retroWarp * 0.72);
     a *= 1.0 + progWarp * (0.65 + aSeed.y * 0.95);
 
     float aRatio = max(0.22, a / A0);
     float omegaFactor = (inversesqrt(aRatio) / aRatio) * mix(1.25, 0.38, isShell);
 
-    float stagger = clamp((a - R_IN) / 9.5, 0.0, 1.0) * 0.18;
+    float stagger = clamp((a - R_IN) / 5.5, 0.0, 1.0) * 0.18;
     float introLocal = smoothstep(stagger, min(1.0, 0.88 + stagger * 0.65), uIntro);
     float infallWindup = (1.0 - introLocal) * (4.4 + aSeed.z * 2.4) - uSpin * omegaFactor * 0.55;
 
-    // Extra angular burst during prograde vs retrograde counter-rotation
     float journeySpin = progWarp * 3.8 * omegaFactor - retroWarp * 1.6 * omegaFactor;
     float M = aSeed.z * TAU + omegaFactor * phiC + journeySpin - infallWindup;
 
@@ -104,27 +133,23 @@ export const particlesVertexShader = /* glsl */ `
     );
     tilted.y = tilted.y * ci + orbitPos.z * si * 0.32;
 
-    vec3 diskPos = tilted + curlOffset(tilted * 0.38, phiC * 0.05 + uTime * 0.24) * (1.0 - coherence) * (1.0 - isShell * 0.4);
-    // Prograde particles stream forward toward camera during ignition dive
+    vec3 diskPos = tilted + curlOffset(tilted * 0.52, phiC * 0.05 + uTime * 0.22) * (1.0 - coherence * 0.72) * (1.0 - isShell * 0.4);
     diskPos.z += progWarp * (aSeed.z - 0.35) * 4.2;
 
-    vec3 finalPos = diskPos;
-    if (uIntro < 0.999) {
-      // Condense from 60 radial clock-tick spokes (uTick -> 0) into Keplerian spiral infall
-      float tickAngle = (floor(aSeed.z * 60.0) / 60.0) * TAU;
-      float tickR = mix(3.4, 5.2, aSeed.y);
-      vec3 tickSpoke = vec3(cos(tickAngle) * tickR, sin(tickAngle) * tickR, (aSeed.w - 0.5) * 0.25);
-      float spinAngle = (1.0 - introLocal) * (2.2 + aSeed.y * 1.4);
-      float cs = cos(spinAngle);
-      float ss = sin(spinAngle);
-      vec3 spunSpawn = vec3(
-        position.x * cs - position.z * ss,
-        position.y * mix(1.0, 0.18, introLocal),
-        position.x * ss + position.z * cs
-      );
-      vec3 originPos = mix(spunSpawn, tickSpoke, clamp(uTick, 0.0, 1.0));
-      finalPos = mix(originPos, diskPos, introLocal);
-    }
+    // Branchless blend between 60-tick spoke origin and Keplerian disk
+    float tickAngle = (floor(aSeed.z * 60.0) / 60.0) * TAU;
+    float tickR = mix(2.8, 4.6, aSeed.y);
+    vec3 tickSpoke = vec3(cos(tickAngle) * tickR, (aSeed.w - 0.5) * 0.2, sin(tickAngle) * tickR);
+    float spinAngle = (1.0 - introLocal) * (2.2 + aSeed.y * 1.4);
+    float cs = cos(spinAngle);
+    float ss = sin(spinAngle);
+    vec3 spunSpawn = vec3(
+      position.x * cs - position.z * ss,
+      position.y * mix(1.0, 0.18, introLocal),
+      position.x * ss + position.z * cs
+    );
+    vec3 originPos = mix(spunSpawn, tickSpoke, clamp(uTick, 0.0, 1.0));
+    vec3 finalPos = mix(originPos, diskPos, introLocal);
 
     vec3 localTang = vec3(-sinE, 0.0, bScale * cosE);
     vec3 worldTang = normalize(vec3(
@@ -137,37 +162,37 @@ export const particlesVertexShader = /* glsl */ `
     vec3 viewDir = normalize(-mvPosition.xyz);
     vDoppler = dot(mat3(modelViewMatrix) * worldTang, viewDir) * dirSmooth;
 
-    float focusDim = 1.0;
-    if (uFocusArea >= -0.5) {
-      focusDim = abs(aArea - uFocusArea) < 0.3 ? 1.18 : 0.24;
-    }
+    float hasFocus = step(-0.5, uFocusArea);
+    float focusMatch = 1.0 - step(0.3, abs(aArea - uFocusArea));
+    float focusDim = mix(1.0, mix(0.24, 1.18, focusMatch), hasFocus);
 
-    float recapBoost = 1.0;
-    if (uRecapJudge >= -0.5) {
-      recapBoost = abs(aCohort - uRecapJudge) < 0.3 ? (1.45 + uRecapSpike * 0.5) : 0.65;
-    }
+    float hasJudge = step(-0.5, uRecapJudge);
+    float judgeMatch = 1.0 - step(0.3, abs(aCohort - uRecapJudge));
+    float recapBoost = mix(1.0, mix(0.65, 1.45 + uRecapSpike * 0.5, judgeMatch), hasJudge);
 
-    // Small orbiting memory bodies stand out crisply in Retrograde star system
     float isMemoryBody = step(0.968, aSeed.y) * (1.0 - isShell);
     float bodyBoost = 1.0 + isMemoryBody * retroWarp * 1.35 + progWarp * 0.32;
 
-    float depthScale = clamp(11.8 / max(1.2, -mvPosition.z), 0.65, 3.6);
-    float basePt = mix(1.25 + 1.55 * aSeed.y * (0.5 + 0.5 * satisfied), 0.95 + 0.85 * aSeed.y, isShell);
-    gl_PointSize = clamp(basePt * bodyBoost * depthScale * uDpr, 1.0 * uDpr, 6.8 * uDpr);
+    float depthScale = clamp(10.6 / max(1.2, -mvPosition.z), 0.55, 3.4);
+    float basePt = mix(1.25 + 1.65 * aSeed.y * (0.5 + 0.5 * satisfied), 1.05 + 0.9 * aSeed.y, isShell);
+    gl_PointSize = clamp(basePt * bodyBoost * depthScale * uDpr, 0.95 * uDpr, 7.2 * uDpr);
     gl_Position = projectionMatrix * mvPosition;
 
     float introGlow = smoothstep(0.02, 0.58, uIntro);
-    float radialFade = mix(pow(1.0 - clamp((a - R_IN) / 6.8, 0.0, 1.0), 1.45), 0.24, isShell);
+    float radialFade = mix(pow(1.0 - clamp((a - R_IN) / 4.2, 0.0, 1.0), 1.45), 0.28, isShell);
     radialFade = mix(radialFade, 0.78, max(retroWarp, progWarp) * 0.65);
 
     vRadiusNorm = clamp((a - R_IN) / R_SPAN, 0.0, 1.0);
     vShell = isShell;
     vMemoryBody = isMemoryBody * retroWarp;
-    vAlpha = clamp((0.24 + 0.56 * satisfied) * uBrightness * focusDim * recapBoost * introGlow * radialFade, 0.01, 0.98);
+    vStarBright = aSeed.y * (1.0 - isShell);
+    vAlpha = clamp((0.24 + 0.58 * satisfied) * uBrightness * focusDim * recapBoost * introGlow * radialFade, 0.01, 0.98);
   }
 `;
 
 export const particlesFragmentShader = /* glsl */ `
+  precision highp float;
+
   uniform vec3 uAmber;
   uniform vec3 uOrchid;
   uniform vec3 uViolet;
@@ -181,6 +206,7 @@ export const particlesFragmentShader = /* glsl */ `
   in float vDoppler;
   in float vShell;
   in float vMemoryBody;
+  in float vStarBright;
 
   out vec4 fragColor;
 
@@ -202,29 +228,36 @@ export const particlesFragmentShader = /* glsl */ `
     vec3 ice = vec3(0.42, 0.80, 0.98);
     vec3 teal = vec3(0.04, 0.36, 0.46);
     vec3 slateViolet = mix(vec3(0.12, 0.11, 0.24), uOrchid * 0.22, 0.15);
-    if (t < 0.30) return mix(ice, teal, t / 0.30);
-    return mix(teal, slateViolet, clamp((t - 0.30) / 0.70, 0.0, 1.0));
+    return mix(mix(ice, teal, clamp(t / 0.30, 0.0, 1.0)), mix(teal, slateViolet, clamp((t - 0.30) / 0.70, 0.0, 1.0)), step(0.30, t));
   }
 
   vec3 progradePalette(float t) {
     vec3 whiteHot = vec3(1.0, 0.98, 0.92);
-    if (t < 0.30) return mix(whiteHot, uAmber, t / 0.30);
-    if (t < 0.72) return mix(uAmber, uOrchid, (t - 0.30) / 0.42);
-    return mix(uOrchid, uAmber * 0.45, clamp((t - 0.72) / 0.28, 0.0, 1.0));
+    vec3 inner = mix(whiteHot, uAmber, clamp(t / 0.30, 0.0, 1.0));
+    vec3 mid = mix(uAmber, uOrchid, clamp((t - 0.30) / 0.42, 0.0, 1.0));
+    vec3 outer = mix(uOrchid, uAmber * 0.45, clamp((t - 0.72) / 0.28, 0.0, 1.0));
+    return mix(mix(inner, mid, step(0.30, t)), outer, step(0.72, t));
   }
 
   void main() {
     vec2 c = gl_PointCoord - vec2(0.5);
     float d2 = dot(c, c);
-    if (d2 > 0.25) discard;
+    float radialWindow = smoothstep(0.25, 0.015, d2);
 
-    float edge = max(0.0, 1.0 - d2 * 4.0);
-    float core = mix(edge * edge * edge * edge, edge * edge, vMemoryBody);
+    // Soft Gaussian falloff + subtle diffraction spikes on the brightest inner particles
+    float gauss = exp(-d2 * 22.0) * radialWindow;
+    float spikeGate = smoothstep(0.88, 0.99, vStarBright) * radialWindow;
+    float spikes =
+      (exp(-abs(c.y) * 34.0) * exp(-abs(c.x) * 6.0) +
+        exp(-abs(c.x) * 34.0) * exp(-abs(c.y) * 6.0)) *
+      0.36 *
+      spikeGate;
+    float core = mix(gauss + spikes, exp(-d2 * 12.0) * radialWindow, vMemoryBody);
 
     float retro = clamp(-uMode, 0.0, 1.0) * uHue;
     float prog = clamp(uMode, 0.0, 1.0) * uHue;
 
-    float dopplerGain = clamp(1.0 + vDoppler * 0.45, 0.42, 1.62) + prog * 0.35;
+    float dopplerGain = clamp(1.0 + vDoppler * 0.55, 0.36, 1.85) + prog * 0.35;
     float rTemp = clamp(vRadiusNorm - vDoppler * 0.08 - uHold * 0.08, 0.0, 1.0);
 
     vec3 diskCol = blackbodyDiskRamp(rTemp, vDoppler);
@@ -236,6 +269,9 @@ export const particlesFragmentShader = /* glsl */ `
     lensDustCol = mix(mix(lensDustCol, vec3(0.08, 0.30, 0.40), retro), uAmber * 0.75, prog);
     vec3 col = mix(diskCol, lensDustCol, vShell) * dopplerGain;
 
-    fragColor = vec4(col * core, core * vAlpha);
+    float outA = clamp(core * vAlpha, 0.0, 1.0);
+    if (outA < 0.002) discard;
+
+    fragColor = vec4(col * 1.18, outA);
   }
 `;

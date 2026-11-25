@@ -109,7 +109,7 @@ export function Particles() {
       uAmber: { value: new Vector3(amr, amg, amb) },
       uOrchid: { value: new Vector3(ar, ag, ab) },
       uViolet: { value: new Vector3(abr * 1.35 + 0.04, abg * 1.2 + 0.02, abb * 2.4 + 0.18) },
-      uColdBlue: { value: new Vector3(0.035, 0.22, 0.88) },
+      uColdBlue: { value: new Vector3(0.16, 0.48, 1.0) },
     };
   }, [cohortTex]);
 
@@ -183,7 +183,7 @@ export function Particles() {
   if (profile.particles <= 0) return null;
 
   return (
-    <points frustumCulled={false}>
+    <points renderOrder={4} frustumCulled={false}>
       <bufferGeometry ref={geomRef}>
         <bufferAttribute attach="attributes-position" args={[staticBuffers.spawn, 3]} />
         <bufferAttribute attach="attributes-aSeed" args={[staticBuffers.seeds, 4]} />
@@ -193,6 +193,7 @@ export function Particles() {
         ref={matRef}
         glslVersion={GLSL3}
         transparent
+        depthTest
         depthWrite={false}
         blending={AdditiveBlending}
         uniforms={uniforms}
