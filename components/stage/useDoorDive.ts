@@ -58,12 +58,12 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
 
       diveTweenRef.current = gsapInstance.to(rig.cameraOverride, {
         px: 0,
-        py: 2.35,
-        pz: 11.4,
+        py: 1.18,
+        pz: 5.45,
         tx: 0,
         ty: 0,
         tz: 0,
-        fov: 44,
+        fov: 46,
         duration: 0.32,
         ease: 'expo.out',
         onComplete: () => {
@@ -125,12 +125,12 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
       if (!rig.cameraOverride.active) {
         rig.cameraOverride.active = true;
         rig.cameraOverride.px = 0;
-        rig.cameraOverride.py = 2.35;
-        rig.cameraOverride.pz = 11.4;
+        rig.cameraOverride.py = 1.18;
+        rig.cameraOverride.pz = 5.45;
         rig.cameraOverride.tx = 0;
         rig.cameraOverride.ty = 0;
         rig.cameraOverride.tz = 0;
-        rig.cameraOverride.fov = 44;
+        rig.cameraOverride.fov = 46;
       }
 
       let pushed = false;

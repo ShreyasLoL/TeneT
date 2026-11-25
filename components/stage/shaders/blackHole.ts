@@ -15,7 +15,6 @@ export const horizonVertexShader = /* glsl */ `
 export const horizonFragmentShader = /* glsl */ `
   uniform float uIntro;
   uniform float uHold;
-  uniform float uDim;
   uniform vec3 uOrchid;
   uniform vec3 uAmber;
   uniform vec3 uColdBlue;
@@ -39,7 +38,7 @@ export const horizonFragmentShader = /* glsl */ `
     vec3 rimCol = mix(uOrchid, uAmber, 0.35 * max(0.0, -doppler));
     rimCol = mix(rimCol, mix(vec3(1.0, 0.96, 1.0), uColdBlue, 0.22), max(0.0, doppler) * 0.45);
 
-    vec3 col = rimCol * rim * (0.55 + uHold * 0.35) * (1.0 + 0.35 * doppler) * uDim;
+    vec3 col = rimCol * rim * (0.55 + uHold * 0.35) * (1.0 + 0.35 * doppler);
     fragColor = vec4(col, horizonFade);
   }
 `;
@@ -57,7 +56,6 @@ export const haloFragmentShader = /* glsl */ `
   uniform float uTime;
   uniform float uIntro;
   uniform float uHold;
-  uniform float uDim;
   uniform vec3 uAmber;
   uniform vec3 uOrchid;
   uniform vec3 uViolet;
@@ -108,11 +106,11 @@ export const haloFragmentShader = /* glsl */ `
     float horizonFade = smoothstep(0.58, 0.98, uIntro);
     if (diskIgnition <= 0.002) discard;
 
-    vec2 p = (vUv - 0.5) * 6.4;
+    vec2 p = (vUv - 0.5) * 7.6;
     float r = length(p);
     float rH = 0.86 * (1.0 + uHold * 0.06);
 
-    if (r < rH * 0.86 || r > 3.15) discard;
+    if (r < rH * 0.86 || r > 3.7) discard;
     float innerMask = smoothstep(rH * 0.86, rH * 0.99, r);
 
     float vert = abs(p.y) / max(0.001, r);
@@ -151,10 +149,9 @@ export const haloFragmentShader = /* glsl */ `
       (photonCol * photon * (1.08 + uHold * 0.38) * (0.78 + 0.38 * beaming) +
         arcCol * arcProfile * turb * beaming * diskIgnition * 0.88 +
         coronaCol * corona) *
-      innerMask *
-      uDim;
+      innerMask;
 
-    float alpha = clamp((photon * 0.92 + arcProfile * beaming * 0.74 + corona) * innerMask, 0.0, 1.0) * mix(0.65, 1.0, uDim);
+    float alpha = clamp((photon * 0.92 + arcProfile * beaming * 0.74 + corona) * innerMask, 0.0, 1.0);
     if (alpha < 0.003) discard;
 
     fragColor = vec4(totalCol, alpha);

@@ -11,11 +11,11 @@ import { createTenetComposer, type TenetComposerRig } from './effects/TenetPostE
 
 function computeHoleScreenRadius(camera: unknown): number {
   if (camera instanceof PerspectiveCamera) {
-    const dist = Math.max(2.0, rig.holeWorldDist);
+    const dist = Math.max(1.8, camera.position.length());
     const halfH = dist * Math.tan(MathUtils.degToRad(camera.fov * 0.5));
-    return MathUtils.clamp((0.86 * rig.holeScale) / Math.max(0.5, halfH * 2), 0.012, 0.24);
+    return MathUtils.clamp(0.86 / Math.max(0.5, halfH * 2), 0.04, 0.34);
   }
-  return 0.095 * rig.holeScale;
+  return 0.18;
 }
 
 function SimplifiedLensQuad() {
@@ -28,7 +28,7 @@ function SimplifiedLensQuad() {
       uOrchid: { value: new Vector3(ar, ag, ab) },
       uCenter: { value: new Vector2(0.5, 0.5) },
       uAspect: { value: 1.77 },
-      uRadiusS: { value: 0.095 },
+      uRadiusS: { value: 0.18 },
       uHold: { value: 0 },
     };
   }, []);
@@ -38,7 +38,7 @@ function SimplifiedLensQuad() {
     if (!mat) return;
     const aspect = size.width / Math.max(1, size.height);
     const center = mat.uniforms.uCenter.value as Vector2;
-    center.set(rig.holeScreenX, rig.holeScreenY);
+    center.set(0.5, 0.5);
     mat.uniforms.uAspect.value = aspect;
     mat.uniforms.uRadiusS.value = computeHoleScreenRadius(camera);
     mat.uniforms.uHold.value = rig.sealHold;
@@ -123,14 +123,11 @@ export function Postfx() {
       const horizonAppear = MathUtils.smoothstep(rig.introProgress, 0.55, 0.98);
       const ritualAttenuation = mode === 'ritual' && rig.sealHold < 0.01 ? 0.62 : 1.0;
       const baseStrength =
-        (0.85 - 0.35 * density + rig.sealHold * 0.45) *
-        ritualAttenuation *
-        horizonAppear *
-        rig.holeDim;
+        (0.85 - 0.35 * density + rig.sealHold * 0.45) * ritualAttenuation * horizonAppear;
 
       const u = composerRig.tenet.uniforms;
       const center = u.get('uCenter')!.value as Vector2;
-      center.set(rig.holeScreenX, rig.holeScreenY);
+      center.set(0.5, 0.5);
 
       u.get('uRadiusS')!.value = computeHoleScreenRadius(camera);
       u.get('uStrength')!.value = MathUtils.damp(

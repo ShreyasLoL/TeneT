@@ -5,7 +5,7 @@ import type { buildCohortMap } from '@/lib/viz/cohorts';
 export const MAX_PARTICLES = NORMAL_PARTICLES; // 45,000 max per perf budget
 const DISK_FRACTION = 0.82;
 const R_DISK_IN = 1.02;
-const R_DISK_OUT = 6.8;
+const R_DISK_OUT = 7.6;
 const R_SHELL_IN = 3.4;
 const R_SHELL_OUT = 10.8;
 

@@ -38,7 +38,6 @@ export function BlackHole() {
       horizonUniforms: {
         uIntro: { value: 1 },
         uHold: { value: 0 },
-        uDim: { value: 1 },
         uOrchid: { value: orchid },
         uAmber: { value: amber },
         uColdBlue: { value: coldBlue },
@@ -47,7 +46,6 @@ export function BlackHole() {
         uTime: { value: 0 },
         uIntro: { value: 1 },
         uHold: { value: 0 },
-        uDim: { value: 1 },
         uAmber: { value: amber.clone() },
         uOrchid: { value: orchid.clone() },
         uViolet: { value: violet },
@@ -66,7 +64,6 @@ export function BlackHole() {
     if (hMat) {
       hMat.uniforms.uIntro.value = rig.introProgress;
       hMat.uniforms.uHold.value = rig.sealHold;
-      hMat.uniforms.uDim.value = rig.holeDim;
     }
 
     const lMat = haloMatRef.current;
@@ -74,7 +71,6 @@ export function BlackHole() {
       lMat.uniforms.uTime.value = rig.elapsedTime;
       lMat.uniforms.uIntro.value = rig.introProgress;
       lMat.uniforms.uHold.value = rig.sealHold;
-      lMat.uniforms.uDim.value = rig.holeDim;
     }
 
     const hMesh = horizonMeshRef.current;
@@ -87,7 +83,7 @@ export function BlackHole() {
   return (
     <>
       <mesh ref={haloMeshRef} renderOrder={1} frustumCulled={false}>
-        <planeGeometry args={[6.4, 6.4, 1, 1]} />
+        <planeGeometry args={[7.6, 7.6, 1, 1]} />
         <shaderMaterial
           ref={haloMatRef}
           glslVersion={GLSL3}

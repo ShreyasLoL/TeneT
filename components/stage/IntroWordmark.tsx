@@ -99,12 +99,12 @@ export function IntroWordmark() {
     const resetRigCamera = () => {
       rig.cameraOverride.active = false;
       rig.cameraOverride.px = 0;
-      rig.cameraOverride.py = 2.35;
-      rig.cameraOverride.pz = 11.4;
+      rig.cameraOverride.py = 1.18;
+      rig.cameraOverride.pz = 5.45;
       rig.cameraOverride.tx = 0;
       rig.cameraOverride.ty = 0;
       rig.cameraOverride.tz = 0;
-      rig.cameraOverride.fov = 44;
+      rig.cameraOverride.fov = 46;
     };
 
     const finish = () => {
@@ -145,12 +145,12 @@ export function IntroWordmark() {
 
       rig.cameraOverride.active = true;
       rig.cameraOverride.px = 0;
-      rig.cameraOverride.py = 2.35;
-      rig.cameraOverride.pz = 11.4;
+      rig.cameraOverride.py = 1.18;
+      rig.cameraOverride.pz = 5.45;
       rig.cameraOverride.tx = 0;
       rig.cameraOverride.ty = 0;
       rig.cameraOverride.tz = 0;
-      rig.cameraOverride.fov = 44;
+      rig.cameraOverride.fov = 46;
 
       gsap.set(wordEl, { x: 0, y: 0, scale: 1, opacity: 1 });
       gsap.set(spans, { y: 18, scale: 0.94, opacity: 0 });
@@ -187,7 +187,7 @@ export function IntroWordmark() {
       );
       tl.to(
         rig.cameraOverride,
-        { py: 0.85, pz: 4.1, fov: 54, duration: heroSec * 0.22, ease: expoBezierEase },
+        { py: 0.45, pz: 2.25, fov: 56, duration: heroSec * 0.22, ease: expoBezierEase },
         heroSec * 0.5,
       );
       tl.to(
@@ -199,7 +199,7 @@ export function IntroWordmark() {
       // Phase C: pull back out to the resting fork camera pose
       tl.to(
         rig.cameraOverride,
-        { py: 2.35, pz: 11.4, fov: 44, duration: heroSec * 0.28, ease: expoBezierEase },
+        { py: 1.18, pz: 5.45, fov: 46, duration: heroSec * 0.28, ease: expoBezierEase },
         heroSec * 0.72,
       );
     };
