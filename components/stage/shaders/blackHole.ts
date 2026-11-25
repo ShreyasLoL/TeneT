@@ -26,19 +26,17 @@ export const horizonFragmentShader = /* glsl */ `
   out vec4 fragColor;
 
   void main() {
-    // Event horizon fades in last during the 3.5s intro (0.58 -> 0.98)
     float horizonFade = smoothstep(0.58, 0.98, uIntro);
     if (horizonFade <= 0.002) discard;
 
     float ndv = clamp(abs(dot(normalize(vNormalView), normalize(vViewDir))), 0.0, 1.0);
-    // Ultra-thin grazing limb edge on the pure-black Schwarzschild sphere
-    float rim = pow(1.0 - ndv, 11.0);
+    // Razor-sharp grazing photon edge against a pure-abyssal event horizon shadow
+    float rim = pow(1.0 - ndv, 14.0);
 
     float doppler = clamp(-vLocalPos.x * 1.15, -1.0, 1.0);
-    vec3 rimCol = mix(uOrchid, uAmber, 0.35 * max(0.0, -doppler));
-    rimCol = mix(rimCol, mix(vec3(1.0, 0.96, 1.0), uColdBlue, 0.22), max(0.0, doppler) * 0.45);
+    vec3 rimCol = mix(uOrchid, vec3(1.0, 0.97, 1.0), 0.52 + 0.28 * max(0.0, doppler));
 
-    vec3 col = rimCol * rim * (0.55 + uHold * 0.35) * (1.0 + 0.35 * doppler);
+    vec3 col = rimCol * rim * (0.85 + uHold * 0.55) * (1.0 + 0.32 * doppler);
     fragColor = vec4(col, horizonFade);
   }
 `;
@@ -93,14 +91,6 @@ export const haloFragmentShader = /* glsl */ `
     return v;
   }
 
-  vec3 blackbodyRamp(float t) {
-    vec3 whiteHot = vec3(1.0, 0.96, 0.92);
-    if (t < 0.22) return mix(whiteHot, uAmber, t / 0.22);
-    if (t < 0.50) return mix(uAmber, uOrchid, (t - 0.22) / 0.28);
-    if (t < 0.76) return mix(uOrchid, uViolet, (t - 0.50) / 0.26);
-    return mix(uViolet, uColdBlue, clamp((t - 0.76) / 0.24, 0.0, 1.0));
-  }
-
   void main() {
     float diskIgnition = smoothstep(0.36, 0.92, uIntro);
     float horizonFade = smoothstep(0.58, 0.98, uIntro);
@@ -110,48 +100,67 @@ export const haloFragmentShader = /* glsl */ `
     float r = length(p);
     float rH = 0.86 * (1.0 + uHold * 0.06);
 
-    if (r < rH * 0.86 || r > 3.7) discard;
-    float innerMask = smoothstep(rH * 0.86, rH * 0.99, r);
+    if (r < rH * 0.88 || r > 3.7) discard;
+    float innerMask = smoothstep(rH * 0.88, rH * 0.995, r);
 
     float vert = abs(p.y) / max(0.001, r);
     float theta = atan(p.y, p.x);
 
-    // 1. Razor-thin lensed photon-ring glow hugging the Schwarzschild shadow
-    float photon = exp(-pow((r - rH * 1.018) / 0.022, 2.0)) * horizonFade;
+    // Slow 9-second breathing of photon ring intensity (life without motion-tracking)
+    float breathe = 0.84 + 0.16 * sin(uTime * 0.70);
 
-    // 2. Relativistic lensed "back of the disk" arcs above and below the event horizon
+    // 1. Blown-bright photon-ring edge (#E04DEA orchid -> white-hot core) against pure void
+    float photonCore = exp(-pow((r - rH * 1.014) / 0.014, 2.0)) * horizonFade;
+    float photonSkirt = exp(-pow((r - rH * 1.022) / 0.036, 2.0)) * horizonFade;
+
+    // Occasional rare bright glint travelling along the photon ring
+    float glintTheta = mod(uTime * 0.58, 6.2831853) - 3.1415926;
+    float dAng = abs(atan(sin(theta - glintTheta), cos(theta - glintTheta)));
+    float glintEnvelope = pow(max(0.0, sin(uTime * 0.64 + 0.9)), 12.0);
+    float glint = exp(-dAng * dAng * 90.0) * photonCore * glintEnvelope * 2.35;
+
+    // 2. High-contrast lensed arcs + faint volumetric dust drifting slowly through the lensing
     float isUpper = step(0.0, p.y);
-    float rArc = mix(rH * (1.03 + 0.30 * vert), rH * (1.05 + 0.54 * vert), isUpper);
-    float wArc = mix(0.036 + 0.17 * vert, 0.044 + 0.26 * vert, isUpper);
-    float arcGain = mix(0.42, 0.72, isUpper);
-    float arcProfile = exp(-pow((r - rArc) / wArc, 2.0)) * smoothstep(0.04, 0.42, vert) * arcGain;
+    float rArc = mix(rH * (1.025 + 0.28 * vert), rH * (1.04 + 0.48 * vert), isUpper);
+    float wArc = mix(0.028 + 0.14 * vert, 0.034 + 0.20 * vert, isUpper);
+    float arcGain = mix(0.32, 0.56, isUpper);
+    float arcProfile = exp(-pow((r - rArc) / wArc, 2.0)) * smoothstep(0.05, 0.42, vert) * arcGain;
 
-    // Keplerian turbulence along lensed arcs
     float rSafe = max(0.3, r);
-    float omega = (inversesqrt(rSafe) / rSafe) * 0.9;
+    float omega = (inversesqrt(rSafe) / rSafe) * 0.52;
     float swirl = theta - uTime * omega;
-    float turb = 0.58 + 0.68 * fbm(vec2(cos(swirl) * 2.8 + r * 3.2, sin(swirl) * 2.8 - uTime * 0.28));
+    float volumetricDust = fbm(vec2(cos(swirl) * 2.6 + r * 3.0, sin(swirl) * 2.6 - uTime * 0.14));
+    float turb = pow(clamp(volumetricDust, 0.0, 1.0), 1.45) * 1.35;
 
-    // Doppler beaming: approaching left side (-p.x > 0) brighter and blue-shifted
     float doppler = clamp(-p.x / max(0.35, r), -1.0, 1.0);
-    float beaming = pow(clamp(1.0 + 0.42 * doppler, 0.38, 1.48), 2.35);
+    float beaming = pow(clamp(1.0 + 0.44 * doppler, 0.30, 1.52), 2.5);
 
-    float rNorm = clamp((r - rH) / (rH * 1.02), 0.0, 1.0);
-    float rTemp = clamp(rNorm - doppler * 0.18, 0.0, 1.0);
-    vec3 arcCol = blackbodyRamp(rTemp);
-    arcCol = mix(arcCol, mix(vec3(0.85, 0.94, 1.0), uColdBlue, 0.35), max(0.0, doppler) * 0.32);
+    // 60/30/10 accent discipline: neutral silver/slate arcs, #E04DEA strictly on photon ring edge
+    float rNorm = clamp((r - rH) / (rH * 0.85), 0.0, 1.0);
+    vec3 neutralArc = mix(vec3(0.72, 0.70, 0.78), vec3(0.11, 0.10, 0.14), smoothstep(0.0, 0.75, rNorm));
+    vec3 arcCol = mix(uOrchid * 0.75, neutralArc, smoothstep(0.0, 0.22, rNorm));
 
-    float corona = exp(-max(0.0, r - rH) * 2.8) * 0.08 * horizonFade;
-    vec3 coronaCol = mix(uViolet, uColdBlue, 0.55);
+    // Faint volumetric dust wisps drifting across the lensing field
+    float lensVeil = exp(-max(0.0, r - rH) * 2.6) * pow(volumetricDust, 2.2) * 0.16 * horizonFade;
+    vec3 dustCol = vec3(0.20, 0.19, 0.25);
 
-    vec3 photonCol = mix(vec3(1.0, 0.95, 0.92), uOrchid, 0.38);
+    vec3 photonCol = mix(uOrchid, vec3(1.0, 0.98, 1.0), 0.62);
+    vec3 glintCol = mix(vec3(1.0, 0.99, 1.0), uOrchid, 0.25);
+
     vec3 totalCol =
-      (photonCol * photon * (1.08 + uHold * 0.38) * (0.78 + 0.38 * beaming) +
-        arcCol * arcProfile * turb * beaming * diskIgnition * 0.88 +
-        coronaCol * corona) *
+      (photonCol * photonCore * (1.85 * breathe + uHold * 0.65) * (0.82 + 0.36 * beaming) +
+        uOrchid * photonSkirt * (0.72 * breathe + uHold * 0.35) +
+        glintCol * glint +
+        arcCol * arcProfile * turb * beaming * diskIgnition * 0.78 +
+        dustCol * lensVeil) *
       innerMask;
 
-    float alpha = clamp((photon * 0.92 + arcProfile * beaming * 0.74 + corona) * innerMask, 0.0, 1.0);
+    float alpha = clamp(
+      (photonCore * 0.98 + photonSkirt * 0.62 + glint * 0.9 + arcProfile * turb * beaming * 0.68 + lensVeil) *
+        innerMask,
+      0.0,
+      1.0
+    );
     if (alpha < 0.003) discard;
 
     fragColor = vec4(totalCol, alpha);

@@ -6,6 +6,7 @@ import { useTenetState, useToday } from '@/lib/api/hooks';
 import { COPY } from '@/lib/copy';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
+import { TelemetryHud } from './TelemetryHud';
 import { useDoorDive } from './useDoorDive';
 
 export function ForkView() {
@@ -42,6 +43,13 @@ export function ForkView() {
       <div className="sr-only">
         <h1>{COPY.brand}</h1>
       </div>
+
+      <TelemetryHud
+        today={today}
+        sealedDays={state?.days}
+        tonightSealed={tonightSealed}
+        visible={showChrome}
+      />
 
       <section
         aria-label="Entry choices"

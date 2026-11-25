@@ -78,10 +78,10 @@ export function createTenetComposer(
   const bloom = new BloomEffect({
     blendFunction: BlendFunction.ADD,
     mipmapBlur: true,
-    luminanceThreshold: 0.72,
-    luminanceSmoothing: 0.22,
-    intensity: 0.58,
-    radius: 0.68,
+    luminanceThreshold: 0.66,
+    luminanceSmoothing: 0.18,
+    intensity: 0.72,
+    radius: 0.64,
     levels: 4,
   });
 
@@ -111,7 +111,7 @@ export function createTenetComposer(
     bloom,
     effectPass,
     syncBloom(enabled: boolean) {
-      bloom.intensity = enabled ? 0.58 : 0;
+      bloom.intensity = enabled ? 0.72 : 0;
       bloom.blendMode.setBlendFunction(enabled ? BlendFunction.ADD : BlendFunction.SKIP);
     },
     renderFrame(delta: number) {

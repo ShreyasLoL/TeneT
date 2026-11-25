@@ -5,6 +5,9 @@ export const COPY = {
     lookBack: 'look back',
     scrubTime: 'scrub time',
     sealed: 'tonight is sealed.',
+    telemetryNode: 'mind // online',
+    telemetryOpen: 'tonight // open',
+    telemetrySealed: 'tonight // sealed',
   },
   ritual: {
     header: 'tonight',

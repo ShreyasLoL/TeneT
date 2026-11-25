@@ -35,39 +35,15 @@ export const tenetPostFragmentShader = /* glsl */ `
   }
 
   void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
-    vec2 d = (vUv - uCenter) * vec2(uAspect, 1.0);
-    float r = length(d);
-    float s = max(0.004, uRadiusS * (1.0 + uHold * 0.08));
-
-    // Preserve 3D depth-sorted event horizon sphere & front accretion disk; add subtle Einstein ring accent
+    // Preserve pure abyssal 3D event horizon shadow & lensed 3D photon ring without inner 2D ring ghosting
     vec3 col = inputColor.rgb;
-    float photon = exp(-pow((r - s * 1.03) / max(0.002, s * 0.05), 2.0));
-    float ringGain = clamp(uStrength, 0.0, 1.2);
-    col += uOrchidHot * photon * (0.14 * ringGain + uHold * 0.28 + uSpike * 0.32);
-    col += uOrchid * photon * 0.08 * ringGain;
+    float spikeBoost = 1.0 + uHold * 0.18 + uSpike * 0.28;
+    col *= spikeBoost;
 
-    // Mirrored floor reflection (Fork mode on high tier)
-    if (uMirrorEnabled > 0.5 && vUv.y < uHorizonY) {
-      float dy = clamp((uHorizonY - vUv.y) / max(0.05, uHorizonY), 0.0, 1.0);
-      float ripple = sin(vUv.x * 42.0 + uTime * 0.9) * 0.0016 * dy;
-      vec2 sampleUv = vec2(
-        clamp(vUv.x + ripple, 0.0, 1.0),
-        clamp(2.0 * uHorizonY - vUv.y, 0.0, 1.0)
-      );
-
-      float blurStep = 0.002 + dy * 0.012;
-      vec3 refl = vec3(0.0);
-      refl += texture2D(inputBuffer, clamp(sampleUv + vec2(0.0, -blurStep), 0.0, 1.0)).rgb * 0.28;
-      refl += texture2D(inputBuffer, sampleUv).rgb * 0.44;
-      refl += texture2D(inputBuffer, clamp(sampleUv + vec2(0.0, blurStep), 0.0, 1.0)).rgb * 0.28;
-
-      float fresnel = pow(1.0 - dy, 3.2) * 0.14;
-      col += refl * fresnel;
-    }
-
-    // Gentle edge vignette + subtle grain on lit regions; transparent clear preserves exact #0B0910
+    // High-contrast toe crush + strong radial vignette: deep #0B0910 void, minimal midtones
+    col = pow(max(col, vec3(0.0)), vec3(1.26)) * 1.34;
     vec2 vigUv = vUv - vec2(0.5);
-    float vig = clamp(1.0 - dot(vigUv, vigUv) * 0.22, 0.0, 1.0);
+    float vig = pow(clamp(1.0 - dot(vigUv, vigUv) * 1.28, 0.0, 1.0), 1.65);
     col *= vig;
 
     float lum = max(col.r, max(col.g, col.b));

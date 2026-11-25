@@ -55,11 +55,14 @@ export const diskFragmentShader = /* glsl */ `
   }
 
   vec3 blackbodyRamp(float t) {
+    // 60/30/10 discipline: blown-bright photon rim (#E04DEA + white-hot) -> neutral silver -> deep slate
     vec3 whiteHot = vec3(1.0, 0.98, 1.0);
-    if (t < 0.18) return mix(whiteHot, uAmber, t / 0.18);
-    if (t < 0.45) return mix(uAmber, uOrchid, (t - 0.18) / 0.27);
-    if (t < 0.74) return mix(uOrchid, uViolet, (t - 0.45) / 0.29);
-    return mix(uViolet, uColdBlue, clamp((t - 0.74) / 0.26, 0.0, 1.0));
+    vec3 rimOrchid = mix(whiteHot, uOrchid, 0.68);
+    vec3 neutralSilver = vec3(0.30, 0.28, 0.35);
+    vec3 darkSlate = vec3(0.035, 0.032, 0.048);
+    if (t < 0.06) return mix(whiteHot, rimOrchid, t / 0.06);
+    if (t < 0.22) return mix(rimOrchid, neutralSilver, (t - 0.06) / 0.16);
+    return mix(neutralSilver, darkSlate, clamp((t - 0.22) / 0.78, 0.0, 1.0));
   }
 
   void main() {
@@ -98,17 +101,17 @@ export const diskFragmentShader = /* glsl */ `
     float dopplerFactor = 1.0 / max(0.38, 1.0 - beta * cosAngle);
     float beaming = clamp(pow(dopplerFactor, 2.35), 0.32, 2.65);
 
-    // Temperature falloff + Doppler spectral shift (approaching side hotter & bluer)
-    float tempFalloff = pow(1.0 - rn, 1.35) * 0.85 + 0.15;
-    float rTemp = clamp(rn - cosAngle * 0.15, 0.0, 1.0);
+    // Steep high-contrast falloff: blazing inner edge, restrained neutral outer wings
+    float breathe = 0.88 + 0.12 * sin(uTime * 0.70);
+    float tempFalloff = pow(1.0 - rn, 2.35) * 0.92 + 0.08;
+    float rTemp = clamp(rn - cosAngle * 0.07, 0.0, 1.0);
     vec3 col = blackbodyRamp(rTemp);
-    col = mix(col, vec3(0.76, 0.90, 1.06), max(0.0, cosAngle) * 0.32);
 
-    float innerRim = smoothstep(0.0, 0.04, rn);
-    float outerRim = 1.0 - smoothstep(0.48, 1.0, rn);
+    float innerRim = smoothstep(0.0, 0.032, rn);
+    float outerRim = 1.0 - smoothstep(0.55, 1.0, rn);
     float edgeFade = innerRim * outerRim;
 
-    float intensity = tempFalloff * shear * beaming * edgeFade * (0.42 + 0.58 * uHeat + 0.42 * uHold) * diskIgnition;
+    float intensity = tempFalloff * pow(shear, 1.25) * beaming * edgeFade * (0.38 + 0.56 * uHeat + 0.48 * uHold) * breathe * diskIgnition;
     float alpha = clamp(intensity * 0.78, 0.0, 0.96);
     if (alpha < 0.004) discard;
 

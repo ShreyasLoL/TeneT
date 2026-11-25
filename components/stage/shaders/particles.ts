@@ -48,7 +48,7 @@ export const particlesVertexShader = /* glsl */ `
     float ecc = mix(min(0.45, baseEcc + 0.12), baseEcc * 0.5, coherence) * (0.65 + 0.65 * aSeed.y);
     float incl = mix(baseIncl, baseIncl * 0.22, coherence) * (aSeed.w * 2.0 - 1.0);
 
-    float shellRadius = mix(3.4, 10.5, aSeed.y);
+    float shellRadius = mix(1.08, 2.85, aSeed.y);
     float aTarget = mix(aSeed.x, shellRadius, isShell);
     float a = mix(aTarget, R_IN * 0.94, uHold * 0.48 * (1.0 - isShell * 0.6));
 
@@ -130,13 +130,14 @@ export const particlesVertexShader = /* glsl */ `
     gl_PointSize = clamp(basePt * depthScale * uDpr, 1.0 * uDpr, 5.6 * uDpr);
     gl_Position = projectionMatrix * mvPosition;
 
-    // Particles start dim/dark at uIntro = 0 and ignite as they spiral into the disk
-    float introGlow = mix(0.06, 1.0, smoothstep(0.0, 0.78, uIntro));
-    float shellDim = mix(1.0, 0.36, isShell);
+    // Particles start dim/dark at uIntro = 0 and ignite as they spiral into the disk;
+    // outer disk & lensing dust stay restrained so blacks remain pure #0B0910 void
+    float introGlow = mix(0.04, 1.0, smoothstep(0.0, 0.78, uIntro));
+    float radialFade = mix(pow(1.0 - clamp((a - R_IN) / 6.8, 0.0, 1.0), 1.45), 0.24, isShell);
 
     vRadiusNorm = clamp((a - R_IN) / R_SPAN, 0.0, 1.0);
     vShell = isShell;
-    vAlpha = clamp((0.32 + 0.58 * satisfied) * uBrightness * focusDim * recapBoost * introGlow * shellDim, 0.02, 1.0);
+    vAlpha = clamp((0.24 + 0.56 * satisfied) * uBrightness * focusDim * recapBoost * introGlow * radialFade, 0.01, 0.95);
   }
 `;
 
@@ -154,12 +155,15 @@ export const particlesFragmentShader = /* glsl */ `
 
   out vec4 fragColor;
 
-  vec3 blackbodyRamp(float t) {
-    vec3 whiteHot = vec3(1.0, 0.98, 1.0);
-    if (t < 0.16) return mix(whiteHot, uAmber, t / 0.16);
-    if (t < 0.44) return mix(uAmber, uOrchid, (t - 0.16) / 0.28);
-    if (t < 0.74) return mix(uOrchid, uViolet, (t - 0.44) / 0.30);
-    return mix(uViolet, uColdBlue, clamp((t - 0.74) / 0.26, 0.0, 1.0));
+  vec3 neutralDisciplineRamp(float t) {
+    // 60/30/10 discipline: white-ivory photon edge + whisper of #E04DEA -> neutral silver -> dark slate
+    vec3 photonHot = vec3(0.96, 0.94, 0.98);
+    vec3 rimOrchid = mix(photonHot, uOrchid, 0.62);
+    vec3 neutralSilver = vec3(0.28, 0.26, 0.32);
+    vec3 deepSlate = vec3(0.055, 0.05, 0.075);
+    if (t < 0.08) return mix(photonHot, rimOrchid, t / 0.08);
+    if (t < 0.28) return mix(rimOrchid, neutralSilver, (t - 0.08) / 0.20);
+    return mix(neutralSilver, deepSlate, clamp((t - 0.28) / 0.72, 0.0, 1.0));
   }
 
   void main() {
@@ -168,17 +172,14 @@ export const particlesFragmentShader = /* glsl */ `
     if (d2 > 0.25) discard;
 
     float edge = max(0.0, 1.0 - d2 * 4.0);
-    float core = edge * edge * edge;
+    float core = edge * edge * edge * edge;
 
-    // Relativistic Doppler beaming: approaching side brighter and shifted hotter/bluer
-    float dopplerGain = clamp(1.0 + vDoppler * 0.48, 0.48, 1.68);
-    float rTemp = clamp(vRadiusNorm - vDoppler * 0.15 - uHold * 0.12, 0.0, 1.0);
+    float dopplerGain = clamp(1.0 + vDoppler * 0.45, 0.42, 1.62);
+    float rTemp = clamp(vRadiusNorm - vDoppler * 0.08 - uHold * 0.08, 0.0, 1.0);
 
-    vec3 diskCol = blackbodyRamp(rTemp);
-    diskCol = mix(diskCol, vec3(0.76, 0.90, 1.06), max(0.0, vDoppler) * 0.32);
-
-    vec3 shellCol = mix(uViolet, uColdBlue, clamp(vRadiusNorm * 0.8 + 0.2, 0.0, 1.0));
-    vec3 col = mix(diskCol, shellCol, vShell * 0.72) * dopplerGain;
+    vec3 diskCol = neutralDisciplineRamp(rTemp);
+    vec3 lensDustCol = mix(vec3(0.22, 0.20, 0.26), uOrchid * 0.45, smoothstep(0.35, 0.0, vRadiusNorm));
+    vec3 col = mix(diskCol, lensDustCol, vShell) * dopplerGain;
 
     fragColor = vec4(col * core, core * vAlpha);
   }

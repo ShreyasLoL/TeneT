@@ -3,11 +3,11 @@ import { NORMAL_PARTICLES } from '@/lib/stage/tiers';
 import type { buildCohortMap } from '@/lib/viz/cohorts';
 
 export const MAX_PARTICLES = NORMAL_PARTICLES; // 45,000 max per perf budget
-const DISK_FRACTION = 0.82;
+const DISK_FRACTION = 0.9;
 const R_DISK_IN = 1.02;
-const R_DISK_OUT = 7.6;
-const R_SHELL_IN = 3.4;
-const R_SHELL_OUT = 10.8;
+const R_DISK_OUT = 7.8;
+const R_SHELL_IN = 1.08;
+const R_SHELL_OUT = 2.85;
 
 type CohortMap = ReturnType<typeof buildCohortMap>;
 
@@ -55,11 +55,11 @@ export function buildStaticParticleBuffers(capacity: number): {
   for (let i = 0; i < count; i++) {
     // Interleave disk & dust-shell particles evenly so `setDrawRange(0, count/4)` in LOW POWER
     // preserves the exact 82% Keplerian disk / 18% dust shell visual ratio!
-    const isShell = i % 11 === 0 || i % 13 === 0 || i >= diskLimit + Math.floor(count * 0.18);
+    const isShell = i % 10 === 9 || i >= diskLimit + Math.floor(count * 0.1);
     const rRand = rng();
     const aBase = isShell
-      ? R_SHELL_IN + (R_SHELL_OUT - R_SHELL_IN) * Math.pow(rRand, 1.15)
-      : R_DISK_IN + (R_DISK_OUT - R_DISK_IN) * Math.pow(rRand, 1.75);
+      ? R_SHELL_IN + (R_SHELL_OUT - R_SHELL_IN) * Math.pow(rRand, 1.35)
+      : R_DISK_IN + (R_DISK_OUT - R_DISK_IN) * Math.pow(rRand, 2.05);
 
     seeds[i * 4] = aBase;
     seeds[i * 4 + 1] = rng();
@@ -95,7 +95,7 @@ export function buildCohortParticleBuffers(
   for (let i = 0; i < count; i++) {
     const slot = cohortMap?.slots[i % slotCount];
     const areaIdx = slot ? slot.areaIndex % 3 : i % 3;
-    const isShell = i % 6 === 5; // ~17% outer dust shell evenly interleaved across drawRange
+    const isShell = i % 10 === 9; // 10% faint volumetric lensing dust, zero outer screen haze
     meta[i * 2] = slot ? slot.slotIndex : i % 3;
     meta[i * 2 + 1] = isShell ? 10 + areaIdx : areaIdx;
   }
