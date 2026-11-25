@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useEffect } from 'react';
 import { detectInitialLevel, detectWebGL2Support } from '@/lib/stage/tiers';
 import { useTenetStore } from '@/lib/store';
+import { ArrivalHud } from './ArrivalHud';
 import { ForkTransitionOverlay } from './ForkTransitionOverlay';
 import { IntroWordmark } from './IntroWordmark';
 import { StageErrorBoundary } from './StageErrorBoundary';
@@ -40,6 +41,7 @@ export function Stage() {
       </StageErrorBoundary>
       <IntroWordmark />
       <ForkTransitionOverlay />
+      <ArrivalHud />
     </div>
   );
 }

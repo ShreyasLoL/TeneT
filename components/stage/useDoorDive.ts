@@ -5,7 +5,7 @@ import { startTransition, useCallback, useEffect, useRef, useState } from 'react
 import { acquireFrames } from '@/lib/stage/activity';
 import { stageClock } from '@/lib/stage/clock';
 import type { QualityState } from '@/lib/store';
-import { notifyForkTransition, rig } from '@/lib/store/rig';
+import { notifyForkTransition, rig, triggerArrivalHud } from '@/lib/store/rig';
 import { expoBezierEase } from './expoBezier';
 
 type GsapCore = (typeof import('gsap/gsap-core'))['gsap'];
@@ -53,6 +53,7 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
     tlRef.current = null;
     divingRef.current = false;
     setDiving(false);
+    triggerArrivalHud(null);
 
     const gsapInstance = gsapRef.current;
     if (!gsapInstance) {
@@ -230,6 +231,7 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
           if (!routed) {
             routed = true;
             rig.cameraOverride.active = false;
+            triggerArrivalHud(isRetro ? 'retrograde' : 'prograde');
             startTransition(() => router.push(href));
           }
         },
@@ -240,31 +242,26 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
         rig,
         {
           forkFlash: 0,
+          duration: Math.max(0.28, (totalSec - peakSec) * 0.65),
+          ease: expoBezierEase,
+        },
+        peakSec + 0.02,
+      );
+      tl.to(
+        rig,
+        {
           forkWarp: 0,
           forkHue: 0,
           forkMode: 0,
           sealHold: 0,
-          duration: totalSec - peakSec,
+          duration: 0.95,
           ease: expoBezierEase,
         },
-        peakSec + 0.02,
+        peakSec + 0.16,
       );
     },
     [quality.lowPower, quality.reducedMotion, quality.webgl, router],
   );
 
-  const handleDoorDive = useCallback(
-    (
-      side: 'left' | 'right',
-      href: '/dashboard' | '/log',
-      e: React.MouseEvent<HTMLElement>,
-    ) => {
-      if (e.metaKey || e.ctrlKey || e.shiftKey) return;
-      e.preventDefault();
-      startJourney(side, href);
-    },
-    [startJourney],
-  );
-
-  return { diving, handleDoorDive, startJourney, interruptDive };
+  return { diving, startJourney, interruptDive };
 }

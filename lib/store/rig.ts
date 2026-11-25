@@ -32,6 +32,7 @@ export const rig = {
   forkHue: 0,       // 0..1 palette lerp factor
   forkFlash: 0,     // 0..1 peak veil/flash covering route swap
   forkActive: false,
+  arrivalKind: null as 'retrograde' | 'prograde' | null,
   transitionProgress: 0,
   transitionTarget: null as string | null,
   turnstileProgress: 0,
@@ -119,4 +120,18 @@ export function subscribeForkTransition(cb: () => void): () => void {
 
 export function notifyForkTransition() {
   for (const cb of forkTransitionListeners) cb();
+}
+
+const arrivalHudListeners = new Set<() => void>();
+
+export function subscribeArrivalHud(cb: () => void): () => void {
+  arrivalHudListeners.add(cb);
+  return () => {
+    arrivalHudListeners.delete(cb);
+  };
+}
+
+export function triggerArrivalHud(kind: 'retrograde' | 'prograde' | null) {
+  rig.arrivalKind = kind;
+  for (const cb of arrivalHudListeners) cb();
 }
