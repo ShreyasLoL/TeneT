@@ -1,180 +1,28 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import { Scrim } from '@/components/chrome/Scrim';
 import { useTenetState, useToday } from '@/lib/api/hooks';
 import { COPY } from '@/lib/copy';
-import { acquireFrames } from '@/lib/stage/activity';
-import { stageClock } from '@/lib/stage/clock';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
-import { forkLayout } from '@/lib/viz/forkLayout';
-import { readMotionTokens } from '@/lib/viz/motion';
-
-type GsapCore = (typeof import('gsap/gsap-core'))['gsap'];
+import { useDoorDive } from './useDoorDive';
 
 export function ForkView() {
-  const router = useRouter();
   const today = useToday();
   const { data: state } = useTenetState();
   const setDensity = useTenetStore((s) => s.setDensity);
   const quality = useTenetStore((s) => s.quality);
   const introDone = useTenetStore((s) => s.introDone);
 
-  const [diving, setDiving] = useState(false);
   const leftRef = useRef<HTMLAnchorElement>(null);
   const rightRef = useRef<HTMLAnchorElement>(null);
-  const divingRef = useRef(false);
-  const gsapRef = useRef<GsapCore | null>(null);
-  const diveTweenRef = useRef<ReturnType<GsapCore['to']> | null>(null);
-  const diveReleaseRef = useRef<(() => void) | null>(null);
-
-  useEffect(() => {
-    setDensity(0.1);
-    router.prefetch('/log');
-    router.prefetch('/dashboard');
-    let cancelled = false;
-    void import('gsap/gsap-core').then((m) => {
-      stageClock.bindGsap(m.gsap);
-      if (!cancelled) gsapRef.current = m.gsap;
-    });
-    return () => {
-      cancelled = true;
-      diveTweenRef.current?.kill();
-      diveTweenRef.current = null;
-      diveReleaseRef.current?.();
-      diveReleaseRef.current = null;
-      divingRef.current = false;
-      rig.doorHover = 0;
-      rig.cameraOverride.active = false;
-    };
-  }, [router, setDensity]);
-
-  useEffect(() => {
-    const interruptDive = () => {
-      if (!divingRef.current) return;
-      diveTweenRef.current?.kill();
-      diveTweenRef.current = null;
-      divingRef.current = false;
-      setDiving(false);
-
-      const gsapInstance = gsapRef.current;
-      if (!gsapInstance) {
-        rig.cameraOverride.active = false;
-        diveReleaseRef.current?.();
-        diveReleaseRef.current = null;
-        return;
-      }
-
-      // Smoothly return camera from its exact mid-flight presentation state (no snap)
-      diveTweenRef.current = gsapInstance.to(rig.cameraOverride, {
-        px: 0,
-        py: 0.3,
-        pz: 11.4,
-        tx: 0,
-        ty: 0,
-        tz: 0,
-        fov: 44,
-        duration: 0.32,
-        ease: 'expo.out',
-        onComplete: () => {
-          rig.cameraOverride.active = false;
-          diveTweenRef.current = null;
-          diveReleaseRef.current?.();
-          diveReleaseRef.current = null;
-        },
-      });
-    };
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && divingRef.current) {
-        e.preventDefault();
-        interruptDive();
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('popstate', interruptDive);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('popstate', interruptDive);
-    };
-  }, []);
+  const { diving, handleDoorDive } = useDoorDive(quality, setDensity);
 
   const tonightSealed = Boolean(state?.days.some((d) => d.day === today));
-
-  const handleDoorDive = (
-    side: 'left' | 'right',
-    href: '/dashboard' | '/log',
-    e: React.MouseEvent<HTMLAnchorElement>,
-  ) => {
-    if (
-      e.metaKey ||
-      e.ctrlKey ||
-      e.shiftKey ||
-      quality.reducedMotion ||
-      quality.lowPower ||
-      quality.level >= 4 ||
-      quality.webgl !== 'ok'
-    ) {
-      return;
-    }
-
-    e.preventDefault();
-    if (divingRef.current) return;
-    const gsapInstance = gsapRef.current;
-    if (!gsapInstance) {
-      router.push(href);
-      return;
-    }
-    divingRef.current = true;
-    setDiving(true);
-
-    const { left, right } = forkLayout();
-    const door = side === 'left' ? left : right;
-    const durationSec = Math.max(0.35, readMotionTokens().sceneMs / 1000);
-    diveReleaseRef.current?.();
-    diveReleaseRef.current = acquireFrames('fork-dive');
-
-    if (!rig.cameraOverride.active) {
-      rig.cameraOverride.active = true;
-      rig.cameraOverride.px = 0;
-      rig.cameraOverride.py = 0.3;
-      rig.cameraOverride.pz = 11.4;
-      rig.cameraOverride.tx = door.x;
-      rig.cameraOverride.ty = door.y;
-      rig.cameraOverride.tz = 0.4;
-      rig.cameraOverride.fov = 44;
-    }
-
-    let pushed = false;
-    diveTweenRef.current = gsapInstance.to(rig.cameraOverride, {
-      px: door.x,
-      py: door.y,
-      pz: 0.9,
-      fov: 58,
-      duration: durationSec,
-      ease: 'expo.out',
-      onUpdate: function () {
-        if (!pushed && divingRef.current && this.progress() >= 0.58) {
-          pushed = true;
-          router.push(href);
-        }
-      },
-      onComplete: () => {
-        if (!pushed && divingRef.current) router.push(href);
-        rig.cameraOverride.active = false;
-        divingRef.current = false;
-        diveTweenRef.current = null;
-        if (diveReleaseRef.current) {
-          diveReleaseRef.current();
-          diveReleaseRef.current = null;
-        }
-      },
-    });
-  };
+  const showChrome =
+    introDone || quality.lowPower || quality.reducedMotion || quality.webgl !== 'ok';
 
   const onDoorKeyDown = (side: 'left' | 'right', e: React.KeyboardEvent) => {
     if (e.key === 'ArrowLeft' && side === 'right') {
@@ -185,8 +33,6 @@ export function ForkView() {
       rightRef.current?.focus();
     }
   };
-
-  const showChrome = introDone || quality.lowPower || quality.reducedMotion || quality.webgl !== 'ok';
 
   return (
     <main
@@ -206,7 +52,7 @@ export function ForkView() {
 
       <Scrim
         direction="radial"
-        className={`w-full max-w-5xl py-4 transition-opacity duration-[var(--duration-scene)] ease-[var(--ease-out)] ${
+        className={`mt-auto w-full max-w-5xl py-4 transition-opacity duration-[var(--duration-scene)] ease-[var(--ease-out)] sm:mt-0 ${
           showChrome ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
       >

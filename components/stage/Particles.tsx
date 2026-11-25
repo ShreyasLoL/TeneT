@@ -5,38 +5,24 @@ import { useEffect, useMemo, useRef } from 'react';
 import {
   AdditiveBlending,
   type BufferGeometry,
-  DataTexture,
-  FloatType,
   GLSL3,
   MathUtils,
-  NearestFilter,
-  RGBAFormat,
   type ShaderMaterial,
   Sphere,
   Vector3,
 } from 'three';
 import { useLivePreview, useTenetState, useToday } from '@/lib/api/hooks';
 import { isTouchDevice, profileForLevel, type QualityLevel } from '@/lib/stage/tiers';
-import { buildWordmarkTargets } from '@/lib/stage/wordmark';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
 import { buildCohortMap } from '@/lib/viz/cohorts';
 import { hexToRgbNormalized, readPalette } from '@/lib/viz/palette';
+import {
+  buildCohortParticleBuffers,
+  buildStaticParticleBuffers,
+  createCohortTexture,
+} from './particlesBuffers';
 import { particlesFragmentShader, particlesVertexShader } from './shaders/particles';
-
-const MAX_PARTICLES = 200_000;
-const WORDMARK_COUNT = 6_000;
-
-function mulberry32(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 export function Particles() {
   const { gl } = useThree();
@@ -52,24 +38,7 @@ export function Particles() {
   const matRef = useRef<ShaderMaterial | null>(null);
   const geomRef = useRef<BufferGeometry | null>(null);
 
-  const cohortData = useMemo(() => {
-    const arr = new Float32Array(16 * 4);
-    for (let i = 0; i < 16; i++) {
-      arr[i * 4] = 1;
-      arr[i * 4 + 1] = 1;
-      arr[i * 4 + 2] = i % 3;
-      arr[i * 4 + 3] = 0;
-    }
-    return arr;
-  }, []);
-
-  const cohortTex = useMemo(() => {
-    const tex = new DataTexture(cohortData, 16, 1, RGBAFormat, FloatType);
-    tex.minFilter = NearestFilter;
-    tex.magFilter = NearestFilter;
-    tex.needsUpdate = true;
-    return tex;
-  }, [cohortData]);
+  const cohortTex = useMemo(() => createCohortTexture(), []);
   const cohortTexRef = useRef(cohortTex);
 
   const areasDef = state?.definitions.areas;
@@ -85,40 +54,8 @@ export function Particles() {
     );
   }, [areasDef, trackablesDef, sealedDays]);
 
-  const staticBuffers = useMemo(() => {
-    const rng = mulberry32(99173);
-    const positions = new Float32Array(MAX_PARTICLES * 3);
-    const seeds = new Float32Array(MAX_PARTICLES * 4);
-    const targets = new Float32Array(MAX_PARTICLES * 3);
-    const wordmark = buildWordmarkTargets(WORDMARK_COUNT, 7);
-
-    for (let i = 0; i < MAX_PARTICLES; i++) {
-      seeds[i * 4] = rng();
-      seeds[i * 4 + 1] = rng();
-      seeds[i * 4 + 2] = rng();
-      seeds[i * 4 + 3] = rng();
-
-      if (i < WORDMARK_COUNT) {
-        targets[i * 3] = wordmark[i * 3];
-        targets[i * 3 + 1] = wordmark[i * 3 + 1];
-        targets[i * 3 + 2] = wordmark[i * 3 + 2];
-      }
-    }
-
-    return { positions, seeds, targets };
-  }, []);
-
-  const cohortBuffers = useMemo(() => {
-    const cohorts = new Float32Array(MAX_PARTICLES);
-    const areas = new Float32Array(MAX_PARTICLES);
-    const slotCount = cohortMap?.slots.length || 3;
-    for (let i = 0; i < MAX_PARTICLES; i++) {
-      const slot = cohortMap?.slots[i % slotCount];
-      cohorts[i] = slot ? slot.slotIndex : i % 3;
-      areas[i] = slot ? slot.areaIndex % 3 : i % 3;
-    }
-    return { cohorts, areas };
-  }, [cohortMap]);
+  const staticBuffers = useMemo(() => buildStaticParticleBuffers(), []);
+  const cohortBuffers = useMemo(() => buildCohortParticleBuffers(cohortMap), [cohortMap]);
 
   const targetDirRef = useRef(new Float32Array(16).fill(1));
 
@@ -227,26 +164,11 @@ export function Particles() {
   return (
     <points>
       <bufferGeometry ref={geomRef}>
-        <bufferAttribute
-          attach="attributes-position"
-          args={[staticBuffers.positions, 3]}
-        />
-        <bufferAttribute
-          attach="attributes-aSeed"
-          args={[staticBuffers.seeds, 4]}
-        />
-        <bufferAttribute
-          attach="attributes-aCohort"
-          args={[cohortBuffers.cohorts, 1]}
-        />
-        <bufferAttribute
-          attach="attributes-aArea"
-          args={[cohortBuffers.areas, 1]}
-        />
-        <bufferAttribute
-          attach="attributes-aTarget"
-          args={[staticBuffers.targets, 3]}
-        />
+        <bufferAttribute attach="attributes-position" args={[staticBuffers.positions, 3]} />
+        <bufferAttribute attach="attributes-aSeed" args={[staticBuffers.seeds, 4]} />
+        <bufferAttribute attach="attributes-aCohort" args={[cohortBuffers.cohorts, 1]} />
+        <bufferAttribute attach="attributes-aArea" args={[cohortBuffers.areas, 1]} />
+        <bufferAttribute attach="attributes-aTarget" args={[staticBuffers.targets, 3]} />
       </bufferGeometry>
       <shaderMaterial
         ref={matRef}
