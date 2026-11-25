@@ -4,6 +4,7 @@ type GsapLike = {
   ticker: {
     remove: (fn: (time: number) => void) => void;
     lagSmoothing: (threshold: number, adjustedLag?: number) => void;
+    sleep?: () => void;
   };
   updateRoot: (timeSec: number) => void;
 };
@@ -23,6 +24,7 @@ export class SharedClock {
   private nextId = 1;
   private rafId: number | null = null;
   private pendingSingleRender = false;
+  private externalDriven = false;
   private lastNowMs = 0;
   private elapsedSec = 0;
   private hidden = false;
@@ -44,6 +46,7 @@ export class SharedClock {
     this.gsapInstance = gsap;
     gsap.ticker.remove(gsap.updateRoot);
     gsap.ticker.lagSmoothing(0);
+    gsap.ticker.sleep?.();
   }
 
   setHidden(hidden: boolean) {
@@ -103,6 +106,41 @@ export class SharedClock {
     return this.elapsedSec;
   }
 
+  /**
+   * Allows R3F's `addEffect` loop to drive GSAP (`lagSmoothing(0)`) + Lenis + UI springs
+   * in the exact same RAF callback when `<Canvas frameloop="always">` is active (zero double loops).
+   */
+  setExternalDriven(active: boolean) {
+    if (this.externalDriven === active) return;
+    this.externalDriven = active;
+    if (active) {
+      this.stopLoop();
+    } else {
+      this.lastNowMs = 0;
+      this.ensureLoop();
+    }
+  }
+
+  stepExternal(nowMs: number) {
+    if (this.hidden) return;
+    const rawDtSec = this.lastNowMs > 0 ? Math.max(0, (nowMs - this.lastNowMs) / 1000) : 1 / 60;
+    const dtSec = Math.min(MAX_DT_SEC, rawDtSec);
+    this.lastNowMs = nowMs;
+    this.elapsedSec += dtSec;
+
+    if (this.gsapInstance) {
+      this.gsapInstance.ticker.sleep?.();
+      this.gsapInstance.updateRoot(this.elapsedSec);
+    }
+
+    for (const [id, cb] of this.subscribers) {
+      const keep = cb(nowMs, dtSec);
+      if (keep === false) {
+        this.subscribers.delete(id);
+      }
+    }
+  }
+
   /** Exposed for deterministic unit testing without browser rAF. */
   stepManual(nowMs: number) {
     if (this.hidden || !this.hasContinuousSubscribers()) return;
@@ -112,6 +150,7 @@ export class SharedClock {
     this.elapsedSec += dtSec;
 
     if (this.gsapInstance) {
+      this.gsapInstance.ticker.sleep?.();
       this.gsapInstance.updateRoot(this.elapsedSec);
     }
 
@@ -165,7 +204,9 @@ export class SharedClock {
   }
 
   private ensureLoop() {
-    if (this.hidden || !this.hasContinuousSubscribers() || this.rafId !== null) return;
+    if (this.externalDriven || this.hidden || !this.hasContinuousSubscribers() || this.rafId !== null) {
+      return;
+    }
     if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') return;
     this.scheduleNext();
   }

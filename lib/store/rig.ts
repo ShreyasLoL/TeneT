@@ -25,6 +25,12 @@ export const rig = {
   cohortPhases: new Float32Array(16),
   cohortDirSmooth: new Float32Array(16).fill(1),
   introProgress: 1,
+  introActive: false,
+  canvasReady: false,
+  pointerX: 0,
+  pointerY: 0,
+  holeScreenX: 0.5,
+  holeScreenY: 0.5,
   transitionProgress: 0,
   transitionTarget: null as string | null,
   turnstileProgress: 0,
@@ -86,4 +92,17 @@ export function subscribeRecapRig(cb: () => void): () => void {
 
 export function notifyRecapRig() {
   for (const cb of recapListeners) cb();
+}
+
+const canvasReadyListeners = new Set<() => void>();
+
+export function subscribeCanvasReady(cb: () => void): () => void {
+  canvasReadyListeners.add(cb);
+  return () => {
+    canvasReadyListeners.delete(cb);
+  };
+}
+
+export function notifyCanvasReady() {
+  for (const cb of canvasReadyListeners) cb();
 }
