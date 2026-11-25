@@ -196,21 +196,26 @@ export function MirrorWeek({ today, days, trackables }: MirrorWeekProps) {
               >
                 <p className="mb-3 truncate text-sm text-text">{t.label}</p>
                 <div className="grid grid-cols-7 gap-1.5">
-                  {cells.map((cell) => (
-                    <span
-                      key={cell.day}
-                      title={cell.day}
-                      className={`size-3 rounded-[2px] ${
-                        cell.isVoid
-                          ? 'border border-line/60 bg-transparent'
-                          : cell.res?.satisfied
-                            ? 'bg-accent'
-                            : cell.res?.status === 'off'
-                              ? 'bg-line'
-                              : 'bg-bg ring-1 ring-line'
-                      }`}
-                    />
-                  ))}
+                  {cells.map((cell) => {
+                    const isThisWeek = cell.day >= thisMon;
+                    return (
+                      <span
+                        key={cell.day}
+                        title={cell.day}
+                        className={`size-3 rounded-[2px] ${
+                          cell.isVoid
+                            ? 'border border-line/60 bg-transparent'
+                            : cell.res?.satisfied
+                              ? isThisWeek
+                                ? 'bg-accent'
+                                : 'bg-text-dim/45'
+                              : cell.res?.status === 'off'
+                                ? 'bg-line'
+                                : 'bg-bg ring-1 ring-line'
+                        }`}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             );

@@ -70,6 +70,7 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    -webkit-tap-highlight-color: transparent;
   }
 
   html {
@@ -77,11 +78,57 @@
     color: var(--text);
     font-family: var(--font-ui);
     color-scheme: dark;
+    overscroll-behavior-y: none;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.14) var(--bg);
   }
 
   body {
     background-color: var(--bg);
     color: var(--text);
     font-family: var(--font-ui);
+    overscroll-behavior-y: none;
   }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  button,
+  a,
+  [role="button"],
+  [role="switch"],
+  [role="radio"] {
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  @media (pointer: coarse) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
 }

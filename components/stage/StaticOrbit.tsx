@@ -187,16 +187,25 @@ export function StaticOrbit({
                 let opacity = ring.luminance * 0.35;
                 let dashArray = `${segLength.toFixed(2)} ${gapLength.toFixed(2)}`;
 
-                if (seg.status === 'off') {
+                  if (seg.status === 'off') {
                   stroke = 'var(--text-faint)';
-                  opacity = ring.luminance * 0.25;
+                  opacity = ring.luminance * 0.22;
                   dashArray = `1.5 3.5`;
                 } else if (seg.satisfied) {
-                  stroke = isSelected ? 'var(--text)' : 'var(--accent)';
-                  opacity = Math.min(1, 0.32 + ring.luminance * 0.68);
+                  // Orchid discipline (<5% pixels): reserve orchid for active streak & featured ring
+                  stroke = isSelected
+                    ? 'var(--accent)'
+                    : ring.inStreak
+                      ? 'var(--accent-dim)'
+                      : 'var(--text-dim)';
+                  opacity = isSelected
+                    ? 0.98
+                    : ring.inStreak
+                      ? Math.min(0.9, 0.35 + ring.luminance * 0.55)
+                      : Math.min(0.55, 0.18 + ring.luminance * 0.38);
                 } else if (seg.status === 'optional') {
-                  stroke = 'var(--text-dim)';
-                  opacity = ring.luminance * 0.28;
+                  stroke = 'var(--text-faint)';
+                  opacity = ring.luminance * 0.2;
                 } else {
                   stroke = 'var(--surface)';
                   opacity = 0.85;

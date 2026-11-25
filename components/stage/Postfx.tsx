@@ -30,13 +30,14 @@ function SimplifiedLensQuad() {
     if (!mat) return;
     const dt = Math.min(delta, 1 / 20);
     const aspect = size.width / Math.max(1, size.height);
-    const targetX = mode === 'ritual' ? 0.82 : 0.5 + rig.doorHover * 0.16;
-    const targetY = mode === 'ritual' ? 0.8 : 0.5;
+    const quietRitual = mode === 'ritual' && rig.recapBeat === 0 && rig.sealHold < 0.01;
+    const targetX = quietRitual ? 0.88 : mode === 'ritual' ? 0.5 : 0.5 + rig.doorHover * 0.16;
+    const targetY = quietRitual ? 0.86 : 0.5;
     const center = mat.uniforms.uCenter.value as Vector2;
     center.x = MathUtils.damp(center.x, targetX, 5.5, dt);
     center.y = MathUtils.damp(center.y, targetY, 5.5, dt);
     mat.uniforms.uAspect.value = aspect;
-    mat.uniforms.uRadiusS.value = mode === 'ritual' ? 0.052 : 0.1;
+    mat.uniforms.uRadiusS.value = quietRitual ? 0.016 : 0.1;
     mat.uniforms.uHold.value = rig.sealHold;
   });
 
@@ -116,12 +117,25 @@ export function Postfx() {
 
       const dt = Math.min(delta, 1 / 20);
       const aspect = size.width / Math.max(1, size.height);
-      const isRitual = mode === 'ritual' && rig.recapBeat === 0;
-      const baseStrength = isRitual ? 0.22 + rig.sealHold * 0.55 : 1 - 0.65 * density;
-      const radiusS = isRitual ? 0.054 + rig.sealHold * 0.03 : 0.11 - 0.02 * density;
+      const quietRitual = mode === 'ritual' && rig.recapBeat === 0 && rig.sealHold < 0.01;
+      const activeRitualHold = mode === 'ritual' && rig.recapBeat === 0 && rig.sealHold >= 0.01;
+      const baseStrength = quietRitual
+        ? 0.06
+        : activeRitualHold
+          ? 0.25 + rig.sealHold * 0.7
+          : 1 - 0.65 * density;
+      const radiusS = quietRitual
+        ? 0.016
+        : activeRitualHold
+          ? 0.045 + rig.sealHold * 0.055
+          : 0.11 - 0.02 * density;
 
-      const targetCenterX = isRitual ? 0.82 : 0.5 + rig.doorHover * 0.16;
-      const targetCenterY = isRitual ? 0.8 : 0.5;
+      const targetCenterX = quietRitual
+        ? 0.88
+        : activeRitualHold
+          ? 0.5
+          : 0.5 + rig.doorHover * 0.16;
+      const targetCenterY = quietRitual ? 0.86 : 0.5;
 
       const u = composerRig.tenet.uniforms;
       const center = u.get('uCenter')!.value as Vector2;

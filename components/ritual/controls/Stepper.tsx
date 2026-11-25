@@ -85,7 +85,7 @@ export const Stepper = memo(function Stepper({
             onChange(Math.max(0, current - 1));
           }
         }}
-        className="inline-flex size-11 items-center justify-center rounded-md border border-line bg-bg font-mono text-base text-text-dim transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:border-text-dim hover:text-text active:scale-[0.97] disabled:pointer-events-none disabled:opacity-35"
+        className="inline-flex size-11 items-center justify-center rounded-md border border-line bg-bg font-mono text-base text-text-dim transition-[border-color,color,transform] duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:border-text-dim hover:text-text active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45"
       >
         −
       </button>
@@ -108,7 +108,7 @@ export const Stepper = memo(function Stepper({
             onChange(current + 1);
           }
         }}
-        className="inline-flex size-11 items-center justify-center rounded-md border border-line bg-bg font-mono text-base text-text transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:border-accent/70 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-35"
+        className="inline-flex size-11 items-center justify-center rounded-md border border-line bg-bg font-mono text-base text-text transition-[border-color,color,transform] duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:border-accent/70 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45"
       >
         +
       </button>

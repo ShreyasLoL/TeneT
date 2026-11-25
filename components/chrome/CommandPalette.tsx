@@ -1,6 +1,5 @@
 'use client';
 
-import { Dialog } from '@base-ui/react/dialog';
 import { Command } from 'cmdk';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -140,19 +139,29 @@ export default function CommandPalette() {
     }
   };
 
+  if (!paletteOpen) return null;
+
   return (
-    <Dialog.Root
-      open={paletteOpen}
-      onOpenChange={(open) => {
-        if (!open) close();
-        else setPaletteOpen(true);
-      }}
-    >
-      <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-bg/75" />
-        <Dialog.Popup className="fixed top-[18vh] left-1/2 z-50 w-[min(92vw,34rem)] -translate-x-1/2 overflow-hidden rounded-xl border border-line bg-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] outline-none">
-          <Dialog.Title className="sr-only">Command palette</Dialog.Title>
-          <Command label="Command palette" className="flex flex-col">
+    <div className="fixed inset-0 z-50">
+      <div
+        aria-hidden="true"
+        onClick={close}
+        className="fixed inset-0 bg-bg/78"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            close();
+          }
+        }}
+        className="fixed top-[16vh] left-1/2 z-50 w-[min(92vw,34rem)] -translate-x-1/2 overflow-hidden rounded-xl border border-line bg-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] outline-none"
+      >
+        <Command label="Command palette" className="flex flex-col">
             <div className="border-b border-line px-4 py-3">
               <Command.Input
                 autoFocus
@@ -272,11 +281,10 @@ export default function CommandPalette() {
                   <span>always-alive ambient</span>
                   <span className="text-accent">{alwaysAlive ? 'on' : 'off'}</span>
                 </Command.Item>
-              </Command.Group>
-            </Command.List>
-          </Command>
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+            </Command.Group>
+          </Command.List>
+        </Command>
+      </div>
+    </div>
   );
 }

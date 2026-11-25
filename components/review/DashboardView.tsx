@@ -78,6 +78,7 @@ export function DashboardView() {
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-8 sm:px-8">
+      <h1 className="sr-only">Orbital dashboard</h1>
       <Scrim className="flex flex-wrap items-end justify-between gap-6 border-b border-line pb-6">
         <div className="flex items-end gap-10">
           <div>
@@ -108,7 +109,7 @@ export function DashboardView() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {data.definitions.areas.map((area) => (
             <Link
               key={area.id}

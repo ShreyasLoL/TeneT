@@ -11,16 +11,16 @@ export function Mirror({
   className?: string;
 }) {
   return (
-    <div className={`relative inline-flex flex-col items-center ${className}`}>
-      <div>{children}</div>
+    <div className={`relative inline-flex flex-col items-center leading-none ${className}`}>
+      <div className="leading-none">{children}</div>
       <div
         aria-hidden="true"
         inert={true}
-        className="pointer-events-none select-none overflow-hidden opacity-[0.22] blur-[2px]"
+        className="pointer-events-none -mt-1 max-h-[0.65em] select-none overflow-hidden leading-none opacity-[0.18] blur-[1.5px]"
         style={{
           transform: 'scaleY(-1)',
-          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.9), transparent 82%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.9), transparent 82%)',
+          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.88), transparent 68%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.88), transparent 68%)',
         }}
       >
         {children}

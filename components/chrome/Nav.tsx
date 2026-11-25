@@ -34,8 +34,11 @@ export function Nav() {
   const dayLabel = useMemo(() => formatLogicalDayLabel(today), [today]);
 
   return (
-    <header className="sticky top-0 z-30 w-full">
-      <Scrim direction="down" className="border-b border-line/80 px-4 sm:px-8">
+    <header className="sticky top-0 z-30 w-full pt-[env(safe-area-inset-top)]">
+      <Scrim
+        direction="down"
+        className="border-b border-line/80 pr-[max(1rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] sm:px-8"
+      >
         <nav
           aria-label="Primary"
           className="mx-auto flex min-h-14 max-w-6xl items-center justify-between gap-4"

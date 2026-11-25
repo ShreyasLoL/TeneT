@@ -20,12 +20,18 @@ const LazyWorkoutLens = dynamic(
   },
 );
 import { ChoiceSet } from './controls/ChoiceSet';
-import { DurationDial } from './controls/DurationDial';
 import { EclipseCheck } from './controls/EclipseCheck';
 import { MeasureField } from './controls/MeasureField';
 import { NoteField } from './controls/NoteField';
 import { RatingPips } from './controls/RatingPips';
 import { Stepper } from './controls/Stepper';
+
+const LazyDurationDial = dynamic(
+  () => import('./controls/DurationDial').then((m) => m.DurationDial),
+  {
+    loading: () => <div className="h-24 w-56 rounded-lg border border-line/60 bg-bg/40" />,
+  },
+);
 
 export type RowSaveState = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -133,7 +139,7 @@ export const TrackableRow = memo(function TrackableRow({
         );
       case 'duration':
         return (
-          <DurationDial
+          <LazyDurationDial
             value={typeof value === 'number' ? value : undefined}
             rule={rule}
             disabled={disabled}

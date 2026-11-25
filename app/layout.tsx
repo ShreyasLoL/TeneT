@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { Suspense } from 'react';
 import { Nav } from '@/components/chrome/Nav';
@@ -24,6 +24,14 @@ export const metadata: Metadata = {
   description: 'A nightly ritual disguised as an observatory.',
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#0B0910',
+  colorScheme: 'dark',
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -34,11 +42,11 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
-      <body className="min-h-dvh bg-[var(--bg)] text-[var(--text)] selection:bg-[var(--accent-abyss)] selection:text-[var(--text)]">
+      <body className="min-h-dvh bg-[var(--bg)] pb-[env(safe-area-inset-bottom)] text-[var(--text)] selection:bg-[var(--accent-abyss)] selection:text-[var(--text)]">
         <Providers>
           <Stage />
           <UI>
-            <Suspense fallback={<div className="min-h-14 border-b border-line/80" />}>
+            <Suspense fallback={<div className="min-h-[57px] border-b border-line/80" />}>
               <Nav />
             </Suspense>
             {children}

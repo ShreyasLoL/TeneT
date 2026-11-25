@@ -71,6 +71,11 @@ function RuntimeEffects() {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         setPaletteOpen(!useTenetStore.getState().paletteOpen);
+        return;
+      }
+      if (event.key === 'Escape' && useTenetStore.getState().paletteOpen) {
+        event.preventDefault();
+        setPaletteOpen(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);

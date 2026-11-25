@@ -288,7 +288,7 @@ export function AreaView() {
                 value={targetInput}
                 onChange={(e) => setTargetInput(e.target.value)}
                 placeholder={`set ${primaryNumeric.label.toLowerCase()} target`}
-                className="h-11 w-56 rounded-md border border-line bg-bg px-3 font-mono text-sm text-text outline-none focus:border-accent"
+                className="h-11 w-full rounded-md border border-line bg-bg px-3 font-mono text-base text-text outline-none focus:border-accent sm:w-72 sm:text-sm"
               />
               <Button
                 type="submit"
