@@ -28,12 +28,28 @@ export function Stage() {
       cancelIdleCallback?: (id: number) => void;
     };
 
-    if (typeof w.requestIdleCallback === 'function') {
-      const id = w.requestIdleCallback(() => setReady(true), { timeout: 220 });
-      return () => w.cancelIdleCallback?.(id);
-    }
-    const timer = window.setTimeout(() => setReady(true), 120);
-    return () => window.clearTimeout(timer);
+    let cancelled = false;
+    let idleId: number | null = null;
+    let timerId: number | null = null;
+    const rafId = window.requestAnimationFrame(() => {
+      if (cancelled) return;
+      if (typeof w.requestIdleCallback === 'function') {
+        idleId = w.requestIdleCallback(() => {
+          if (!cancelled) setReady(true);
+        }, { timeout: 240 });
+      } else {
+        timerId = window.setTimeout(() => {
+          if (!cancelled) setReady(true);
+        }, 120);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(rafId);
+      if (idleId !== null) w.cancelIdleCallback?.(idleId);
+      if (timerId !== null) window.clearTimeout(timerId);
+    };
   }, [setQuality]);
 
   if (!ready) return null;

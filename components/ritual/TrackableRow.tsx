@@ -1,15 +1,24 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { memo, useMemo, useState } from 'react';
 import type { ApiTrackable } from '@/lib/api/types';
 import { COPY } from '@/lib/copy';
 import { addDays, isoWeekday, weekStart } from '@/lib/domain/day';
-import { valueSchema } from '@/lib/domain/primitives';
 import { effectiveRule } from '@/lib/domain/rules';
 import type { DayKey, DueStatus, SatisfiedOn } from '@/lib/domain/types';
-import { WorkoutLens } from '@/components/lenses/workout';
+import { validateTrackableValue } from '@/lib/domain/validateValue';
 import { lensFor } from '@/lib/viz/lens';
 import { ruleLabel } from '@/lib/viz/ruleLabel';
+
+const LazyWorkoutLens = dynamic(
+  () => import('@/components/lenses/workout').then((m) => m.WorkoutLens),
+  {
+    loading: () => (
+      <span className="font-mono text-xs text-text-faint">loading lens…</span>
+    ),
+  },
+);
 import { ChoiceSet } from './controls/ChoiceSet';
 import { DurationDial } from './controls/DurationDial';
 import { EclipseCheck } from './controls/EclipseCheck';
@@ -33,7 +42,7 @@ type TrackableRowProps = {
   onChange: (trackable: ApiTrackable, value: unknown) => void;
 };
 
-export function TrackableRow({
+export const TrackableRow = memo(function TrackableRow({
   trackable,
   day,
   status,
@@ -62,9 +71,9 @@ export function TrackableRow({
   }, [day, satisfied, satisfiedOn, trackable.key, trackable.schedule]);
 
   const handleUpdate = (nextValue: unknown) => {
-    const parsed = valueSchema(trackable).safeParse(nextValue);
-    if (!parsed.success) {
-      setValidationError(parsed.error.issues[0]?.message ?? COPY.status.invalidValue);
+    const parsed = validateTrackableValue(trackable, nextValue);
+    if (!parsed.ok) {
+      setValidationError(parsed.message || COPY.status.invalidValue);
       return;
     }
     setValidationError(null);
@@ -171,7 +180,7 @@ export function TrackableRow({
       case 'log':
         if (lensFor(trackable) === 'workout') {
           return (
-            <WorkoutLens
+            <LazyWorkoutLens
               trackable={trackable}
               value={value}
               disabled={disabled}
@@ -240,4 +249,4 @@ export function TrackableRow({
       <div className="shrink-0">{renderControl()}</div>
     </div>
   );
-}
+});

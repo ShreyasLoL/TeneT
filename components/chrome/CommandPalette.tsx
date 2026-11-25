@@ -8,8 +8,8 @@ import { ApiError } from '@/lib/api/client';
 import { useLogEntry, useTenetState, useToday } from '@/lib/api/hooks';
 import { COPY } from '@/lib/copy';
 import { addDays, isDayKey } from '@/lib/domain/day';
-import { valueSchema } from '@/lib/domain/primitives';
 import { activeTrackables } from '@/lib/domain/schedule';
+import { validateTrackableValue } from '@/lib/domain/validateValue';
 import { useTenetStore } from '@/lib/store';
 
 export default function CommandPalette() {
@@ -117,9 +117,9 @@ export default function CommandPalette() {
   const runQuickLog = async () => {
     if (!quickLogPreview) return;
     const { trackable, rawVal } = quickLogPreview;
-    const parsed = valueSchema(trackable).safeParse(rawVal);
-    if (!parsed.success) {
-      setFeedback(parsed.error.issues[0]?.message ?? COPY.status.invalidValue);
+    const parsed = validateTrackableValue(trackable, rawVal);
+    if (!parsed.ok) {
+      setFeedback(parsed.message || COPY.status.invalidValue);
       return;
     }
 

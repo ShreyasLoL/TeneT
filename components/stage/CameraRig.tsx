@@ -1,14 +1,14 @@
 'use client';
 
 import { useFrame } from '@react-three/fiber';
-import * as THREE from 'three';
+import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
 import { MODE_CAMERA_POSES } from '@/lib/stage/modes';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
 
-const targetPos = new THREE.Vector3();
-const targetLook = new THREE.Vector3();
-const currentLook = new THREE.Vector3(0, 0, 0);
+const targetPos = new Vector3();
+const targetLook = new Vector3();
+const currentLook = new Vector3(0, 0, 0);
 
 export function CameraRig() {
   const mode = useTenetStore((s) => s.mode);
@@ -34,19 +34,19 @@ export function CameraRig() {
       currentLook.copy(targetLook);
     } else {
       const lambda = rig.cameraOverride.active ? 7.5 : 4.2;
-      cam.position.x = THREE.MathUtils.damp(cam.position.x, targetPos.x, lambda, dt);
-      cam.position.y = THREE.MathUtils.damp(cam.position.y, targetPos.y, lambda, dt);
-      cam.position.z = THREE.MathUtils.damp(cam.position.z, targetPos.z, lambda, dt);
-      currentLook.x = THREE.MathUtils.damp(currentLook.x, targetLook.x, lambda, dt);
-      currentLook.y = THREE.MathUtils.damp(currentLook.y, targetLook.y, lambda, dt);
-      currentLook.z = THREE.MathUtils.damp(currentLook.z, targetLook.z, lambda, dt);
+      cam.position.x = MathUtils.damp(cam.position.x, targetPos.x, lambda, dt);
+      cam.position.y = MathUtils.damp(cam.position.y, targetPos.y, lambda, dt);
+      cam.position.z = MathUtils.damp(cam.position.z, targetPos.z, lambda, dt);
+      currentLook.x = MathUtils.damp(currentLook.x, targetLook.x, lambda, dt);
+      currentLook.y = MathUtils.damp(currentLook.y, targetLook.y, lambda, dt);
+      currentLook.z = MathUtils.damp(currentLook.z, targetLook.z, lambda, dt);
     }
 
     cam.lookAt(currentLook);
-    if (cam instanceof THREE.PerspectiveCamera) {
+    if (cam instanceof PerspectiveCamera) {
       const nextFov = rig.cameraOverride.active ? rig.cameraOverride.fov : pose.fov;
       if (Math.abs(cam.fov - nextFov) > 0.05) {
-        cam.fov = THREE.MathUtils.damp(cam.fov, nextFov, 5.0, dt);
+        cam.fov = MathUtils.damp(cam.fov, nextFov, 5.0, dt);
         cam.updateProjectionMatrix();
       }
     }

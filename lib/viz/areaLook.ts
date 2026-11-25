@@ -1,16 +1,13 @@
-import { z } from 'zod';
 import type { ApiArea } from '@/lib/api/types';
 
-export const areaLookSchema = z.object({
-  archetype: z.enum(['mass', 'precession', 'comet']).default('mass'),
-  eccentricity: z.number().min(0.01).max(0.6).default(0.08),
-  inclination: z.number().min(0).max(1.5).default(0.12),
-  omega: z.number().min(0.05).max(1.5).default(0.24),
-  shimmer: z.number().min(0).max(1).default(0.25),
-  luminanceBias: z.number().min(0.4).max(1.6).default(1.0),
-});
-
-export type AreaLook = z.infer<typeof areaLookSchema>;
+export type AreaLook = {
+  archetype: 'mass' | 'precession' | 'comet';
+  eccentricity: number;
+  inclination: number;
+  omega: number;
+  shimmer: number;
+  luminanceBias: number;
+};
 
 const ARCHETYPES: Record<number, AreaLook> = {
   // position % 3 === 0: heavy, slow, near-circular, low inclination (mass)
@@ -51,6 +48,28 @@ function hashSlug(slug: string): number {
   return h >>> 0;
 }
 
+function inRange(val: unknown, min: number, max: number): val is number {
+  return typeof val === 'number' && Number.isFinite(val) && val >= min && val <= max;
+}
+
+function parseAreaLook(merged: Record<string, unknown>): AreaLook | null {
+  const arch = merged.archetype;
+  if (arch !== 'mass' && arch !== 'precession' && arch !== 'comet') return null;
+  if (!inRange(merged.eccentricity, 0.01, 0.6)) return null;
+  if (!inRange(merged.inclination, 0, 1.5)) return null;
+  if (!inRange(merged.omega, 0.05, 1.5)) return null;
+  if (!inRange(merged.shimmer, 0, 1)) return null;
+  if (!inRange(merged.luminanceBias, 0.4, 1.6)) return null;
+  return {
+    archetype: arch,
+    eccentricity: merged.eccentricity,
+    inclination: merged.inclination,
+    omega: merged.omega,
+    shimmer: merged.shimmer,
+    luminanceBias: merged.luminanceBias,
+  };
+}
+
 /**
  * Derive an area's orbital look deterministically without hardcoding any area names:
  * uses `area.position % 3` for the three primary archetypes, slug hash for extras,
@@ -67,6 +86,5 @@ export function resolveAreaLook(area?: Pick<ApiArea, 'slug' | 'position' | 'look
       : ARCHETYPES[hashSlug(area.slug) % 3];
 
   const merged = { ...base, ...(area.look ?? {}) };
-  const parsed = areaLookSchema.safeParse(merged);
-  return parsed.success ? parsed.data : base;
+  return parseAreaLook(merged) ?? base;
 }

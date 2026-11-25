@@ -1,18 +1,25 @@
-import { z } from 'zod';
 import type { ApiEntry, ApiTrackable } from '@/lib/api/types';
 import { projectPace, type PaceResult } from '@/lib/domain/goals';
 import type { DayKey } from '@/lib/domain/types';
 
-export const localGoalSchema = z.object({
-  trackableKey: z.string().min(1),
-  target: z.number().refine(Number.isFinite),
-  direction: z.enum(['up', 'down']),
-  deadline: z.string().optional(),
-});
-
-export type LocalGoal = z.infer<typeof localGoalSchema>;
+export type LocalGoal = {
+  trackableKey: string;
+  target: number;
+  direction: 'up' | 'down';
+  deadline?: string;
+};
 
 const LOCAL_GOALS_KEY = 'tenet.localGoals.v1';
+
+function isValidLocalGoal(v: unknown): v is LocalGoal {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
+  const rec = v as Record<string, unknown>;
+  if (typeof rec.trackableKey !== 'string' || rec.trackableKey.length === 0) return false;
+  if (typeof rec.target !== 'number' || !Number.isFinite(rec.target)) return false;
+  if (rec.direction !== 'up' && rec.direction !== 'down') return false;
+  if (rec.deadline !== undefined && typeof rec.deadline !== 'string') return false;
+  return true;
+}
 
 export function loadLocalGoals(storage?: Storage): LocalGoal[] {
   const store = storage ?? (typeof window !== 'undefined' ? window.localStorage : undefined);
@@ -20,8 +27,9 @@ export function loadLocalGoals(storage?: Storage): LocalGoal[] {
   try {
     const raw = store.getItem(LOCAL_GOALS_KEY);
     if (!raw) return [];
-    const parsed = z.array(localGoalSchema).safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.every(isValidLocalGoal) ? parsed : [];
   } catch {
     return [];
   }

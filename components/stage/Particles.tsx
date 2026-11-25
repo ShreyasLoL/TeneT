@@ -2,7 +2,19 @@
 
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import * as THREE from 'three';
+import {
+  AdditiveBlending,
+  type BufferGeometry,
+  DataTexture,
+  FloatType,
+  GLSL3,
+  MathUtils,
+  NearestFilter,
+  RGBAFormat,
+  type ShaderMaterial,
+  Sphere,
+  Vector3,
+} from 'three';
 import { useLivePreview, useTenetState, useToday } from '@/lib/api/hooks';
 import { isTouchDevice, profileForLevel, type QualityLevel } from '@/lib/stage/tiers';
 import { buildWordmarkTargets } from '@/lib/stage/wordmark';
@@ -37,8 +49,8 @@ export function Particles() {
   const level = useTenetStore((s) => s.quality.level) as QualityLevel;
   const profile = profileForLevel(level, isTouchDevice());
 
-  const matRef = useRef<THREE.ShaderMaterial | null>(null);
-  const geomRef = useRef<THREE.BufferGeometry | null>(null);
+  const matRef = useRef<ShaderMaterial | null>(null);
+  const geomRef = useRef<BufferGeometry | null>(null);
 
   const cohortData = useMemo(() => {
     const arr = new Float32Array(16 * 4);
@@ -52,42 +64,39 @@ export function Particles() {
   }, []);
 
   const cohortTex = useMemo(() => {
-    const tex = new THREE.DataTexture(cohortData, 16, 1, THREE.RGBAFormat, THREE.FloatType);
-    tex.minFilter = THREE.NearestFilter;
-    tex.magFilter = THREE.NearestFilter;
+    const tex = new DataTexture(cohortData, 16, 1, RGBAFormat, FloatType);
+    tex.minFilter = NearestFilter;
+    tex.magFilter = NearestFilter;
     tex.needsUpdate = true;
     return tex;
   }, [cohortData]);
   const cohortTexRef = useRef(cohortTex);
 
-  const cohortMap = useMemo(() => {
-    if (!state) return null;
-    return buildCohortMap(
-      state.definitions.areas,
-      state.definitions.trackables,
-      state.days.map((d) => d.results),
-    );
-  }, [state]);
+  const areasDef = state?.definitions.areas;
+  const trackablesDef = state?.definitions.trackables;
+  const sealedDays = state?.days;
 
-  const buffers = useMemo(() => {
+  const cohortMap = useMemo(() => {
+    if (!areasDef || !trackablesDef || !sealedDays) return null;
+    return buildCohortMap(
+      areasDef,
+      trackablesDef,
+      sealedDays.map((d) => d.results),
+    );
+  }, [areasDef, trackablesDef, sealedDays]);
+
+  const staticBuffers = useMemo(() => {
     const rng = mulberry32(99173);
     const positions = new Float32Array(MAX_PARTICLES * 3);
     const seeds = new Float32Array(MAX_PARTICLES * 4);
-    const cohorts = new Float32Array(MAX_PARTICLES);
-    const areas = new Float32Array(MAX_PARTICLES);
     const targets = new Float32Array(MAX_PARTICLES * 3);
     const wordmark = buildWordmarkTargets(WORDMARK_COUNT, 7);
 
-    const slotCount = cohortMap?.slots.length || 3;
     for (let i = 0; i < MAX_PARTICLES; i++) {
       seeds[i * 4] = rng();
       seeds[i * 4 + 1] = rng();
       seeds[i * 4 + 2] = rng();
       seeds[i * 4 + 3] = rng();
-
-      const slot = cohortMap?.slots[i % slotCount];
-      cohorts[i] = slot ? slot.slotIndex : i % 3;
-      areas[i] = slot ? slot.areaIndex % 3 : i % 3;
 
       if (i < WORDMARK_COUNT) {
         targets[i * 3] = wordmark[i * 3];
@@ -96,19 +105,31 @@ export function Particles() {
       }
     }
 
-    return { positions, seeds, cohorts, areas, targets };
+    return { positions, seeds, targets };
+  }, []);
+
+  const cohortBuffers = useMemo(() => {
+    const cohorts = new Float32Array(MAX_PARTICLES);
+    const areas = new Float32Array(MAX_PARTICLES);
+    const slotCount = cohortMap?.slots.length || 3;
+    for (let i = 0; i < MAX_PARTICLES; i++) {
+      const slot = cohortMap?.slots[i % slotCount];
+      cohorts[i] = slot ? slot.slotIndex : i % 3;
+      areas[i] = slot ? slot.areaIndex % 3 : i % 3;
+    }
+    return { cohorts, areas };
   }, [cohortMap]);
 
   const targetDirRef = useRef(new Float32Array(16).fill(1));
 
   useEffect(() => {
     const dirs = targetDirRef.current;
-    if (!cohortMap || !state) {
+    if (!cohortMap || !sealedDays) {
       dirs.fill(1);
       return;
     }
 
-    const sealedDay = state.days.find((d) => d.day === cursor);
+    const sealedDay = sealedDays.find((d) => d.day === cursor);
     const sourceResults = sealedDay ? sealedDay.results : live.results;
     const byKey = new Map(sourceResults.map((r) => [r.key, r]));
 
@@ -120,7 +141,7 @@ export function Particles() {
         dirs[slot.slotIndex] = r.satisfied ? 1 : -1;
       }
     }
-  }, [cohortMap, cursor, live.results, state]);
+  }, [cohortMap, cursor, live.results, sealedDays]);
 
   const uniforms = useMemo(() => {
     const pal = readPalette();
@@ -138,9 +159,9 @@ export function Particles() {
       uFocusArea: { value: -1 },
       uRecapJudge: { value: -1 },
       uRecapSpike: { value: 0 },
-      uOrchidAbyss: { value: new THREE.Vector3(abr, abg, abb) },
-      uOrchid: { value: new THREE.Vector3(ar, ag, ab) },
-      uOrchidHot: { value: new THREE.Vector3(hr, hg, hb) },
+      uOrchidAbyss: { value: new Vector3(abr, abg, abb) },
+      uOrchid: { value: new Vector3(ar, ag, ab) },
+      uOrchidHot: { value: new Vector3(hr, hg, hb) },
     };
   }, [cohortTex]);
 
@@ -154,6 +175,9 @@ export function Particles() {
   useEffect(() => {
     if (geomRef.current) {
       geomRef.current.setDrawRange(0, profile.particles);
+      if (!geomRef.current.boundingSphere) {
+        geomRef.current.boundingSphere = new Sphere(new Vector3(0, 0, 0), 18);
+      }
     }
   }, [profile.particles]);
 
@@ -167,22 +191,29 @@ export function Particles() {
     const targets = targetDirRef.current;
     const tex = cohortTexRef.current;
     const data = tex.image.data as Float32Array;
+    let dirty = false;
     for (let i = 0; i < 16; i++) {
-      rig.cohortDirSmooth[i] = THREE.MathUtils.damp(rig.cohortDirSmooth[i], targets[i], 4.5, dt);
+      rig.cohortDirSmooth[i] = MathUtils.damp(rig.cohortDirSmooth[i], targets[i], 4.5, dt);
       const omega0 = 0.28 + (i % 3) * 0.08;
       rig.cohortPhases[i] += rig.cohortDirSmooth[i] * dirFactor * omega0 * scrubBoost * dt;
-      data[i * 4] = rig.cohortDirSmooth[i];
-      data[i * 4 + 3] = rig.cohortPhases[i];
+      if (
+        Math.abs(data[i * 4] - rig.cohortDirSmooth[i]) > 1e-4 ||
+        Math.abs(data[i * 4 + 3] - rig.cohortPhases[i]) > 1e-4
+      ) {
+        data[i * 4] = rig.cohortDirSmooth[i];
+        data[i * 4 + 3] = rig.cohortPhases[i];
+        dirty = true;
+      }
     }
-    tex.needsUpdate = true;
+    if (dirty) tex.needsUpdate = true;
 
     mat.uniforms.uDpr.value = gl.getPixelRatio();
     mat.uniforms.uIntro.value = rig.introProgress;
     mat.uniforms.uTime.value = frameState.clock.elapsedTime;
     mat.uniforms.uHold.value = rig.sealHold;
-    mat.uniforms.uBrightness.value = THREE.MathUtils.damp(
+    mat.uniforms.uBrightness.value = MathUtils.damp(
       mat.uniforms.uBrightness.value as number,
-      mode === 'ritual' ? 0.55 : 1.0,
+      mode === 'ritual' ? 0.38 : 1.0,
       5.0,
       dt,
     );
@@ -194,35 +225,35 @@ export function Particles() {
   if (profile.particles <= 0) return null;
 
   return (
-    <points frustumCulled={false}>
+    <points>
       <bufferGeometry ref={geomRef}>
         <bufferAttribute
           attach="attributes-position"
-          args={[buffers.positions, 3]}
+          args={[staticBuffers.positions, 3]}
         />
         <bufferAttribute
           attach="attributes-aSeed"
-          args={[buffers.seeds, 4]}
+          args={[staticBuffers.seeds, 4]}
         />
         <bufferAttribute
           attach="attributes-aCohort"
-          args={[buffers.cohorts, 1]}
+          args={[cohortBuffers.cohorts, 1]}
         />
         <bufferAttribute
           attach="attributes-aArea"
-          args={[buffers.areas, 1]}
+          args={[cohortBuffers.areas, 1]}
         />
         <bufferAttribute
           attach="attributes-aTarget"
-          args={[buffers.targets, 3]}
+          args={[staticBuffers.targets, 3]}
         />
       </bufferGeometry>
       <shaderMaterial
         ref={matRef}
-        glslVersion={THREE.GLSL3}
+        glslVersion={GLSL3}
         transparent
         depthWrite={false}
-        blending={THREE.AdditiveBlending}
+        blending={AdditiveBlending}
         uniforms={uniforms}
         vertexShader={particlesVertexShader}
         fragmentShader={particlesFragmentShader}

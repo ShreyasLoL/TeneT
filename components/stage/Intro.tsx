@@ -1,7 +1,7 @@
 'use client';
 
 import { useThree } from '@react-three/fiber';
-import gsap from 'gsap';
+import { gsap } from 'gsap/gsap-core';
 import { useEffect } from 'react';
 import { acquireFrames } from '@/lib/stage/activity';
 import { useTenetStore } from '@/lib/store';

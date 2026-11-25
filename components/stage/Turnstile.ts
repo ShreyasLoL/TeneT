@@ -1,4 +1,4 @@
-import gsap from 'gsap';
+import { gsap } from 'gsap/gsap-core';
 import { acquireFrames } from '@/lib/stage/activity';
 import { rig } from '@/lib/store/rig';
 

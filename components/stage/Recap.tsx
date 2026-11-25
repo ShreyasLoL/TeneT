@@ -1,6 +1,6 @@
 'use client';
 
-import gsap from 'gsap';
+import { gsap } from 'gsap/gsap-core';
 import { useEffect } from 'react';
 import { useTenetState } from '@/lib/api/hooks';
 import { acquireFrames } from '@/lib/stage/activity';

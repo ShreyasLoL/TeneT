@@ -1,8 +1,8 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { valueSchema } from '@/lib/domain/primitives';
 import type { FieldDef, Trackable } from '@/lib/domain/types';
+import { validateTrackableValue } from '@/lib/domain/validateValue';
 
 type RowValue = Record<string, string | number | boolean | undefined>;
 
@@ -62,7 +62,7 @@ export function WorkoutLens({ trackable, value, disabled = false, onChange }: Wo
     onChange(rows.filter((_, i) => i !== idx));
   };
 
-  const fullValidation = valueSchema(trackable as Trackable).safeParse(rows);
+  const fullValidation = validateTrackableValue(trackable as Trackable, rows);
 
   return (
     <div className="w-full space-y-3">
@@ -173,9 +173,9 @@ export function WorkoutLens({ trackable, value, disabled = false, onChange }: Wo
         </span>
       </div>
 
-      {!fullValidation.success ? (
+      {!fullValidation.ok ? (
         <p role="alert" className="font-mono text-xs text-status-danger">
-          {fullValidation.error.issues[0]?.message ?? 'invalid row'}
+          {fullValidation.message}
         </p>
       ) : null}
     </div>

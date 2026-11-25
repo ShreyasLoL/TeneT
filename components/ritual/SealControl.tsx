@@ -183,9 +183,10 @@ export function SealControl({
               </Button>
               <Button
                 type="button"
+                variant="accent"
                 disabled={isPending}
                 onClick={fireOnce}
-                className="min-h-11 bg-accent px-5 font-mono text-xs text-bg hover:bg-accent/90"
+                className="min-h-11 px-5 font-mono text-xs"
               >
                 {COPY.ritual.reducedConfirmYes}
               </Button>

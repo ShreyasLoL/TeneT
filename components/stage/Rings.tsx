@@ -2,8 +2,28 @@
 
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import * as THREE from 'three';
+import {
+  BufferGeometry,
+  DataTexture,
+  DoubleSide,
+  Float32BufferAttribute,
+  FloatType,
+  GLSL3,
+  InstancedBufferAttribute,
+  type InstancedMesh,
+  MathUtils,
+  Matrix4,
+  NearestFilter,
+  Plane,
+  Ray,
+  RGBAFormat,
+  type ShaderMaterial,
+  Sphere,
+  Vector2,
+  Vector3,
+} from 'three';
 import { useTenetState } from '@/lib/api/hooks';
+import { type QualityLevel } from '@/lib/stage/tiers';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
 import { inscription } from '@/lib/viz/inscribe';
@@ -16,13 +36,13 @@ const MAX_INSTANCES = 400;
 const TEX_WIDTH = 16;
 const TEX_HEIGHT = 512;
 
-const pickRay = new THREE.Ray();
-const pickPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-const pickHit = new THREE.Vector3();
-const pickNdc = new THREE.Vector2();
+const pickRay = new Ray();
+const pickPlane = new Plane(new Vector3(0, 1, 0), 0);
+const pickHit = new Vector3();
+const pickNdc = new Vector2();
 
-function createUnitAnnulusGeometry(radialSegments = 128): THREE.BufferGeometry {
-  const geom = new THREE.BufferGeometry();
+function createUnitAnnulusGeometry(radialSegments = 128): BufferGeometry {
+  const geom = new BufferGeometry();
   const positions: number[] = [];
   const indices: number[] = [];
 
@@ -43,8 +63,9 @@ function createUnitAnnulusGeometry(radialSegments = 128): THREE.BufferGeometry {
     indices.push(a, b, c, b, d, c);
   }
 
-  geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geom.setAttribute('position', new Float32BufferAttribute(positions, 3));
   geom.setIndex(indices);
+  geom.boundingSphere = new Sphere(new Vector3(0, 0, 0), 16);
   return geom;
 }
 
@@ -52,41 +73,52 @@ export function Rings() {
   const { camera, gl } = useThree();
   const { data: state } = useTenetState();
   const mode = useTenetStore((s) => s.mode);
+  const level = useTenetStore((s) => s.quality.level) as QualityLevel;
   const cursor = useTenetStore((s) => s.cursor);
   const selection = useTenetStore((s) => s.selection);
   const select = useTenetStore((s) => s.select);
   const setCursor = useTenetStore((s) => s.setCursor);
 
-  const meshRef = useRef<THREE.InstancedMesh | null>(null);
-  const matRef = useRef<THREE.ShaderMaterial | null>(null);
+  const meshRef = useRef<InstancedMesh | null>(null);
+  const matRef = useRef<ShaderMaterial | null>(null);
+
+  const sealedDays = state?.days;
+  const stateRange = state?.range;
 
   const rings = useMemo(() => {
-    if (!state) return [];
-    return ringLayout(state.days, state.range, { maxRings: MAX_INSTANCES });
-  }, [state]);
+    if (!sealedDays || !stateRange) return [];
+    return ringLayout(sealedDays, stateRange, { maxRings: MAX_INSTANCES });
+  }, [sealedDays, stateRange]);
+
+  const dayIndexMap = useMemo(
+    () => new Map(rings.map((r, idx) => [r.day, idx] as const)),
+    [rings],
+  );
 
   const segmentTex = useMemo(() => {
     const buf = new Float32Array(TEX_WIDTH * TEX_HEIGHT * 4);
-    const tex = new THREE.DataTexture(buf, TEX_WIDTH, TEX_HEIGHT, THREE.RGBAFormat, THREE.FloatType);
-    tex.minFilter = THREE.NearestFilter;
-    tex.magFilter = THREE.NearestFilter;
+    const tex = new DataTexture(buf, TEX_WIDTH, TEX_HEIGHT, RGBAFormat, FloatType);
+    tex.minFilter = NearestFilter;
+    tex.magFilter = NearestFilter;
     tex.needsUpdate = true;
     return tex;
   }, []);
   const segmentTexRef = useRef(segmentTex);
 
+  // 2-level radial segment LOD: 128 segments on high tiers (L0/L1), 64 segments on lower tiers (L2+)
+  const radialSegments = level <= 1 ? 128 : 64;
+
   const geometry = useMemo(() => {
-    const g = createUnitAnnulusGeometry(128);
-    g.setAttribute('aRadius', new THREE.InstancedBufferAttribute(new Float32Array(MAX_INSTANCES), 1));
-    g.setAttribute('aThickness', new THREE.InstancedBufferAttribute(new Float32Array(MAX_INSTANCES), 1));
-    g.setAttribute('aRingIndex', new THREE.InstancedBufferAttribute(new Float32Array(MAX_INSTANCES), 1));
-    g.setAttribute('aLuminance', new THREE.InstancedBufferAttribute(new Float32Array(MAX_INSTANCES), 1));
-    g.setAttribute('aIsVoid', new THREE.InstancedBufferAttribute(new Float32Array(MAX_INSTANCES), 1));
-    g.setAttribute('aInStreak', new THREE.InstancedBufferAttribute(new Float32Array(MAX_INSTANCES), 1));
-    g.setAttribute('aSegCount', new THREE.InstancedBufferAttribute(new Float32Array(MAX_INSTANCES), 1));
+    const g = createUnitAnnulusGeometry(radialSegments);
+    g.setAttribute('aRadius', new InstancedBufferAttribute(new Float32Array(MAX_INSTANCES), 1));
+    g.setAttribute('aThickness', new InstancedBufferAttribute(new Float32Array(MAX_INSTANCES), 1));
+    g.setAttribute('aRingIndex', new InstancedBufferAttribute(new Float32Array(MAX_INSTANCES), 1));
+    g.setAttribute('aLuminance', new InstancedBufferAttribute(new Float32Array(MAX_INSTANCES), 1));
+    g.setAttribute('aIsVoid', new InstancedBufferAttribute(new Float32Array(MAX_INSTANCES), 1));
+    g.setAttribute('aInStreak', new InstancedBufferAttribute(new Float32Array(MAX_INSTANCES), 1));
+    g.setAttribute('aSegCount', new InstancedBufferAttribute(new Float32Array(MAX_INSTANCES), 1));
     return g;
-  }, []);
-  const geomRef = useRef(geometry);
+  }, [radialSegments]);
 
   const uniforms = useMemo(() => {
     const pal = readPalette();
@@ -99,38 +131,42 @@ export function Rings() {
       uCursorIndex: { value: 0 },
       uRingShift: { value: 0 },
       uSelectedIndex: { value: -1 },
-      uOrchidAbyss: { value: new THREE.Vector3(abr, abg, abb) },
-      uOrchid: { value: new THREE.Vector3(ar, ag, ab) },
-      uOrchidHot: { value: new THREE.Vector3(hr, hg, hb) },
-      uTextDim: { value: new THREE.Vector3(dr, dg, db) },
+      uOrchidAbyss: { value: new Vector3(abr, abg, abb) },
+      uOrchid: { value: new Vector3(ar, ag, ab) },
+      uOrchidHot: { value: new Vector3(hr, hg, hb) },
+      uTextDim: { value: new Vector3(dr, dg, db) },
     };
   }, [segmentTex]);
 
   useEffect(() => {
+    return () => {
+      geometry.dispose();
+    };
+  }, [geometry]);
+
+  useEffect(() => {
     const tex = segmentTexRef.current;
-    const geom = geomRef.current;
     return () => {
       tex.dispose();
-      geom.dispose();
     };
   }, []);
 
   useEffect(() => {
-    const geom = geomRef.current;
+    const geom = geometry;
     const tex = segmentTexRef.current;
     const mesh = meshRef.current;
     if (!mesh) return;
 
-    const aRadius = geom.getAttribute('aRadius') as THREE.InstancedBufferAttribute;
-    const aThickness = geom.getAttribute('aThickness') as THREE.InstancedBufferAttribute;
-    const aRingIndex = geom.getAttribute('aRingIndex') as THREE.InstancedBufferAttribute;
-    const aLuminance = geom.getAttribute('aLuminance') as THREE.InstancedBufferAttribute;
-    const aIsVoid = geom.getAttribute('aIsVoid') as THREE.InstancedBufferAttribute;
-    const aInStreak = geom.getAttribute('aInStreak') as THREE.InstancedBufferAttribute;
-    const aSegCount = geom.getAttribute('aSegCount') as THREE.InstancedBufferAttribute;
+    const aRadius = geom.getAttribute('aRadius') as InstancedBufferAttribute;
+    const aThickness = geom.getAttribute('aThickness') as InstancedBufferAttribute;
+    const aRingIndex = geom.getAttribute('aRingIndex') as InstancedBufferAttribute;
+    const aLuminance = geom.getAttribute('aLuminance') as InstancedBufferAttribute;
+    const aIsVoid = geom.getAttribute('aIsVoid') as InstancedBufferAttribute;
+    const aInStreak = geom.getAttribute('aInStreak') as InstancedBufferAttribute;
+    const aSegCount = geom.getAttribute('aSegCount') as InstancedBufferAttribute;
 
     const data = tex.image.data as Float32Array;
-    const identity = new THREE.Matrix4();
+    const identity = new Matrix4();
 
     const count = Math.min(MAX_INSTANCES, rings.length);
     for (let i = 0; i < count; i++) {
@@ -181,7 +217,7 @@ export function Rings() {
     aInStreak.needsUpdate = true;
     aSegCount.needsUpdate = true;
     tex.needsUpdate = true;
-  }, [rings]);
+  }, [geometry, rings]);
 
   // Disk-plane polar picking on window clicks when on orbit/time modes (ignoring interactive UI targets)
   useEffect(() => {
@@ -228,16 +264,15 @@ export function Rings() {
     const mat = matRef.current;
     if (!mat) return;
     const dt = Math.min(delta, 1 / 20);
-    const targetIdx =
-      mode === 'time' ? Math.max(0, rings.findIndex((r) => r.day === cursor)) : 0;
+    const targetIdx = mode === 'time' ? (dayIndexMap.get(cursor) ?? 0) : 0;
 
-    rig.cursorIndex = THREE.MathUtils.damp(rig.cursorIndex, targetIdx, 7.5, dt);
+    rig.cursorIndex = MathUtils.damp(rig.cursorIndex, targetIdx, 7.5, dt);
     mat.uniforms.uCursorIndex.value = rig.cursorIndex;
     mat.uniforms.uRingShift.value = rig.ringShift;
 
     const selIdx =
       selection && (selection.kind === 'ring' || selection.kind === 'segment')
-        ? rings.findIndex((r) => r.day === selection.day)
+        ? (dayIndexMap.get(selection.day) ?? -1)
         : -1;
     mat.uniforms.uSelectedIndex.value = selIdx;
   });
@@ -246,15 +281,14 @@ export function Rings() {
     <instancedMesh
       ref={meshRef}
       args={[geometry, undefined, MAX_INSTANCES]}
-      frustumCulled={false}
       visible={false}
     >
       <shaderMaterial
         ref={matRef}
-        glslVersion={THREE.GLSL3}
+        glslVersion={GLSL3}
         transparent
         depthWrite={false}
-        side={THREE.DoubleSide}
+        side={DoubleSide}
         uniforms={uniforms}
         vertexShader={ringsVertexShader}
         fragmentShader={ringsFragmentShader}

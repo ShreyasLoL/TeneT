@@ -1,6 +1,5 @@
 'use client';
 
-import gsap from 'gsap';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
@@ -13,6 +12,8 @@ import { rig } from '@/lib/store/rig';
 import { forkLayout } from '@/lib/viz/forkLayout';
 import { readMotionTokens } from '@/lib/viz/motion';
 
+type GsapCore = (typeof import('gsap/gsap-core'))['gsap'];
+
 export function ForkView() {
   const router = useRouter();
   const today = useToday();
@@ -23,12 +24,18 @@ export function ForkView() {
   const leftRef = useRef<HTMLAnchorElement>(null);
   const rightRef = useRef<HTMLAnchorElement>(null);
   const divingRef = useRef(false);
-  const diveTweenRef = useRef<gsap.core.Tween | null>(null);
+  const gsapRef = useRef<GsapCore | null>(null);
+  const diveTweenRef = useRef<ReturnType<GsapCore['to']> | null>(null);
   const diveReleaseRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     setDensity(0.1);
+    let cancelled = false;
+    void import('gsap/gsap-core').then((m) => {
+      if (!cancelled) gsapRef.current = m.gsap;
+    });
     return () => {
+      cancelled = true;
       diveTweenRef.current?.kill();
       diveTweenRef.current = null;
       diveReleaseRef.current?.();
@@ -60,6 +67,11 @@ export function ForkView() {
 
     e.preventDefault();
     if (divingRef.current) return;
+    const gsapInstance = gsapRef.current;
+    if (!gsapInstance) {
+      router.push(href);
+      return;
+    }
     divingRef.current = true;
 
     const { left, right } = forkLayout();
@@ -78,7 +90,7 @@ export function ForkView() {
     rig.cameraOverride.fov = 44;
 
     let pushed = false;
-    diveTweenRef.current = gsap.to(rig.cameraOverride, {
+    diveTweenRef.current = gsapInstance.to(rig.cameraOverride, {
       px: door.x,
       py: door.y,
       pz: 0.9,

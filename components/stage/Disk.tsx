@@ -2,7 +2,15 @@
 
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
-import * as THREE from 'three';
+import {
+  AdditiveBlending,
+  DoubleSide,
+  GLSL3,
+  MathUtils,
+  type Mesh,
+  type ShaderMaterial,
+  Vector3,
+} from 'three';
 import { useTenetState, useToday } from '@/lib/api/hooks';
 import { LADDER_PROFILES, type QualityLevel } from '@/lib/stage/tiers';
 import { useTenetStore } from '@/lib/store';
@@ -18,8 +26,8 @@ export function Disk() {
   const level = useTenetStore((s) => s.quality.level) as QualityLevel;
   const profile = LADDER_PROFILES[level];
 
-  const matRef = useRef<THREE.ShaderMaterial | null>(null);
-  const meshRef = useRef<THREE.Mesh | null>(null);
+  const matRef = useRef<ShaderMaterial | null>(null);
+  const meshRef = useRef<Mesh | null>(null);
 
   const tonightSealed = Boolean(state?.days.some((d) => d.day === today));
   const showDisk = cursor === today && !tonightSealed;
@@ -34,9 +42,9 @@ export function Disk() {
       uHeat: { value: 0.2 },
       uHold: { value: 0 },
       uSimplified: { value: 0 },
-      uOrchidAbyss: { value: new THREE.Vector3(abr, abg, abb) },
-      uOrchid: { value: new THREE.Vector3(ar, ag, ab) },
-      uOrchidHot: { value: new THREE.Vector3(hr, hg, hb) },
+      uOrchidAbyss: { value: new Vector3(abr, abg, abb) },
+      uOrchid: { value: new Vector3(ar, ag, ab) },
+      uOrchidHot: { value: new Vector3(hr, hg, hb) },
     };
   }, []);
 
@@ -49,7 +57,7 @@ export function Disk() {
     const targetHeat = showDisk ? (liveScore === null ? 0.16 : 0.25 + (liveScore / 100) * 0.75) : 0;
 
     mat.uniforms.uTime.value = frameState.clock.elapsedTime;
-    mat.uniforms.uHeat.value = THREE.MathUtils.damp(
+    mat.uniforms.uHeat.value = MathUtils.damp(
       mat.uniforms.uHeat.value as number,
       targetHeat,
       5.0,
@@ -71,11 +79,11 @@ export function Disk() {
       <planeGeometry args={[4.1, 4.1, 1, 1]} />
       <shaderMaterial
         ref={matRef}
-        glslVersion={THREE.GLSL3}
+        glslVersion={GLSL3}
         transparent
         depthWrite={false}
-        side={THREE.DoubleSide}
-        blending={THREE.AdditiveBlending}
+        side={DoubleSide}
+        blending={AdditiveBlending}
         uniforms={uniforms}
         vertexShader={diskVertexShader}
         fragmentShader={diskFragmentShader}
