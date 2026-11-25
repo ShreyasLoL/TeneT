@@ -58,14 +58,25 @@ export const diskFragmentShader = /* glsl */ `
     return v;
   }
 
-  vec3 neutralRamp(float t) {
-    vec3 whiteHot = vec3(1.0, 0.98, 1.0);
-    vec3 rimOrchid = mix(whiteHot, uOrchid, 0.68);
-    vec3 neutralSilver = vec3(0.30, 0.28, 0.35);
-    vec3 darkSlate = vec3(0.035, 0.032, 0.048);
-    if (t < 0.06) return mix(whiteHot, rimOrchid, t / 0.06);
-    if (t < 0.22) return mix(rimOrchid, neutralSilver, (t - 0.06) / 0.16);
-    return mix(neutralSilver, darkSlate, clamp((t - 0.22) / 0.78, 0.0, 1.0));
+  vec3 physicalDiskColor(float tempK, float dopplerCos) {
+    // Physically motivated blackbody curve: white-hot inner -> golden amber -> deep fiery orange,
+    // with the Doppler-approaching side relativistically shifted into cold sapphire-blue
+    vec3 whiteHot = vec3(1.0, 0.97, 0.92);
+    vec3 orangeDeep = vec3(0.68, 0.11, 0.015);
+    vec3 emberRim = vec3(0.14, 0.018, 0.006);
+
+    float cool = clamp(1.0 - tempK, 0.0, 1.0);
+    vec3 thermal = mix(whiteHot, uAmber, smoothstep(0.0, 0.34, cool));
+    thermal = mix(thermal, orangeDeep, smoothstep(0.28, 0.72, cool));
+    thermal = mix(thermal, emberRim, smoothstep(0.68, 1.0, cool));
+
+    float blueShift = smoothstep(0.04, 0.88, dopplerCos);
+    vec3 dopplerBlue = mix(uColdBlue, vec3(0.72, 0.90, 1.0), pow(tempK, 0.8));
+    thermal = mix(thermal, dopplerBlue, blueShift * (0.58 + 0.28 * tempK));
+
+    float redShift = smoothstep(0.05, 0.85, -dopplerCos);
+    thermal = mix(thermal, orangeDeep * 0.75, redShift * 0.42);
+    return thermal;
   }
 
   vec3 retrogradeRamp(float t) {
@@ -95,8 +106,8 @@ export const diskFragmentShader = /* glsl */ `
     // Retrograde contracts calmly inward; Prograde expands outward
     float radialWarp = 1.0 - retro * uWarp * 0.22 + prog * uWarp * 0.38;
     float r = length(vLocalPos) / max(0.35, radialWarp);
-    float rMin = 0.89;
-    float rMax = 4.25;
+    float rMin = 0.88;
+    float rMax = 4.85;
     if (r < rMin || r > rMax) discard;
 
     float rn = (r - rMin) / (rMax - rMin);
@@ -128,12 +139,13 @@ export const diskFragmentShader = /* glsl */ `
     float dopplerFactor = 1.0 / max(0.38, 1.0 - beta * cosAngle);
     float beaming = clamp(pow(dopplerFactor, 2.35), 0.32, 2.65);
 
+    // Shakura-Sunyaev temperature profile T(r) ~ (rMin / r)^0.75
     float breathe = 0.88 + 0.12 * sin(uTime * 0.70);
-    float falloffExp = mix(2.35, 1.55, max(retro, prog));
-    float tempFalloff = pow(1.0 - rn, falloffExp) * 0.92 + 0.08;
-    float rTemp = clamp(rn - cosAngle * 0.07, 0.0, 1.0);
+    float tempEmit = pow(clamp(rMin / r, 0.0, 1.0), 0.75);
+    float tempFalloff = pow(1.0 - rn, 1.85) * 0.94 + 0.06;
+    float rTemp = clamp(rn - cosAngle * 0.09, 0.0, 1.0);
 
-    vec3 col = neutralRamp(rTemp);
+    vec3 col = physicalDiskColor(tempEmit, cosAngle);
     col = mix(col, retrogradeRamp(rTemp), retro);
     col = mix(col, progradeRamp(rTemp), prog);
 

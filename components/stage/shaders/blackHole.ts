@@ -164,17 +164,21 @@ export const haloFragmentShader = /* glsl */ `
     float doppler = clamp(-p.x / max(0.35, r), -1.0, 1.0) * sign(dirSign);
     float beaming = pow(clamp(1.0 + 0.44 * doppler, 0.30, 1.52), 2.5);
 
-    float rNorm = clamp((r - rH) / (rH * 0.85), 0.0, 1.0);
-    vec3 neutralArc = mix(vec3(0.72, 0.70, 0.78), vec3(0.11, 0.10, 0.14), smoothstep(0.0, 0.75, rNorm));
-    vec3 baseArcCol = mix(uOrchid * 0.75, neutralArc, smoothstep(0.0, 0.22, rNorm));
+    float rNorm = clamp((r - rH) / (rH * 0.95), 0.0, 1.0);
+    vec3 orangeDeep = vec3(0.68, 0.11, 0.015);
+    vec3 thermalArc = mix(vec3(1.0, 0.96, 0.90), uAmber, smoothstep(0.0, 0.36, rNorm));
+    thermalArc = mix(thermalArc, orangeDeep, smoothstep(0.32, 0.88, rNorm));
+    vec3 dopplerBlue = mix(uColdBlue, vec3(0.70, 0.88, 1.0), 1.0 - rNorm * 0.6);
+    vec3 baseArcCol = mix(thermalArc, dopplerBlue, smoothstep(0.05, 0.85, doppler) * 0.68);
     vec3 coldArcCol = mix(vec3(0.32, 0.72, 0.92), vec3(0.05, 0.24, 0.34), smoothstep(0.0, 0.8, rNorm));
     vec3 hotArcCol = mix(vec3(1.0, 0.96, 0.88), mix(uAmber, uOrchid, 0.52), smoothstep(0.0, 0.7, rNorm));
     vec3 arcCol = mix(mix(baseArcCol, coldArcCol, retro), hotArcCol, prog);
 
-    float lensVeil = exp(-max(0.0, r - rH) * 2.6) * pow(volumetricDust, 2.2) * 0.16 * horizonFade;
-    vec3 dustCol = mix(mix(vec3(0.20, 0.19, 0.25), vec3(0.08, 0.28, 0.38), retro), uAmber * 0.65, prog);
+    float lensVeil = exp(-max(0.0, r - rH) * 2.8) * pow(volumetricDust, 2.3) * 0.14 * horizonFade;
+    vec3 dustCol = mix(mix(uViolet * 0.35, vec3(0.08, 0.28, 0.38), retro), uAmber * 0.65, prog);
 
-    vec3 basePhotonCol = mix(uOrchid, vec3(1.0, 0.98, 1.0), 0.62);
+    // #E04DEA scarce accent on photon ring edge, blending with white-hot core & Doppler blue
+    vec3 basePhotonCol = mix(mix(vec3(1.0, 0.96, 0.90), uOrchid, 0.42), dopplerBlue, max(0.0, doppler) * 0.38);
     vec3 coldPhotonCol = mix(vec3(0.36, 0.78, 0.96), uOrchid, 0.08);
     vec3 hotPhotonCol = mix(vec3(1.0, 0.98, 0.92), uAmber, 0.35);
     vec3 photonCol = mix(mix(basePhotonCol, coldPhotonCol, retro), hotPhotonCol, prog);

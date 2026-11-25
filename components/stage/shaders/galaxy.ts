@@ -108,19 +108,34 @@ export const galaxyFragmentShader = /* glsl */ `
 
     float core = exp(-d2 * 18.0);
 
+    float isSecArm = step(0.5, vKind) * step(vKind, 1.5);
     float isBulge = step(1.5, vKind) * step(vKind, 2.5);
     float isKnot = step(2.5, vKind) * step(vKind, 3.5);
     float isField = step(3.5, vKind);
 
-    vec3 warmCore = mix(vec3(1.0, 0.92, 0.78), uAmber, smoothstep(0.0, 0.26, vRadiusNorm));
-    vec3 coldArm = mix(vec3(0.76, 0.88, 1.0), uColdBlue, smoothstep(0.12, 0.68, vRadiusNorm));
-    vec3 outerAbyss = uViolet * 0.28;
+    // Galactic core/bulge: warm amber -> fiery orange old Pop-II stars
+    vec3 warmCore = mix(
+      vec3(1.0, 0.92, 0.72),
+      mix(uAmber, vec3(0.68, 0.13, 0.018), smoothstep(0.06, 0.28, vRadiusNorm)),
+      smoothstep(0.0, 0.22, vRadiusNorm)
+    );
 
-    vec3 baseCol = mix(warmCore, coldArm, smoothstep(0.08, 0.34, vRadiusNorm));
-    baseCol = mix(baseCol, outerAbyss, smoothstep(0.64, 1.0, vRadiusNorm));
-    baseCol = mix(baseCol, warmCore, isBulge * 0.78);
-    baseCol = mix(baseCol, mix(uOrchid, vec3(1.0, 0.78, 0.96), 0.28), isKnot * 0.92);
-    baseCol = mix(baseCol, mix(vec3(0.92, 0.95, 1.0), warmCore, 0.35), isField * 0.65);
+    // Spiral arms: crisp young cold-blue O/B stars; outer galaxy -> deep violet/near-black (never gray)
+    vec3 youngArm = mix(vec3(0.74, 0.88, 1.0), uColdBlue, smoothstep(0.08, 0.52, vRadiusNorm));
+    vec3 deepVioletEdge = uViolet * 0.22;
+
+    vec3 baseCol = mix(warmCore, youngArm, smoothstep(0.07, 0.28, vRadiusNorm));
+    baseCol = mix(baseCol, mix(uColdBlue * 0.55, deepVioletEdge, 0.7), isSecArm * 0.45);
+    baseCol = mix(baseCol, deepVioletEdge, smoothstep(0.56, 0.98, vRadiusNorm));
+
+    // Bulge stays warm amber/orange; HII knots strictly scarce #E04DEA (--accent <= 8% of particles)
+    baseCol = mix(baseCol, warmCore, isBulge * 0.88);
+    vec3 hiiKnotCol = mix(uOrchid, vec3(1.0, 0.76, 0.96), smoothstep(0.7, 1.0, vLum) * 0.35);
+    baseCol = mix(baseCol, hiiKnotCol, isKnot * 0.96);
+
+    // Foreground/field stars: crisp blue-white or warm gold giants
+    vec3 fgStarCol = mix(vec3(0.78, 0.90, 1.0), vec3(1.0, 0.86, 0.66), step(0.5, fract(vLum * 13.7)));
+    baseCol = mix(baseCol, fgStarCol, isField * 0.85);
 
     float retro = clamp(-uMode, 0.0, 1.0) * uHue;
     float prog = clamp(uMode, 0.0, 1.0) * uHue;

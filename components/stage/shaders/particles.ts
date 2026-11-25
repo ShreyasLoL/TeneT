@@ -25,9 +25,9 @@ export const particlesVertexShader = /* glsl */ `
   out float vMemoryBody;
 
   const float TAU = 6.28318530718;
-  const float R_IN = 1.02;
-  const float R_SPAN = 6.6;
-  const float A0 = 2.6;
+  const float R_IN = 0.96;
+  const float R_SPAN = 4.0;
+  const float A0 = 2.2;
 
   vec3 curlOffset(vec3 p, float t) {
     float s1 = sin(p.y * 1.3 + t) * cos(p.z * 1.1 - t * 0.7);
@@ -184,14 +184,18 @@ export const particlesFragmentShader = /* glsl */ `
 
   out vec4 fragColor;
 
-  vec3 neutralDisciplineRamp(float t) {
-    vec3 photonHot = vec3(0.96, 0.94, 0.98);
-    vec3 rimOrchid = mix(photonHot, uOrchid, 0.62);
-    vec3 neutralSilver = vec3(0.28, 0.26, 0.32);
-    vec3 deepSlate = vec3(0.055, 0.05, 0.075);
-    if (t < 0.08) return mix(photonHot, rimOrchid, t / 0.08);
-    if (t < 0.28) return mix(rimOrchid, neutralSilver, (t - 0.08) / 0.20);
-    return mix(neutralSilver, deepSlate, clamp((t - 0.28) / 0.72, 0.0, 1.0));
+  vec3 blackbodyDiskRamp(float t, float doppler) {
+    vec3 whiteHot = vec3(1.0, 0.97, 0.92);
+    vec3 orangeDeep = vec3(0.68, 0.11, 0.015);
+    vec3 deepVioletRim = uViolet * 0.22;
+
+    vec3 col = mix(whiteHot, uAmber, smoothstep(0.0, 0.28, t));
+    col = mix(col, orangeDeep, smoothstep(0.24, 0.68, t));
+    col = mix(col, deepVioletRim, smoothstep(0.65, 1.0, t));
+
+    float blueShift = smoothstep(0.05, 0.85, doppler);
+    vec3 coldShift = mix(uColdBlue, vec3(0.72, 0.90, 1.0), 1.0 - t * 0.65);
+    return mix(col, coldShift, blueShift * 0.65);
   }
 
   vec3 retrogradePalette(float t) {
@@ -223,12 +227,12 @@ export const particlesFragmentShader = /* glsl */ `
     float dopplerGain = clamp(1.0 + vDoppler * 0.45, 0.42, 1.62) + prog * 0.35;
     float rTemp = clamp(vRadiusNorm - vDoppler * 0.08 - uHold * 0.08, 0.0, 1.0);
 
-    vec3 diskCol = neutralDisciplineRamp(rTemp);
+    vec3 diskCol = blackbodyDiskRamp(rTemp, vDoppler);
     diskCol = mix(diskCol, retrogradePalette(rTemp), retro);
     diskCol = mix(diskCol, progradePalette(rTemp), prog);
     diskCol = mix(diskCol, vec3(0.68, 0.90, 1.0), vMemoryBody * 0.75);
 
-    vec3 lensDustCol = mix(vec3(0.22, 0.20, 0.26), uOrchid * 0.45, smoothstep(0.35, 0.0, vRadiusNorm));
+    vec3 lensDustCol = mix(uAmber * 0.55, uColdBlue * 0.65, smoothstep(-0.3, 0.5, vDoppler));
     lensDustCol = mix(mix(lensDustCol, vec3(0.08, 0.30, 0.40), retro), uAmber * 0.75, prog);
     vec3 col = mix(diskCol, lensDustCol, vShell) * dopplerGain;
 
