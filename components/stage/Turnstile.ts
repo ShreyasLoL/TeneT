@@ -1,6 +1,9 @@
 import { gsap } from 'gsap/gsap-core';
 import { acquireFrames } from '@/lib/stage/activity';
+import { stageClock } from '@/lib/stage/clock';
 import { rig } from '@/lib/store/rig';
+
+stageClock.bindGsap(gsap);
 
 /**
  * Trigger the 1.2s mirrored rollover inversion sequence when logical day crosses 04:00.

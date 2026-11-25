@@ -1,5 +1,7 @@
 'use client';
 
+import { memo } from 'react';
+
 type EclipseCheckProps = {
   checked: boolean;
   disabled?: boolean;
@@ -7,7 +9,12 @@ type EclipseCheckProps = {
   onChange: (next: boolean) => void;
 };
 
-export function EclipseCheck({ checked, disabled = false, label, onChange }: EclipseCheckProps) {
+export const EclipseCheck = memo(function EclipseCheck({
+  checked,
+  disabled = false,
+  label,
+  onChange,
+}: EclipseCheckProps) {
   return (
     <button
       type="button"
@@ -34,4 +41,4 @@ export function EclipseCheck({ checked, disabled = false, label, onChange }: Ecl
       </span>
     </button>
   );
-}
+});

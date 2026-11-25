@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { COPY } from '@/lib/copy';
+import { acquireFrames } from '@/lib/stage/activity';
+import { stageClock } from '@/lib/stage/clock';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
 import { readMotionTokens } from '@/lib/viz/motion';
@@ -20,7 +22,7 @@ const RING_CENTER = RING_SIZE / 2;
 const RING_R = 29;
 const RING_CIRC = 2 * Math.PI * RING_R;
 
-export function SealControl({
+export const SealControl = memo(function SealControl({
   unloggedRequiredCount,
   isSealed,
   isPending,
@@ -33,9 +35,11 @@ export function SealControl({
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const progressArcRef = useRef<SVGCircleElement>(null);
-  const rafRef = useRef<number | null>(null);
+  const unsubClockRef = useRef<(() => void) | null>(null);
+  const releaseLeaseRef = useRef<(() => void) | null>(null);
   const armTimerRef = useRef<number | null>(null);
   const firedRef = useRef(false);
+  const holdingRef = useRef(false);
   const holdStartRef = useRef(0);
 
   const setVisualProgress = (p: number) => {
@@ -47,9 +51,13 @@ export function SealControl({
   };
 
   const stopAnim = () => {
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
+    if (unsubClockRef.current) {
+      unsubClockRef.current();
+      unsubClockRef.current = null;
+    }
+    if (releaseLeaseRef.current) {
+      releaseLeaseRef.current();
+      releaseLeaseRef.current = null;
     }
   };
 
@@ -68,9 +76,18 @@ export function SealControl({
   const fireOnce = () => {
     if (firedRef.current || isPending || isSealed) return;
     firedRef.current = true;
+    holdingRef.current = false;
     setHolding(false);
     setKeyboardArmed(false);
     setConfirmOpen(false);
+    stopAnim();
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      try {
+        navigator.vibrate(8);
+      } catch {
+        // ignore vibration restrictions
+      }
+    }
     onSeal();
   };
 
@@ -82,44 +99,65 @@ export function SealControl({
     }
 
     stopAnim();
+    holdingRef.current = true;
     setHolding(true);
-    const holdDurationMs = Math.max(600, Math.round(readMotionTokens().sceneMs * 1.5));
+    const holdDurationMs = Math.max(650, readMotionTokens().sceneMs);
     holdStartRef.current = performance.now();
+    releaseLeaseRef.current = acquireFrames('seal-hold');
 
-    const tick = (now: number) => {
+    unsubClockRef.current = stageClock.subscribe((now) => {
       const p = (now - holdStartRef.current) / holdDurationMs;
       setVisualProgress(p);
       if (p >= 1) {
-        rafRef.current = null;
+        unsubClockRef.current = null;
         fireOnce();
-        return;
+        return false;
       }
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
+      return true;
+    });
   };
 
   const cancelHold = () => {
-    if (!holding) return;
+    if (!holdingRef.current) return;
+    holdingRef.current = false;
     setHolding(false);
     stopAnim();
     const startVal = rig.sealHold;
-    const relaxDurationMs = readMotionTokens().uiMs;
-    const startTime = performance.now();
+    if (startVal <= 0.001) {
+      setVisualProgress(0);
+      return;
+    }
 
-    const relax = (now: number) => {
-      const t = Math.min(1, (now - startTime) / Math.max(100, relaxDurationMs));
-      setVisualProgress(startVal * (1 - t));
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(relax);
-      } else {
-        rafRef.current = null;
+    const relaxDurationMs = Math.max(120, readMotionTokens().uiMs);
+    const startTime = performance.now();
+    releaseLeaseRef.current = acquireFrames('seal-relax');
+
+    unsubClockRef.current = stageClock.subscribe((now) => {
+      const t = Math.min(1, (now - startTime) / relaxDurationMs);
+      // Fast expo-out snap-back without overshoot (emil-design-eng)
+      const eased = 1 - Math.pow(1 - t, 3);
+      setVisualProgress(startVal * (1 - eased));
+      if (t >= 1) {
+        unsubClockRef.current = null;
+        if (releaseLeaseRef.current) {
+          releaseLeaseRef.current();
+          releaseLeaseRef.current = null;
+        }
+        return false;
       }
-    };
-    rafRef.current = requestAnimationFrame(relax);
+      return true;
+    });
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key === 'Escape') {
+      if (keyboardArmed || confirmOpen) {
+        e.preventDefault();
+        setKeyboardArmed(false);
+        setConfirmOpen(false);
+      }
+      return;
+    }
     if (e.key !== 'Enter') return;
     e.preventDefault();
     if (isSealed || isPending || firedRef.current) return;
@@ -200,14 +238,18 @@ export function SealControl({
             aria-label={COPY.ritual.sealIdle}
             onPointerDown={(e) => {
               if (e.pointerType === 'mouse' && e.button !== 0) return;
-              e.currentTarget.setPointerCapture(e.pointerId);
+              try {
+                e.currentTarget.setPointerCapture(e.pointerId);
+              } catch {
+                // synthetic pointer events may not have an active pointerId
+              }
               beginHold();
             }}
             onPointerUp={cancelHold}
             onPointerCancel={cancelHold}
             onLostPointerCapture={cancelHold}
             onKeyDown={onKeyDown}
-            className="group relative inline-flex min-h-20 min-w-52 touch-none select-none items-center justify-center gap-4 rounded-full border border-line bg-bg px-6 py-3 transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:border-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+            className="group relative inline-flex min-h-20 min-w-52 touch-none select-none items-center justify-center gap-4 rounded-full border border-line bg-bg px-6 py-3 transition-[border-color,transform] duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:border-accent/60 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
           >
             <svg viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`} className="size-12 shrink-0">
               <circle
@@ -246,7 +288,9 @@ export function SealControl({
         )}
 
         <p className="font-mono text-[11px] text-text-faint">
-          {reducedMotion ? COPY.ritual.sealFootnote : `${COPY.ritual.sealFootnote} · ${COPY.ritual.keyboardSeal}`}
+          {reducedMotion
+            ? COPY.ritual.sealFootnote
+            : `${COPY.ritual.sealFootnote} · ${COPY.ritual.keyboardSeal}`}
         </p>
 
         {errorMessage ? (
@@ -257,4 +301,4 @@ export function SealControl({
       </div>
     </section>
   );
-}
+});

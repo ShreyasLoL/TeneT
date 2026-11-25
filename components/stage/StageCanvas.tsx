@@ -17,34 +17,32 @@ export default function StageCanvas() {
   }, []);
 
   return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0">
-      <Canvas
-        dpr={[1, profile.dprMax]}
-        frameloop="demand"
-        camera={{ position: [0, 0.3, 11.4], fov: 44, near: 0.1, far: 120 }}
-        gl={{ antialias: false, powerPreference: 'high-performance' }}
-        onCreated={({ gl, invalidate }) => {
-          const bg = getComputedStyle(document.documentElement)
-            .getPropertyValue('--bg')
-            .trim();
-          if (bg) gl.setClearColor(bg, 1);
+    <Canvas
+      dpr={[1, profile.dprMax]}
+      frameloop="demand"
+      camera={{ position: [0, 0.3, 11.4], fov: 44, near: 0.1, far: 120 }}
+      gl={{ antialias: false, powerPreference: 'high-performance' }}
+      onCreated={({ gl, invalidate }) => {
+        const bg = getComputedStyle(document.documentElement)
+          .getPropertyValue('--bg')
+          .trim();
+        if (bg) gl.setClearColor(bg, 1);
 
-          const canvas = gl.domElement;
-          const onLost = (e: Event) => {
-            e.preventDefault();
-            setQuality({ webgl: 'lost' });
-          };
-          const onRestored = () => {
-            setQuality({ webgl: 'ok' });
-            invalidate();
-          };
-          canvas.addEventListener('webglcontextlost', onLost, false);
-          canvas.addEventListener('webglcontextrestored', onRestored, false);
+        const canvas = gl.domElement;
+        const onLost = (e: Event) => {
+          e.preventDefault();
+          setQuality({ webgl: 'lost' });
+        };
+        const onRestored = () => {
+          setQuality({ webgl: 'ok' });
           invalidate();
-        }}
-      >
-        <Scene />
-      </Canvas>
-    </div>
+        };
+        canvas.addEventListener('webglcontextlost', onLost, false);
+        canvas.addEventListener('webglcontextrestored', onRestored, false);
+        invalidate();
+      }}
+    >
+      <Scene />
+    </Canvas>
   );
 }

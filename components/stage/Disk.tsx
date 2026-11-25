@@ -48,7 +48,7 @@ export function Disk() {
     };
   }, []);
 
-  useFrame((frameState, delta) => {
+  useFrame((_state, delta) => {
     const mat = matRef.current;
     const mesh = meshRef.current;
     if (!mat || !mesh) return;
@@ -56,7 +56,7 @@ export function Disk() {
     const dt = Math.min(delta, 1 / 20);
     const targetHeat = showDisk ? (liveScore === null ? 0.16 : 0.25 + (liveScore / 100) * 0.75) : 0;
 
-    mat.uniforms.uTime.value = frameState.clock.elapsedTime;
+    mat.uniforms.uTime.value = rig.elapsedTime;
     mat.uniforms.uHeat.value = MathUtils.damp(
       mat.uniforms.uHeat.value as number,
       targetHeat,

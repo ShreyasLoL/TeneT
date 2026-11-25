@@ -6,19 +6,16 @@ describe('FrameGovernor', () => {
     const gov = new FrameGovernor(0, 0);
     let t = 0;
 
-    // 30 warmup frames
     for (let i = 0; i < 30; i++) {
       t += 25;
       expect(gov.pushFrame(25, t).changed).toBe(false);
     }
 
-    // Idle gaps (>100ms) never count
     for (let i = 0; i < 40; i++) {
       t += 200;
       expect(gov.pushFrame(250, t).level).toBe(0);
     }
 
-    // Push slow frames past 10s dwell + 2s sustain
     t = 10_000;
     let steppedDown = false;
     for (let i = 0; i < 160; i++) {
@@ -37,20 +34,17 @@ describe('FrameGovernor', () => {
     const gov = new FrameGovernor(2, 0);
     let t = 0;
 
-    // Warmup
     for (let i = 0; i < 30; i++) {
       t += 8;
       gov.pushFrame(8, t);
     }
 
-    // First 8 seconds: must stay at level 2
     for (let i = 0; i < 400; i++) {
       t += 16;
       const res = gov.pushFrame(8, t);
       if (t < 10_000) expect(res.level).toBe(2);
     }
 
-    // Continue past 10s sustained low frame time
     let steppedUp = false;
     for (let i = 0; i < 800; i++) {
       t += 16;
@@ -62,5 +56,33 @@ describe('FrameGovernor', () => {
       }
     }
     expect(steppedUp).toBe(true);
+  });
+
+  it('enforces hysteresis deadband (13ms..18ms) and 10s minimum dwell with zero oscillation', () => {
+    const gov = new FrameGovernor(1, 0);
+    let t = 0;
+    let changes = 0;
+
+    // Alternating 14ms / 17.5ms inside hysteresis deadband for 60s -> zero tier changes
+    for (let i = 0; i < 3600; i++) {
+      t += 16;
+      const sample = i % 2 === 0 ? 14.2 : 17.6;
+      const res = gov.pushFrame(sample, t);
+      if (res.changed) changes++;
+    }
+    expect(changes).toBe(0);
+    expect(gov.getLevel()).toBe(1);
+
+    // Even under extreme load (30ms/frame), never steps below L3 and never changes twice within 10s
+    let lastChangeTime = -Infinity;
+    for (let i = 0; i < 3000; i++) {
+      t += 30;
+      const res = gov.pushFrame(30, t);
+      if (res.changed) {
+        expect(t - lastChangeTime).toBeGreaterThanOrEqual(10_000);
+        lastChangeTime = t;
+      }
+    }
+    expect(gov.getLevel()).toBe(3);
   });
 });

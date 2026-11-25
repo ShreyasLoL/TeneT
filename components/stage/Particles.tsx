@@ -181,7 +181,7 @@ export function Particles() {
     }
   }, [profile.particles]);
 
-  useFrame((frameState, delta) => {
+  useFrame((_state, delta) => {
     const mat = matRef.current;
     if (!mat) return;
     const dt = Math.min(delta, 1 / 20);
@@ -209,7 +209,7 @@ export function Particles() {
 
     mat.uniforms.uDpr.value = gl.getPixelRatio();
     mat.uniforms.uIntro.value = rig.introProgress;
-    mat.uniforms.uTime.value = frameState.clock.elapsedTime;
+    mat.uniforms.uTime.value = rig.elapsedTime;
     mat.uniforms.uHold.value = rig.sealHold;
     mat.uniforms.uBrightness.value = MathUtils.damp(
       mat.uniforms.uBrightness.value as number,

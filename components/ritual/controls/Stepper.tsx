@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 
 type StepperProps = {
   value: number | undefined;
@@ -9,7 +9,12 @@ type StepperProps = {
   onChange: (next: number) => void;
 };
 
-export function Stepper({ value, disabled = false, label, onChange }: StepperProps) {
+export const Stepper = memo(function Stepper({
+  value,
+  disabled = false,
+  label,
+  onChange,
+}: StepperProps) {
   const current = typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
   const hasValue = typeof value === 'number';
   const latestRef = useRef(current);
@@ -109,4 +114,4 @@ export function Stepper({ value, disabled = false, label, onChange }: StepperPro
       </button>
     </div>
   );
-}
+});

@@ -1,23 +1,36 @@
 'use client';
 
+import { memo, useState } from 'react';
 import { COPY } from '@/lib/copy';
 import { ProofRing } from './ProofRing';
 
 type ReflectionProps = {
-  value: string;
+  initialValue?: string;
+  sealedValue?: string | null;
   disabled?: boolean;
   error?: string | null;
-  onChange: (next: string) => void;
+  onDraftChange: (next: string) => void;
+  onClearError?: () => void;
 };
 
-export function Reflection({ value, disabled = false, error, onChange }: ReflectionProps) {
+export const Reflection = memo(function Reflection({
+  initialValue = '',
+  sealedValue,
+  disabled = false,
+  error,
+  onDraftChange,
+  onClearError,
+}: ReflectionProps) {
+  const [draft, setDraft] = useState(initialValue);
+  const shown = sealedValue !== undefined && sealedValue !== null ? sealedValue : draft;
+
   return (
     <section
       aria-label="Nightly reflection"
       className="rounded-xl border border-line bg-surface p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
     >
       <div className="flex items-start gap-4">
-        <ProofRing text={value} />
+        <ProofRing text={shown} />
 
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex items-center justify-between">
@@ -28,7 +41,7 @@ export function Reflection({ value, disabled = false, error, onChange }: Reflect
               reflection
             </label>
             <span className="font-mono text-[11px] text-text-faint tabular-nums">
-              {value.trim().length}/500
+              {shown.trim().length}/500
             </span>
           </div>
 
@@ -37,10 +50,15 @@ export function Reflection({ value, disabled = false, error, onChange }: Reflect
             rows={3}
             maxLength={500}
             disabled={disabled}
-            value={value}
+            value={shown}
             placeholder={COPY.ritual.reflectionPlaceholder}
-            onChange={(e) => onChange(e.target.value)}
-            className="w-full resize-y rounded-md border border-line bg-bg px-3 py-2.5 text-[15px] leading-relaxed text-text placeholder:text-text-faint outline-none transition-[border-color,color] duration-[var(--duration-micro)] ease-[var(--ease-out)] focus:border-accent disabled:opacity-50"
+            onChange={(e) => {
+              const next = e.target.value;
+              setDraft(next);
+              onDraftChange(next);
+              if (error && onClearError) onClearError();
+            }}
+            className="w-full resize-y rounded-md border border-line bg-bg px-3 py-2.5 text-base leading-relaxed text-text placeholder:text-text-faint outline-none transition-[border-color,color] duration-[var(--duration-micro)] ease-[var(--ease-out)] focus:border-accent disabled:opacity-50"
           />
 
           {error ? (
@@ -52,4 +70,4 @@ export function Reflection({ value, disabled = false, error, onChange }: Reflect
       </div>
     </section>
   );
-}
+});

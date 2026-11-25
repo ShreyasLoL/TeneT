@@ -4,10 +4,13 @@ import { gsap } from 'gsap/gsap-core';
 import { useEffect } from 'react';
 import { useTenetState } from '@/lib/api/hooks';
 import { acquireFrames } from '@/lib/stage/activity';
+import { stageClock } from '@/lib/stage/clock';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
 import { buildCohortMap } from '@/lib/viz/cohorts';
 import { buildReviewForDay } from '@/lib/viz/review';
+
+stageClock.bindGsap(gsap);
 
 export function Recap() {
   const recap = useTenetStore((s) => s.recap);

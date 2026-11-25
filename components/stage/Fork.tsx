@@ -57,7 +57,7 @@ export function Fork() {
     };
   }, [layout.right.flowDir]);
 
-  useFrame((frameState, delta) => {
+  useFrame((_state, delta) => {
     const dt = Math.min(delta, 1 / 20);
     if (groupRef.current) {
       groupRef.current.visible = rig.introProgress >= 0.72;
@@ -68,7 +68,7 @@ export function Fork() {
 
     const reveal = MathUtils.smoothstep(rig.introProgress, 0.72, 1.0);
 
-    lm.uniforms.uTime.value = frameState.clock.elapsedTime;
+    lm.uniforms.uTime.value = rig.elapsedTime;
     lm.uniforms.uHover.value = MathUtils.damp(
       lm.uniforms.uHover.value as number,
       rig.doorHover === -1 ? 1 : 0,
@@ -77,7 +77,7 @@ export function Fork() {
     );
     lm.uniforms.uIntensity.value = reveal * (tonightSealed ? 0.95 : 0.55);
 
-    rm.uniforms.uTime.value = frameState.clock.elapsedTime;
+    rm.uniforms.uTime.value = rig.elapsedTime;
     rm.uniforms.uHover.value = MathUtils.damp(
       rm.uniforms.uHover.value as number,
       rig.doorHover === 1 ? 1 : 0,

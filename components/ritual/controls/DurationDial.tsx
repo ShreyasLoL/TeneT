@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { memo, useRef } from 'react';
 import type { Rule } from '@/lib/domain/types';
 
 type DurationDialProps = {
@@ -27,7 +27,7 @@ function clampMinutes(n: number): number {
   return Math.min(1440, Math.max(0, Math.round(n)));
 }
 
-export function DurationDial({
+export const DurationDial = memo(function DurationDial({
   value,
   rule,
   disabled = false,
@@ -198,4 +198,4 @@ export function DurationDial({
       </div>
     </div>
   );
-}
+});

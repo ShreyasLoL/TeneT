@@ -21,6 +21,8 @@ const DOWN_SUSTAIN_MS = 2_000;
 const UP_SUSTAIN_MS = 10_000;
 const MIN_DWELL_MS = 10_000;
 const MAX_FRAME_GAP_MS = 100;
+// Cap automatic degradation at L3 (15k particles + quad lens); L4 is reserved for explicit lowPower / no-WebGL.
+const MAX_AUTO_DEGRADE_LEVEL: QualityLevel = 3;
 
 function percentile(sorted: Float64Array, count: number, q: number): number {
   if (count === 0) return 0;
@@ -40,10 +42,12 @@ export class FrameGovernor {
   private lowSince: number | null = null;
   private p50 = 0;
   private p95 = 0;
+  private statsOut: GovernorStats;
 
   constructor(initialLevel: QualityLevel = 1, nowMs: number = 0) {
     this.level = initialLevel;
     this.lastChangeAt = nowMs;
+    this.statsOut = { level: initialLevel, changed: false, p50: 0, p95: 0 };
   }
 
   getLevel(): QualityLevel {
@@ -69,14 +73,22 @@ export class FrameGovernor {
     this.lowSince = null;
   }
 
+  private writeStats(changed: boolean): GovernorStats {
+    this.statsOut.level = this.level;
+    this.statsOut.changed = changed;
+    this.statsOut.p50 = this.p50;
+    this.statsOut.p95 = this.p95;
+    return this.statsOut;
+  }
+
   pushFrame(frameMs: number, nowMs: number, opts: FrameSampleOptions = {}): GovernorStats {
     if (opts.hidden || opts.burstStart || opts.gap || frameMs > MAX_FRAME_GAP_MS || frameMs <= 0) {
-      return { level: this.level, changed: false, p50: this.p50, p95: this.p95 };
+      return this.writeStats(false);
     }
 
     if (this.warmupRemaining > 0) {
       this.warmupRemaining--;
-      return { level: this.level, changed: false, p50: this.p50, p95: this.p95 };
+      return this.writeStats(false);
     }
 
     this.ring[this.head] = frameMs;
@@ -93,7 +105,7 @@ export class FrameGovernor {
     this.p95 = percentile(view, this.count, 0.95);
 
     if (this.count < 20) {
-      return { level: this.level, changed: false, p50: this.p50, p95: this.p95 };
+      return this.writeStats(false);
     }
 
     const dwellElapsed = nowMs - this.lastChangeAt;
@@ -103,7 +115,7 @@ export class FrameGovernor {
       this.lowSince = null;
       if (this.highSince === null) this.highSince = nowMs;
       if (
-        this.level < 4 &&
+        this.level < MAX_AUTO_DEGRADE_LEVEL &&
         dwellElapsed >= MIN_DWELL_MS &&
         nowMs - this.highSince >= DOWN_SUSTAIN_MS
       ) {
@@ -130,6 +142,6 @@ export class FrameGovernor {
       this.lowSince = null;
     }
 
-    return { level: this.level, changed, p50: this.p50, p95: this.p95 };
+    return this.writeStats(changed);
   }
 }

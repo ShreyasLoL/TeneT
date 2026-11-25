@@ -1,5 +1,7 @@
 'use client';
 
+import { memo } from 'react';
+
 type RatingPipsProps = {
   value: number | undefined;
   disabled?: boolean;
@@ -9,7 +11,12 @@ type RatingPipsProps = {
 
 const LEVELS = [1, 2, 3, 4, 5] as const;
 
-export function RatingPips({ value, disabled = false, label, onChange }: RatingPipsProps) {
+export const RatingPips = memo(function RatingPips({
+  value,
+  disabled = false,
+  label,
+  onChange,
+}: RatingPipsProps) {
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (disabled) return;
     if (e.key >= '1' && e.key <= '5') {
@@ -57,4 +64,4 @@ export function RatingPips({ value, disabled = false, label, onChange }: RatingP
       })}
     </div>
   );
-}
+});

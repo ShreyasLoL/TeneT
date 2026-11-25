@@ -9,9 +9,9 @@ import { evaluateDay, nightScore } from '@/lib/domain/score';
 import { currentStreak, longestStreak, sealRate } from '@/lib/domain/stats';
 import type { DayKey } from '@/lib/domain/types';
 import { useTenetStore } from '@/lib/store';
-import { getDefinitions, getState, postCommand, postSeal } from './client';
+import { ApiError, getDefinitions, getState, postCommand, postSeal } from './client';
 import { tenetKeys } from './keys';
-import type { StateResponse } from './types';
+import type { ApiEntry, StateResponse } from './types';
 
 let currentLogicalDay: DayKey = dayKey(new Date());
 const listeners = new Set<() => void>();
@@ -86,37 +86,54 @@ export function useLogEntry() {
 
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: ['tenet', 'state'] });
-      const previous = queryClient.getQueriesData<StateResponse>({ queryKey: ['tenet', 'state'] });
+      const queries = queryClient.getQueriesData<StateResponse>({ queryKey: ['tenet', 'state'] });
+      const prevByQuery = new Map<readonly unknown[], ApiEntry | undefined>();
 
-      for (const [queryKey, data] of previous) {
+      for (const [queryKey, data] of queries) {
         if (!data) continue;
-        const filtered = data.entries.filter(
+        const priorEntry = data.entries.find(
+          (entry) => entry.day === input.day && entry.key === input.key,
+        );
+        prevByQuery.set(queryKey, priorEntry);
+
+        const nextEntries = data.entries.filter(
           (entry) => !(entry.day === input.day && entry.key === input.key),
         );
-        filtered.push({
+        nextEntries.push({
           day: input.day,
           key: input.key,
           version: input.version,
           value: input.value,
         });
+
+        // Preserve `definitions` and `days` object references so 3D stage VBOs never rebuild on entry edits
         queryClient.setQueryData<StateResponse>(queryKey, {
           ...data,
-          entries: filtered,
+          entries: nextEntries,
         });
       }
 
-      return { previous };
+      return { prevByQuery };
     },
 
-    onError: (_err, _input, context) => {
-      if (!context) return;
-      for (const [queryKey, data] of context.previous) {
-        queryClient.setQueryData(queryKey, data);
+    onError: (err, input, context) => {
+      if (context) {
+        for (const [queryKey, priorEntry] of context.prevByQuery.entries()) {
+          const current = queryClient.getQueryData<StateResponse>(queryKey);
+          if (!current) continue;
+          const withoutKey = current.entries.filter(
+            (entry) => !(entry.day === input.day && entry.key === input.key),
+          );
+          if (priorEntry) withoutKey.push(priorEntry);
+          queryClient.setQueryData<StateResponse>(queryKey, {
+            ...current,
+            entries: withoutKey,
+          });
+        }
       }
-    },
-
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ['tenet', 'state'] });
+      if (err instanceof ApiError && err.code === 'day_sealed') {
+        void queryClient.invalidateQueries({ queryKey: ['tenet', 'state'] });
+      }
     },
   });
 }

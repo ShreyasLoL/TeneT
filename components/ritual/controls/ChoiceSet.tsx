@@ -1,5 +1,7 @@
 'use client';
 
+import { memo } from 'react';
+
 type ChoiceSetProps = {
   value: string | undefined;
   options: ReadonlyArray<string>;
@@ -8,7 +10,7 @@ type ChoiceSetProps = {
   onChange: (next: string) => void;
 };
 
-export function ChoiceSet({
+export const ChoiceSet = memo(function ChoiceSet({
   value,
   options,
   disabled = false,
@@ -52,4 +54,4 @@ export function ChoiceSet({
       })}
     </div>
   );
-}
+});

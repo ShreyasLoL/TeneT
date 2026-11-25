@@ -15,6 +15,7 @@ export type CameraOverride = {
  * Never store these values in React state.
  */
 export const rig = {
+  elapsedTime: 0,
   sealHold: 0,
   cursorVelocity: 0,
   cursorIndex: 0,

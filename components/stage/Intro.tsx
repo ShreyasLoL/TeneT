@@ -4,8 +4,11 @@ import { useThree } from '@react-three/fiber';
 import { gsap } from 'gsap/gsap-core';
 import { useEffect } from 'react';
 import { acquireFrames } from '@/lib/stage/activity';
+import { stageClock } from '@/lib/stage/clock';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
+
+stageClock.bindGsap(gsap);
 
 const INTRO_SESSION_KEY = 'tenet.intro';
 

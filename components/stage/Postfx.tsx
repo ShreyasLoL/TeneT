@@ -110,7 +110,7 @@ export function Postfx() {
   }, [profile.bloom]);
 
   useFrame(
-    (state, delta) => {
+    (_state, delta) => {
       const composerRig = rigRef.current;
       if (!composerActive || !composerRig) return;
 
@@ -138,7 +138,7 @@ export function Postfx() {
       u.get('uHold')!.value = rig.sealHold;
       u.get('uAspect')!.value = aspect;
       u.get('uSpike')!.value = rig.recapSpike + rig.turnstilePulse * 0.4;
-      u.get('uTime')!.value = state.clock.elapsedTime;
+      u.get('uTime')!.value = rig.elapsedTime;
       u.get('uMirrorEnabled')!.value = profile.mirror && mode === 'fork' ? 1.0 : 0.0;
       u.get('uGrainEnabled')!.value = profile.grain ? 1.0 : 0.0;
 

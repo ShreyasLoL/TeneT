@@ -64,12 +64,14 @@ export const LADDER_PROFILES: Record<QualityLevel, LadderProfile> = {
   },
 };
 
+const TOUCH_LEVEL_0_PROFILE: LadderProfile = {
+  ...LADDER_PROFILES[0],
+  particles: 60_000,
+};
+
 export function profileForLevel(level: QualityLevel, isTouch: boolean): LadderProfile {
-  const base = LADDER_PROFILES[level];
-  if (isTouch && level === 0) {
-    return { ...base, particles: 60_000 };
-  }
-  return base;
+  if (isTouch && level === 0) return TOUCH_LEVEL_0_PROFILE;
+  return LADDER_PROFILES[level];
 }
 
 export function isTouchDevice(): boolean {
@@ -77,23 +79,34 @@ export function isTouchDevice(): boolean {
   return window.matchMedia?.('(pointer: coarse)').matches ?? false;
 }
 
+export function isReducedDataPreferred(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+  if (conn?.saveData) return true;
+  return window.matchMedia?.('(prefers-reduced-data: reduce)').matches ?? false;
+}
+
+let cachedWebGL2: boolean | null = null;
+
+/**
+ * Checks WebGL2 availability without allocating throwaway GPU contexts when WebGL2RenderingContext exists;
+ * StageCanvas handles actual single-context creation and context-loss fallback.
+ */
 export function detectWebGL2Support(): boolean {
-  if (typeof document === 'undefined') return true;
-  try {
-    const canvas = document.createElement('canvas');
-    return Boolean(canvas.getContext('webgl2'));
-  } catch {
-    return false;
-  }
+  if (typeof window === 'undefined') return true;
+  if (cachedWebGL2 !== null) return cachedWebGL2;
+  cachedWebGL2 = typeof WebGL2RenderingContext !== 'undefined';
+  return cachedWebGL2;
 }
 
 /**
- * Offline hardware heuristic replacing external detect-gpu CDN fetches (Gap 12).
- * Starts conservatively on low-core/touch devices and lets the frame governor adapt.
+ * Offline hardware heuristic replacing external detect-gpu CDN fetches.
+ * Starts conservatively on low-core/touch/data-saver devices and lets the frame governor adapt.
  */
 export function detectInitialLevel(): QualityLevel {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return 1;
   if (!detectWebGL2Support()) return 4;
+  if (isReducedDataPreferred()) return 3;
 
   const touch = isTouchDevice();
   const cores = navigator.hardwareConcurrency ?? 4;

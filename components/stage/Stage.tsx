@@ -12,6 +12,7 @@ const LazyStageCanvas = dynamic(() => import('./StageCanvas'), {
 
 export function Stage() {
   const [ready, setReady] = useState(false);
+  const [everMounted, setEverMounted] = useState(false);
   const quality = useTenetStore((s) => s.quality);
   const setQuality = useTenetStore((s) => s.setQuality);
 
@@ -34,9 +35,12 @@ export function Stage() {
     const rafId = window.requestAnimationFrame(() => {
       if (cancelled) return;
       if (typeof w.requestIdleCallback === 'function') {
-        idleId = w.requestIdleCallback(() => {
-          if (!cancelled) setReady(true);
-        }, { timeout: 240 });
+        idleId = w.requestIdleCallback(
+          () => {
+            if (!cancelled) setReady(true);
+          },
+          { timeout: 240 },
+        );
       } else {
         timerId = window.setTimeout(() => {
           if (!cancelled) setReady(true);
@@ -52,15 +56,33 @@ export function Stage() {
     };
   }, [setQuality]);
 
-  if (!ready) return null;
-  if (
+  const paused =
     quality.lowPower ||
     quality.reducedMotion ||
     quality.level >= 4 ||
-    quality.webgl !== 'ok'
-  ) {
+    quality.webgl !== 'ok';
+
+  useEffect(() => {
+    if (ready && !paused && !everMounted) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setEverMounted(true);
+    }
+  }, [everMounted, paused, ready]);
+
+  if (!ready || (!everMounted && paused) || quality.webgl === 'none') {
     return null;
   }
 
-  return <LazyStageCanvas />;
+  return (
+    <div
+      aria-hidden="true"
+      className={
+        paused
+          ? 'pointer-events-none fixed inset-0 z-0 hidden'
+          : 'pointer-events-none fixed inset-0 z-0'
+      }
+    >
+      <LazyStageCanvas />
+    </div>
+  );
 }

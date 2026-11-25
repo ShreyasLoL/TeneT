@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 
 type MeasureFieldProps = {
   value: number | undefined;
@@ -10,7 +10,7 @@ type MeasureFieldProps = {
   onChange: (next: number) => void;
 };
 
-export function MeasureField({
+export const MeasureField = memo(function MeasureField({
   value,
   unit,
   disabled = false,
@@ -43,4 +43,4 @@ export function MeasureField({
       {unit ? <span className="font-mono text-xs text-text-dim">{unit}</span> : null}
     </div>
   );
-}
+});

@@ -7,6 +7,7 @@ import { Scrim } from '@/components/chrome/Scrim';
 import { useTenetState, useToday } from '@/lib/api/hooks';
 import { COPY } from '@/lib/copy';
 import { acquireFrames } from '@/lib/stage/activity';
+import { stageClock } from '@/lib/stage/clock';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
 import { forkLayout } from '@/lib/viz/forkLayout';
@@ -32,6 +33,7 @@ export function ForkView() {
     setDensity(0.1);
     let cancelled = false;
     void import('gsap/gsap-core').then((m) => {
+      stageClock.bindGsap(m.gsap);
       if (!cancelled) gsapRef.current = m.gsap;
     });
     return () => {

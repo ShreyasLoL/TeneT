@@ -1,5 +1,7 @@
 'use client';
 
+import { memo } from 'react';
+
 type NoteFieldProps = {
   value: string | undefined;
   disabled?: boolean;
@@ -7,7 +9,12 @@ type NoteFieldProps = {
   onChange: (next: string) => void;
 };
 
-export function NoteField({ value, disabled = false, label, onChange }: NoteFieldProps) {
+export const NoteField = memo(function NoteField({
+  value,
+  disabled = false,
+  label,
+  onChange,
+}: NoteFieldProps) {
   const current = value ?? '';
 
   return (
@@ -27,4 +34,4 @@ export function NoteField({ value, disabled = false, label, onChange }: NoteFiel
       </p>
     </div>
   );
-}
+});

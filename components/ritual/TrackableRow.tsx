@@ -40,6 +40,7 @@ type TrackableRowProps = {
   saveState?: RowSaveState;
   errorMessage?: string | null;
   onChange: (trackable: ApiTrackable, value: unknown) => void;
+  onRowBlur?: (key: string) => void;
 };
 
 export const TrackableRow = memo(function TrackableRow({
@@ -53,6 +54,7 @@ export const TrackableRow = memo(function TrackableRow({
   saveState = 'idle',
   errorMessage = null,
   onChange,
+  onRowBlur,
 }: TrackableRowProps) {
   const [validationError, setValidationError] = useState<string | null>(null);
   const rule = useMemo(() => effectiveRule(trackable), [trackable]);
@@ -200,6 +202,11 @@ export const TrackableRow = memo(function TrackableRow({
     <div
       data-ritual-row=""
       onKeyDown={onRowKeyDown}
+      onBlur={(e) => {
+        if (onRowBlur && !e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          onRowBlur(trackable.key);
+        }
+      }}
       className={`flex flex-col gap-3 border-b border-line py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between ${
         isOff ? 'opacity-65' : ''
       }`}

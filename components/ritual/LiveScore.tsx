@@ -1,5 +1,6 @@
 'use client';
 
+import { memo, useEffect, useState } from 'react';
 import { Mirror } from '@/components/chrome/Mirror';
 import { COPY } from '@/lib/copy';
 
@@ -9,7 +10,21 @@ type LiveScoreProps = {
   requiredCount: number;
 };
 
-export function LiveScore({ score, metCount, requiredCount }: LiveScoreProps) {
+export const LiveScore = memo(function LiveScore({
+  score,
+  metCount,
+  requiredCount,
+}: LiveScoreProps) {
+  const [announced, setAnnounced] = useState<string>('');
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      const scoreLabel = score === null ? 'unscored' : `score ${score}`;
+      setAnnounced(`${scoreLabel}, ${metCount} of ${requiredCount} required met`);
+    }, 450);
+    return () => window.clearTimeout(id);
+  }, [metCount, requiredCount, score]);
+
   return (
     <div className="flex items-center justify-between gap-6 border-b border-line pb-5">
       <div className="space-y-1">
@@ -19,6 +34,9 @@ export function LiveScore({ score, metCount, requiredCount }: LiveScoreProps) {
         <p className="font-mono text-xs text-text-dim tabular-nums">
           {metCount}/{requiredCount} met
         </p>
+        <span className="sr-only" aria-live="polite" aria-atomic="true">
+          {announced}
+        </span>
       </div>
 
       <Mirror>
@@ -28,4 +46,4 @@ export function LiveScore({ score, metCount, requiredCount }: LiveScoreProps) {
       </Mirror>
     </div>
   );
-}
+});
