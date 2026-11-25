@@ -16,5 +16,9 @@ export function ruleLabel(t: Pick<Trackable, 'kind' | 'config' | 'rule'>): strin
       return `${rule.min}–${rule.max}${unit}`;
     case 'present':
       return 'logged';
+    default: {
+      const _exhaustive: never = rule;
+      return _exhaustive;
+    }
   }
 }

@@ -13,11 +13,7 @@ import { ruleLabel } from '@/lib/viz/ruleLabel';
 
 const LazyWorkoutLens = dynamic(
   () => import('@/components/lenses/workout').then((m) => m.WorkoutLens),
-  {
-    loading: () => (
-      <span className="font-mono text-xs text-text-faint">loading lens…</span>
-    ),
-  },
+  { loading: () => <div className="h-10 w-36 rounded-md border border-line/60 bg-bg/40" /> },
 );
 import { ChoiceSet } from './controls/ChoiceSet';
 import { EclipseCheck } from './controls/EclipseCheck';
@@ -28,9 +24,7 @@ import { Stepper } from './controls/Stepper';
 
 const LazyDurationDial = dynamic(
   () => import('./controls/DurationDial').then((m) => m.DurationDial),
-  {
-    loading: () => <div className="h-[92px] w-56 rounded-lg border border-line/60 bg-bg/40 sm:h-24" />,
-  },
+  { loading: () => <div className="h-20 w-56 rounded-lg border border-line/60 bg-bg/40" /> },
 );
 
 export type RowSaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -201,6 +195,10 @@ export const TrackableRow = memo(function TrackableRow({
             {Array.isArray(value) ? `${value.length} rows` : '0 rows'}
           </p>
         );
+      default: {
+        const _exhaustive: never = trackable.kind;
+        return _exhaustive;
+      }
     }
   };
 
