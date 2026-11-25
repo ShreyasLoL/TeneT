@@ -2,11 +2,10 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo } from 'react';
 import { LoadingFallback } from '@/components/chrome/LoadingFallback';
 import { SatorGlyph } from '@/components/chrome/SatorGlyph';
 import { Scrim } from '@/components/chrome/Scrim';
-import { Button } from '@/components/ui/button';
 import { useTenetState, useToday } from '@/lib/api/hooks';
 import { COPY } from '@/lib/copy';
 import { addDays } from '@/lib/domain/day';
@@ -14,52 +13,9 @@ import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
 import { resolveAreaLook } from '@/lib/viz/areaLook';
 import { lensFor } from '@/lib/viz/lens';
-import {
-  evaluateLocalGoal,
-  loadLocalGoals,
-  removeLocalGoal,
-  saveLocalGoal,
-  type LocalGoal,
-} from '@/lib/viz/localGoals';
 import { useSmoothScroll } from '@/lib/viz/useSmoothScroll';
+import { AreaGoalCard } from './AreaGoalCard';
 import { Sparkline } from './Sparkline';
-
-const EMPTY_GOALS: LocalGoal[] = [];
-const GOALS_EVENT = 'tenet-local-goals-change';
-let cachedGoals: LocalGoal[] | null = null;
-
-function getGoalsSnapshot(): LocalGoal[] {
-  if (typeof window === 'undefined') return EMPTY_GOALS;
-  if (cachedGoals === null) {
-    cachedGoals = loadLocalGoals();
-  }
-  return cachedGoals;
-}
-
-function getGoalsServerSnapshot(): LocalGoal[] {
-  return EMPTY_GOALS;
-}
-
-function subscribeGoals(cb: () => void) {
-  if (typeof window === 'undefined') return () => {};
-  const invalidateAndNotify = () => {
-    cachedGoals = null;
-    cb();
-  };
-  window.addEventListener('storage', invalidateAndNotify);
-  window.addEventListener(GOALS_EVENT, invalidateAndNotify);
-  return () => {
-    window.removeEventListener('storage', invalidateAndNotify);
-    window.removeEventListener(GOALS_EVENT, invalidateAndNotify);
-  };
-}
-
-function updateCachedGoals(next: LocalGoal[]) {
-  cachedGoals = next;
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event(GOALS_EVENT));
-  }
-}
 
 export function AreaView() {
   useSmoothScroll();
@@ -68,13 +24,6 @@ export function AreaView() {
   const today = useToday();
   const { data, isLoading, isError } = useTenetState();
   const setDensity = useTenetStore((s) => s.setDensity);
-
-  const localGoals = useSyncExternalStore(
-    subscribeGoals,
-    getGoalsSnapshot,
-    getGoalsServerSnapshot,
-  );
-  const [targetInput, setTargetInput] = useState('');
 
   const area = data?.definitions.areas.find((a) => a.slug === slug) ?? null;
 
@@ -98,19 +47,6 @@ export function AreaView() {
       null,
     [areaTrackables],
   );
-
-  const areaGoal = useMemo(
-    () =>
-      primaryNumeric
-        ? localGoals.find((g) => g.trackableKey === primaryNumeric.key) ?? null
-        : null,
-    [localGoals, primaryNumeric],
-  );
-
-  const goalEvaluation = useMemo(() => {
-    if (!areaGoal || !data) return null;
-    return evaluateLocalGoal(areaGoal, data.entries, data.definitions.trackables);
-  }, [areaGoal, data]);
 
   if (isLoading) return <LoadingFallback variant="wide" />;
   if (isError || !data) {
@@ -149,7 +85,6 @@ export function AreaView() {
         <span className="font-mono text-xs text-text-dim">{area.slug}</span>
       </Scrim>
 
-      {/* 60-night area strip */}
       <section
         aria-label="60-night area strip"
         className="rounded-xl border border-line bg-surface p-5"
@@ -162,7 +97,9 @@ export function AreaView() {
             const d = addDays(today, idx - 59);
             const sealed = sealedByDay.get(d);
             const areaKeys = new Set(areaTrackables.map((t) => t.key));
-            const areaRes = sealed?.results.filter((r) => areaKeys.has(r.key) && r.scored && r.status !== 'off') ?? [];
+            const areaRes =
+              sealed?.results.filter((r) => areaKeys.has(r.key) && r.scored && r.status !== 'off') ??
+              [];
             const ratio =
               areaRes.length === 0
                 ? null
@@ -188,7 +125,6 @@ export function AreaView() {
         </div>
       </section>
 
-      {/* Per-trackable 28-night sparklines */}
       <section aria-label="Area trackables" className="space-y-3">
         {areaTrackables.map((t) => {
           const lens = lensFor(t);
@@ -222,85 +158,11 @@ export function AreaView() {
         })}
       </section>
 
-      {/* Optional local goal */}
-      <section
-        aria-label="Goal projection"
-        className="rounded-xl border border-line bg-surface p-6"
-      >
-        <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-line pb-3">
-          <h2 className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-faint">
-            target pace
-          </h2>
-          <span className="font-mono text-[11px] text-text-faint">
-            {COPY.status.localNotSynced}
-          </span>
-        </div>
-
-        {!primaryNumeric ? (
-          <p className="mt-4 text-sm text-text-dim">{COPY.status.noGoals}</p>
-        ) : (
-          <div className="mt-4 space-y-4">
-            {goalEvaluation ? (
-              <div className="flex flex-wrap items-baseline justify-between gap-4">
-                <div>
-                  <p className="text-sm text-text">
-                    {goalEvaluation.label} → {areaGoal?.target}{' '}
-                    {primaryNumeric.config.unit ?? ''}
-                  </p>
-                  <p className="mt-1 font-mono text-xs text-accent">
-                    {COPY.pace[goalEvaluation.pace.status]}
-                    {goalEvaluation.pace.etaDay ? ` · ${goalEvaluation.pace.etaDay}` : ''}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => updateCachedGoals(removeLocalGoal(primaryNumeric.key))}
-                  className="font-mono text-[11px] uppercase tracking-[0.12em]"
-                >
-                  clear
-                </Button>
-              </div>
-            ) : (
-              <p className="text-sm text-text-dim">{COPY.status.noGoals}</p>
-            )}
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const parsed = Number(targetInput);
-                if (!Number.isFinite(parsed)) return;
-                const dir = primaryNumeric.rule?.op === 'lte' ? 'down' : 'up';
-                const next = saveLocalGoal({
-                  trackableKey: primaryNumeric.key,
-                  target: parsed,
-                  direction: dir,
-                });
-                updateCachedGoals(next);
-                setTargetInput('');
-              }}
-              className="flex flex-wrap items-center gap-3"
-            >
-              <input
-                type="number"
-                step="0.1"
-                value={targetInput}
-                onChange={(e) => setTargetInput(e.target.value)}
-                placeholder={`set ${primaryNumeric.label.toLowerCase()} target`}
-                className="h-11 w-full rounded-md border border-line bg-bg px-3 font-mono text-base text-text outline-none focus:border-accent sm:w-72 sm:text-sm"
-              />
-              <Button
-                type="submit"
-                variant="outline"
-                className="min-h-11 font-mono text-xs uppercase tracking-[0.12em]"
-              >
-                save target
-              </Button>
-            </form>
-          </div>
-        )}
-      </section>
+      <AreaGoalCard
+        primaryNumeric={primaryNumeric}
+        entries={data.entries}
+        trackables={data.definitions.trackables}
+      />
     </main>
   );
 }
