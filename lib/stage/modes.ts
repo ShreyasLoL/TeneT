@@ -6,35 +6,39 @@ export type CameraPose = {
   fov: number;
 };
 
+/**
+ * Every route sits strictly on the x = 0 origin axis looking at [0, 0, 0]
+ * so the black hole + particle disk stay at exact viewport center across all widths.
+ */
 export const MODE_CAMERA_POSES: Record<Mode, CameraPose> = {
   fork: {
-    position: [0, 0.3, 11.4],
+    position: [0, 2.35, 11.4],
     target: [0, 0, 0],
     fov: 44,
   },
   ritual: {
-    position: [-2.4, -0.65, 13.6],
-    target: [-1.9, -0.45, 0],
-    fov: 46,
+    position: [0, 2.55, 12.2],
+    target: [0, 0, 0],
+    fov: 45,
   },
   orbit: {
-    position: [0, 7.6, 8.8],
+    position: [0, 5.2, 9.8],
     target: [0, 0, 0],
     fov: 44,
   },
   week: {
-    position: [0, 4.3, 5.1],
+    position: [0, 3.8, 8.6],
     target: [0, 0, 0],
-    fov: 40,
+    fov: 42,
   },
   time: {
-    position: [0, 7.4, 9.2],
+    position: [0, 5.0, 10.0],
     target: [0, 0, 0],
     fov: 45,
   },
   area: {
-    position: [1.4, 6.2, 8.1],
+    position: [0, 4.4, 9.2],
     target: [0, 0, 0],
-    fov: 42,
+    fov: 43,
   },
 };

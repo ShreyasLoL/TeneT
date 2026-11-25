@@ -16,16 +16,14 @@ export function CameraRig() {
 
   useFrame((state, delta) => {
     const cam = state.camera;
-    const dt = Math.min(delta, 1 / 20);
+    const dt = Math.min(delta, 1 / 30);
     const pose = MODE_CAMERA_POSES[mode];
 
     if (rig.cameraOverride.active) {
       targetPos.set(rig.cameraOverride.px, rig.cameraOverride.py, rig.cameraOverride.pz);
       targetLook.set(rig.cameraOverride.tx, rig.cameraOverride.ty, rig.cameraOverride.tz);
     } else {
-      const areaOffset =
-        mode === 'area' && rig.focusAreaIndex >= 0 ? (rig.focusAreaIndex - 1) * 1.4 : 0;
-      targetPos.set(pose.position[0] + areaOffset, pose.position[1], pose.position[2]);
+      targetPos.set(pose.position[0], pose.position[1], pose.position[2]);
       targetLook.set(pose.target[0], pose.target[1], pose.target[2]);
     }
 
@@ -33,7 +31,7 @@ export function CameraRig() {
       cam.position.copy(targetPos);
       currentLook.copy(targetLook);
     } else {
-      const lambda = rig.cameraOverride.active ? 7.5 : 4.2;
+      const lambda = rig.cameraOverride.active ? 7.5 : 4.6;
       cam.position.x = MathUtils.damp(cam.position.x, targetPos.x, lambda, dt);
       cam.position.y = MathUtils.damp(cam.position.y, targetPos.y, lambda, dt);
       cam.position.z = MathUtils.damp(cam.position.z, targetPos.z, lambda, dt);
