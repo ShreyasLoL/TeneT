@@ -8,6 +8,13 @@ export const COPY = {
     telemetryNode: 'mind // online',
     telemetryOpen: 'tonight // open',
     telemetrySealed: 'tonight // sealed',
+    credo: 'your mind is the universe.',
+    progradeAxiom: 'what you will, you do.',
+    progradePayoff: "decide what you'll do.",
+    retrogradeAxiom: 'every sealed orbit stays on record.',
+    retrogradePayoff: 'see what you did.',
+    holdIdle: 'hold to enter',
+    holdActive: 'committing',
   },
   ritual: {
     header: 'tonight',
