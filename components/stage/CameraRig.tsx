@@ -27,7 +27,8 @@ export function CameraRig() {
       targetLook.set(pose.target[0], pose.target[1], pose.target[2]);
     }
 
-    if (reducedMotion) {
+    const directFollow = reducedMotion || (rig.introActive && rig.cameraOverride.active);
+    if (directFollow) {
       cam.position.copy(targetPos);
       currentLook.copy(targetLook);
     } else {
@@ -43,8 +44,8 @@ export function CameraRig() {
     cam.lookAt(currentLook);
     if (cam instanceof PerspectiveCamera) {
       const nextFov = rig.cameraOverride.active ? rig.cameraOverride.fov : pose.fov;
-      if (Math.abs(cam.fov - nextFov) > 0.05) {
-        cam.fov = MathUtils.damp(cam.fov, nextFov, 5.0, dt);
+      if (Math.abs(cam.fov - nextFov) > 0.02) {
+        cam.fov = directFollow ? nextFov : MathUtils.damp(cam.fov, nextFov, 5.0, dt);
         cam.updateProjectionMatrix();
       }
     }

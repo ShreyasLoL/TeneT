@@ -11,7 +11,7 @@ stageClock.bindGsap(gsap);
 
 const INTRO_SESSION_KEY = 'tenet.intro';
 const LETTERS = ['T', 'E', 'N', 'E', 'T'] as const;
-const STAGGER_FRACTIONS = [0.035, 0.064, 0.089, 0.11, 0.128] as const;
+const STAGGER_FRACTIONS = [0.05, 0.085, 0.115, 0.145, 0.175] as const;
 
 /** Exact analytical solver for CSS `--ease-out: cubic-bezier(0.16, 1, 0.3, 1)` (zero bounce). */
 function expoBezierEase(x: number): number {
@@ -48,8 +48,13 @@ export function IntroWordmark() {
     if (introDone) {
       rig.introProgress = 1;
       rig.introActive = false;
+      rig.cameraOverride.active = false;
       return;
     }
+
+    const mediaReduced =
+      typeof window !== 'undefined' &&
+      (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
 
     const alreadyPlayed = (() => {
       try {
@@ -59,9 +64,10 @@ export function IntroWordmark() {
       }
     })();
 
-    if (mode !== 'fork' || reducedMotion || alreadyPlayed) {
+    if (mode !== 'fork' || reducedMotion || mediaReduced || alreadyPlayed) {
       rig.introProgress = 1;
       rig.introActive = false;
+      rig.cameraOverride.active = false;
       if (mode === 'fork') {
         try {
           window.sessionStorage.setItem(INTRO_SESSION_KEY, '1');
@@ -83,12 +89,6 @@ export function IntroWordmark() {
     let tl: ReturnType<typeof gsap.timeline> | null = null;
     let fallbackTimer: number | null = null;
 
-    const getNavBrand = () => {
-      const link = document.querySelector<HTMLElement>('header nav a[href="/"]');
-      const textSpan = link?.querySelector<HTMLElement>('span:last-child') ?? link;
-      return { link, textSpan };
-    };
-
     const clearWillChange = () => {
       if (wordRef.current) wordRef.current.style.willChange = '';
       for (const el of letterRefs.current) {
@@ -96,12 +96,15 @@ export function IntroWordmark() {
       }
     };
 
-    const restoreNav = () => {
-      const { link } = getNavBrand();
-      if (link) {
-        link.style.opacity = '';
-        link.style.willChange = '';
-      }
+    const resetRigCamera = () => {
+      rig.cameraOverride.active = false;
+      rig.cameraOverride.px = 0;
+      rig.cameraOverride.py = 2.35;
+      rig.cameraOverride.pz = 11.4;
+      rig.cameraOverride.tx = 0;
+      rig.cameraOverride.ty = 0;
+      rig.cameraOverride.tz = 0;
+      rig.cameraOverride.fov = 44;
     };
 
     const finish = () => {
@@ -109,8 +112,8 @@ export function IntroWordmark() {
       finished = true;
       rig.introProgress = 1;
       rig.introActive = false;
+      resetRigCamera();
       clearWillChange();
-      restoreNav();
       try {
         window.sessionStorage.setItem(INTRO_SESSION_KEY, '1');
       } catch {
@@ -136,29 +139,32 @@ export function IntroWordmark() {
       }
 
       const heroSec = Math.max(0.28, readMotionTokens().heroMs / 1000);
-      const { link: navLink, textSpan: navBrandSpan } = getNavBrand();
 
       wordEl.style.willChange = 'transform, opacity';
       for (const s of spans) s.style.willChange = 'transform, opacity';
-      if (navLink) {
-        navLink.style.willChange = 'opacity';
-        navLink.style.opacity = '0';
-      }
+
+      rig.cameraOverride.active = true;
+      rig.cameraOverride.px = 0;
+      rig.cameraOverride.py = 2.35;
+      rig.cameraOverride.pz = 11.4;
+      rig.cameraOverride.tx = 0;
+      rig.cameraOverride.ty = 0;
+      rig.cameraOverride.tz = 0;
+      rig.cameraOverride.fov = 44;
 
       gsap.set(wordEl, { x: 0, y: 0, scale: 1, opacity: 1 });
       gsap.set(spans, { y: 18, scale: 0.94, opacity: 0 });
 
       tl = gsap.timeline({ onComplete: finish });
 
-      // 1. Single GPU intro uniform: scattered dark cloud -> spiral disk -> horizon last
+      // Phase A: particles spiral inward + TENET letters reveal + ~0.6s hold
       tl.fromTo(
         rig,
         { introProgress: 0 },
-        { introProgress: 1, duration: heroSec, ease: expoBezierEase },
+        { introProgress: 0.88, duration: heroSec * 0.52, ease: expoBezierEase },
         0,
       );
 
-      // 2. Letter-by-letter transform + opacity reveal with overlapping cadence
       spans.forEach((span, idx) => {
         tl!.to(
           span,
@@ -166,52 +172,35 @@ export function IntroWordmark() {
             y: 0,
             scale: 1,
             opacity: 1,
-            duration: heroSec * 0.28,
+            duration: heroSec * 0.24,
             ease: expoBezierEase,
           },
           heroSec * STAGGER_FRACTIONS[idx],
         );
       });
 
-      // 3. Smooth FLIP handoff to Nav TENET wordmark (overlapping with horizon fade-in)
-      const handoffStart = heroSec * 0.61;
-      const handoffDur = heroSec * 0.35;
-      let dx = 0;
-      let dy = 0;
-      let scaleRatio = 0.22;
-
+      // Phase B: dolly toward the black hole while the wordmark scales/fades out
+      tl.to(
+        rig,
+        { introProgress: 1, duration: heroSec * 0.22, ease: expoBezierEase },
+        heroSec * 0.5,
+      );
+      tl.to(
+        rig.cameraOverride,
+        { py: 0.85, pz: 4.1, fov: 54, duration: heroSec * 0.22, ease: expoBezierEase },
+        heroSec * 0.5,
+      );
       tl.to(
         wordEl,
-        {
-          x: () => dx,
-          y: () => dy,
-          scale: () => scaleRatio,
-          duration: handoffDur,
-          ease: expoBezierEase,
-          onStart: () => {
-            const src = wordEl.getBoundingClientRect();
-            const dst = navBrandSpan?.getBoundingClientRect();
-            if (dst && src.width > 0 && src.height > 0) {
-              dx = dst.left + dst.width * 0.5 - (src.left + src.width * 0.5);
-              dy = dst.top + dst.height * 0.5 - (src.top + src.height * 0.5);
-              scaleRatio = Math.max(0.14, Math.min(1, dst.height / src.height));
-            }
-          },
-        },
-        handoffStart,
+        { scale: 1.28, opacity: 0, duration: heroSec * 0.18, ease: expoBezierEase },
+        heroSec * 0.5,
       );
 
-      if (navLink) {
-        tl.to(
-          navLink,
-          { opacity: 1, duration: heroSec * 0.09, ease: expoBezierEase },
-          heroSec * 0.89,
-        );
-      }
+      // Phase C: pull back out to the resting fork camera pose
       tl.to(
-        wordEl,
-        { opacity: 0, duration: heroSec * 0.08, ease: expoBezierEase },
-        heroSec * 0.91,
+        rig.cameraOverride,
+        { py: 2.35, pz: 11.4, fov: 44, duration: heroSec * 0.28, ease: expoBezierEase },
+        heroSec * 0.72,
       );
     };
 
@@ -224,21 +213,26 @@ export function IntroWordmark() {
       fallbackTimer = window.setTimeout(startTimeline, 320);
     }
 
+    const skip = () => {
+      if (tl) tl.progress(1);
+      else finish();
+    };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') {
-        if (tl) tl.progress(1);
-        else finish();
+        skip();
       }
     };
     window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('pointerdown', skip, { once: true });
 
     return () => {
       unsubReady();
       if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
       window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('pointerdown', skip);
       tl?.kill();
       clearWillChange();
-      restoreNav();
+      resetRigCamera();
       rig.introActive = false;
     };
   }, [introDone, mode, reducedMotion, setIntroDone]);
