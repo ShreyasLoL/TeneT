@@ -4,7 +4,9 @@ export const particlesVertexShader = /* glsl */ `
 
   uniform sampler2D uCohortTex; // 16x1 RGBA Float: r=dirSmooth, g=weight, b=areaIdx, a=Phi_c
   uniform float uDpr;
-  uniform float uIntro;         // 0=scattered dark -> spiral infall -> 1=Keplerian disk
+  uniform float uIntro;         // 0=void -> spiral infall -> 1=settled
+  uniform float uSpin;          // time-lapse angular wind-down offset
+  uniform float uTick;          // 1=60 radial clock ticks -> 0=Keplerian disk
   uniform float uTime;
   uniform float uHold;          // 0..1 seal hold tightening
   uniform float uMode;          // -1 retrograde, 0 landing, +1 prograde
@@ -74,7 +76,7 @@ export const particlesVertexShader = /* glsl */ `
 
     float stagger = clamp((a - R_IN) / 9.5, 0.0, 1.0) * 0.18;
     float introLocal = smoothstep(stagger, min(1.0, 0.88 + stagger * 0.65), uIntro);
-    float infallWindup = (1.0 - introLocal) * (4.4 + aSeed.z * 2.4);
+    float infallWindup = (1.0 - introLocal) * (4.4 + aSeed.z * 2.4) - uSpin * omegaFactor * 0.55;
 
     // Extra angular burst during prograde vs retrograde counter-rotation
     float journeySpin = progWarp * 3.8 * omegaFactor - retroWarp * 1.6 * omegaFactor;
@@ -108,7 +110,11 @@ export const particlesVertexShader = /* glsl */ `
 
     vec3 finalPos = diskPos;
     if (uIntro < 0.999) {
-      float spinAngle = (1.0 - introLocal) * (2.6 + aSeed.y * 1.8);
+      // Condense from 60 radial clock-tick spokes (uTick -> 0) into Keplerian spiral infall
+      float tickAngle = (floor(aSeed.z * 60.0) / 60.0) * TAU;
+      float tickR = mix(3.4, 5.2, aSeed.y);
+      vec3 tickSpoke = vec3(cos(tickAngle) * tickR, sin(tickAngle) * tickR, (aSeed.w - 0.5) * 0.25);
+      float spinAngle = (1.0 - introLocal) * (2.2 + aSeed.y * 1.4);
       float cs = cos(spinAngle);
       float ss = sin(spinAngle);
       vec3 spunSpawn = vec3(
@@ -116,7 +122,8 @@ export const particlesVertexShader = /* glsl */ `
         position.y * mix(1.0, 0.18, introLocal),
         position.x * ss + position.z * cs
       );
-      finalPos = mix(spunSpawn, diskPos, introLocal);
+      vec3 originPos = mix(spunSpawn, tickSpoke, clamp(uTick, 0.0, 1.0));
+      finalPos = mix(originPos, diskPos, introLocal);
     }
 
     vec3 localTang = vec3(-sinE, 0.0, bScale * cosE);
@@ -149,7 +156,7 @@ export const particlesVertexShader = /* glsl */ `
     gl_PointSize = clamp(basePt * bodyBoost * depthScale * uDpr, 1.0 * uDpr, 6.8 * uDpr);
     gl_Position = projectionMatrix * mvPosition;
 
-    float introGlow = mix(0.04, 1.0, smoothstep(0.0, 0.78, uIntro));
+    float introGlow = smoothstep(0.02, 0.58, uIntro);
     float radialFade = mix(pow(1.0 - clamp((a - R_IN) / 6.8, 0.0, 1.0), 1.45), 0.24, isShell);
     radialFade = mix(radialFade, 0.78, max(retroWarp, progWarp) * 0.65);
 

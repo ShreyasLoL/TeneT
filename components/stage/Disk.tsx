@@ -36,6 +36,7 @@ export function Disk() {
     return {
       uTime: { value: 0 },
       uIntro: { value: 1 },
+      uSpin: { value: 0 },
       uHeat: { value: 0.58 },
       uHold: { value: 0 },
       uMode: { value: 0 },
@@ -64,6 +65,7 @@ export function Disk() {
 
     mat.uniforms.uTime.value = rig.elapsedTime;
     mat.uniforms.uIntro.value = rig.introProgress;
+    mat.uniforms.uSpin.value = rig.introSpin;
     mat.uniforms.uHeat.value = MathUtils.damp(
       mat.uniforms.uHeat.value as number,
       targetHeat,

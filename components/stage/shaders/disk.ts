@@ -13,6 +13,7 @@ export const diskVertexShader = /* glsl */ `
 export const diskFragmentShader = /* glsl */ `
   uniform float uTime;
   uniform float uIntro;
+  uniform float uSpin;
   uniform float uHeat;        // 0.35 .. 1.0
   uniform float uHold;        // 0..1 seal compression
   uniform float uMode;        // -1 retrograde, 0 landing, +1 prograde
@@ -105,7 +106,7 @@ export const diskFragmentShader = /* glsl */ `
     float spinMult = mix(1.0, -0.55, retro) + prog * (1.8 * uWarp);
     float rRatio = max(0.3, r / rMin);
     float omega = (inversesqrt(rRatio) / rRatio) * 1.35 * spinMult;
-    float swirl = theta + uTime * omega;
+    float swirl = theta + uTime * omega + uSpin * (inversesqrt(rRatio) * 0.85);
 
     float shear = 0.85;
     if (uSimplified < 0.5) {

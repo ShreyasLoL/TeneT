@@ -6,13 +6,13 @@ import { stageClock } from '@/lib/stage/clock';
 import { useTenetStore } from '@/lib/store';
 import { rig, subscribeCanvasReady } from '@/lib/store/rig';
 import { readMotionTokens } from '@/lib/viz/motion';
-import { expoBezierEase } from './expoBezier';
+import { IntroDial } from './IntroDial';
+import { buildIntroTimeline } from './introTimeline';
 
 stageClock.bindGsap(gsap);
 
 const INTRO_SESSION_KEY = 'tenet.intro';
 const LETTERS = ['T', 'E', 'N', 'E', 'T'] as const;
-const STAGGER_FRACTIONS = [0.05, 0.085, 0.115, 0.145, 0.175] as const;
 
 export function IntroWordmark() {
   const mode = useTenetStore((s) => s.mode);
@@ -21,12 +21,21 @@ export function IntroWordmark() {
   const setIntroDone = useTenetStore((s) => s.setIntroDone);
 
   const [visible, setVisible] = useState(false);
+  const assemblyRef = useRef<HTMLDivElement | null>(null);
   const wordRef = useRef<HTMLDivElement | null>(null);
   const letterRefs = useRef<Array<HTMLSpanElement | null>>([]);
+  const hairlineRef = useRef<HTMLDivElement | null>(null);
+  const dialGroupRef = useRef<SVGGElement | null>(null);
+  const tickRefs = useRef<Array<SVGLineElement | null>>([]);
+  const timerRingRef = useRef<SVGCircleElement | null>(null);
+  const clockReadoutRef = useRef<HTMLSpanElement | null>(null);
+  const nightBeginsRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     if (introDone) {
       rig.introProgress = 1;
+      rig.introSpin = 0;
+      rig.introTick = 0;
       rig.introActive = false;
       rig.cameraOverride.active = false;
       return;
@@ -46,6 +55,8 @@ export function IntroWordmark() {
 
     if (mode !== 'fork' || reducedMotion || mediaReduced || alreadyPlayed) {
       rig.introProgress = 1;
+      rig.introSpin = 0;
+      rig.introTick = 0;
       rig.introActive = false;
       rig.cameraOverride.active = false;
       if (mode === 'fork') {
@@ -60,6 +71,8 @@ export function IntroWordmark() {
     }
 
     rig.introProgress = 0;
+    rig.introSpin = 5.2;
+    rig.introTick = 1;
     rig.introActive = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisible(true);
@@ -70,9 +83,18 @@ export function IntroWordmark() {
     let fallbackTimer: number | null = null;
 
     const clearWillChange = () => {
-      if (wordRef.current) wordRef.current.style.willChange = '';
-      for (const el of letterRefs.current) {
-        if (el) el.style.willChange = '';
+      const nodes: Array<Element | null> = [
+        assemblyRef.current,
+        wordRef.current,
+        hairlineRef.current,
+        dialGroupRef.current,
+        timerRingRef.current,
+        clockReadoutRef.current,
+        nightBeginsRef.current,
+        ...letterRefs.current,
+      ];
+      for (const n of nodes) {
+        if (n instanceof HTMLElement || n instanceof SVGElement) n.style.willChange = '';
       }
     };
 
@@ -91,6 +113,8 @@ export function IntroWordmark() {
       if (finished) return;
       finished = true;
       rig.introProgress = 1;
+      rig.introSpin = 0;
+      rig.introTick = 0;
       rig.introActive = false;
       resetRigCamera();
       clearWillChange();
@@ -111,76 +135,30 @@ export function IntroWordmark() {
         fallbackTimer = null;
       }
 
+      const assemblyEl = assemblyRef.current;
       const wordEl = wordRef.current;
       const spans = letterRefs.current.filter((s): s is HTMLSpanElement => s !== null);
-      if (!wordEl || spans.length === 0) {
+      const ticks = tickRefs.current.filter((t): t is SVGLineElement => t !== null);
+
+      if (!assemblyEl || !wordEl || spans.length === 0) {
         finish();
         return;
       }
 
-      const heroSec = Math.max(0.28, readMotionTokens().heroMs / 1000);
-
-      wordEl.style.willChange = 'transform, opacity';
-      for (const s of spans) s.style.willChange = 'transform, opacity';
-
-      rig.cameraOverride.active = true;
-      rig.cameraOverride.px = 0;
-      rig.cameraOverride.py = 1.18;
-      rig.cameraOverride.pz = 5.45;
-      rig.cameraOverride.tx = 0;
-      rig.cameraOverride.ty = 0;
-      rig.cameraOverride.tz = 0;
-      rig.cameraOverride.fov = 46;
-
-      gsap.set(wordEl, { x: 0, y: 0, scale: 1, opacity: 1 });
-      gsap.set(spans, { y: 18, scale: 0.94, opacity: 0 });
-
-      tl = gsap.timeline({ onComplete: finish });
-
-      // Phase A: particles spiral inward + TENET letters reveal + ~0.6s hold
-      tl.fromTo(
-        rig,
-        { introProgress: 0 },
-        { introProgress: 0.88, duration: heroSec * 0.52, ease: expoBezierEase },
-        0,
-      );
-
-      spans.forEach((span, idx) => {
-        tl!.to(
-          span,
-          {
-            y: 0,
-            scale: 1,
-            opacity: 1,
-            duration: heroSec * 0.24,
-            ease: expoBezierEase,
-          },
-          heroSec * STAGGER_FRACTIONS[idx],
-        );
-      });
-
-      // Phase B: dolly toward the black hole while the wordmark scales/fades out
-      tl.to(
-        rig,
-        { introProgress: 1, duration: heroSec * 0.22, ease: expoBezierEase },
-        heroSec * 0.5,
-      );
-      tl.to(
-        rig.cameraOverride,
-        { py: 0.45, pz: 2.25, fov: 56, duration: heroSec * 0.22, ease: expoBezierEase },
-        heroSec * 0.5,
-      );
-      tl.to(
-        wordEl,
-        { scale: 1.28, opacity: 0, duration: heroSec * 0.18, ease: expoBezierEase },
-        heroSec * 0.5,
-      );
-
-      // Phase C: pull back out to the resting fork camera pose
-      tl.to(
-        rig.cameraOverride,
-        { py: 1.18, pz: 5.45, fov: 46, duration: heroSec * 0.28, ease: expoBezierEase },
-        heroSec * 0.72,
+      tl = buildIntroTimeline(
+        {
+          assemblyEl,
+          wordEl,
+          spans,
+          hairlineEl: hairlineRef.current,
+          dialGroupEl: dialGroupRef.current,
+          ticks,
+          timerRingEl: timerRingRef.current,
+          clockEl: clockReadoutRef.current,
+          nightEl: nightBeginsRef.current,
+        },
+        readMotionTokens().heroMs,
+        finish,
       );
     };
 
@@ -198,9 +176,16 @@ export function IntroWordmark() {
       else finish();
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') {
-        skip();
+      if (
+        e.key === 'Tab' ||
+        e.key === 'Shift' ||
+        e.key === 'Control' ||
+        e.key === 'Alt' ||
+        e.key === 'Meta'
+      ) {
+        return;
       }
+      skip();
     };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('pointerdown', skip, { once: true });
@@ -213,6 +198,8 @@ export function IntroWordmark() {
       tl?.kill();
       clearWillChange();
       resetRigCamera();
+      rig.introSpin = 0;
+      rig.introTick = 0;
       rig.introActive = false;
     };
   }, [introDone, mode, reducedMotion, setIntroDone]);
@@ -224,21 +211,32 @@ export function IntroWordmark() {
       aria-hidden="true"
       className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center"
     >
-      <div
-        ref={wordRef}
-        className="flex origin-center select-none items-center font-mono text-[clamp(2.5rem,7vw,5.25rem)] font-medium uppercase leading-none tracking-[0.22em] text-text"
-      >
-        {LETTERS.map((ch, i) => (
-          <span
-            key={i}
-            ref={(el) => {
-              letterRefs.current[i] = el;
-            }}
-            className="inline-block opacity-0"
-          >
-            {ch}
-          </span>
-        ))}
+      <div ref={assemblyRef} className="relative flex items-center justify-center">
+        <IntroDial
+          hairlineRef={hairlineRef}
+          dialGroupRef={dialGroupRef}
+          tickRefs={tickRefs}
+          timerRingRef={timerRingRef}
+          clockReadoutRef={clockReadoutRef}
+          nightBeginsRef={nightBeginsRef}
+        />
+
+        <div
+          ref={wordRef}
+          className="flex origin-center select-none items-center font-mono text-[clamp(2.25rem,6vw,4.5rem)] font-medium uppercase leading-none tracking-[0.22em] text-text"
+        >
+          {LETTERS.map((ch, i) => (
+            <span
+              key={i}
+              ref={(el) => {
+                letterRefs.current[i] = el;
+              }}
+              className="inline-block opacity-0"
+            >
+              {ch}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );

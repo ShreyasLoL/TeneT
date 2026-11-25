@@ -25,6 +25,8 @@ export const rig = {
   cohortPhases: new Float32Array(16),
   cohortDirSmooth: new Float32Array(16).fill(1),
   introProgress: 1,
+  introSpin: 0,
+  introTick: 0,
   introActive: false,
   canvasReady: false,
   forkMode: 0,      // -1 retrograde (cold), 0 neutral landing, +1 prograde (hot)

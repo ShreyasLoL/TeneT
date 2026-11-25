@@ -94,6 +94,8 @@ export function Particles() {
       uCohortTex: { value: cohortTex },
       uDpr: { value: 1 },
       uIntro: { value: 1 },
+      uSpin: { value: 0 },
+      uTick: { value: 0 },
       uTime: { value: 0 },
       uHold: { value: 0 },
       uMode: { value: 0 },
@@ -160,6 +162,8 @@ export function Particles() {
 
     mat.uniforms.uDpr.value = gl.getPixelRatio();
     mat.uniforms.uIntro.value = rig.introProgress;
+    mat.uniforms.uSpin.value = rig.introSpin;
+    mat.uniforms.uTick.value = rig.introTick;
     mat.uniforms.uTime.value = rig.elapsedTime;
     mat.uniforms.uHold.value = rig.sealHold;
     mat.uniforms.uMode.value = rig.forkMode;
