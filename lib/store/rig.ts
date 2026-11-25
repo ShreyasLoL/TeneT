@@ -51,7 +51,7 @@ export const rig = {
     active: false,
     px: 0,
     py: 0,
-    pz: 10,
+    pz: 10.6,
     tx: 0,
     ty: 0,
     tz: 0,

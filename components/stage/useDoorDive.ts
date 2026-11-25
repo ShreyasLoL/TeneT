@@ -74,12 +74,12 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
     });
     gsapInstance.to(rig.cameraOverride, {
       px: 0,
-      py: 1.18,
-      pz: 5.45,
+      py: 0,
+      pz: 10.6,
       tx: 0,
       ty: 0,
       tz: 0,
-      fov: 46,
+      fov: 45,
       duration: 0.35,
       ease: expoBezierEase,
       onComplete: () => {
@@ -154,15 +154,16 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
       const totalSec = quality.lowPower ? 0.95 : isRetro ? 2.4 : 1.8;
       const peakSec = totalSec * 0.74;
 
+      const startZ = 10.6 + Math.sin(rig.elapsedTime * 0.28) * 0.28;
       rig.forkActive = true;
       rig.cameraOverride.active = true;
       rig.cameraOverride.px = 0;
-      rig.cameraOverride.py = 1.18;
-      rig.cameraOverride.pz = 5.45;
+      rig.cameraOverride.py = 0;
+      rig.cameraOverride.pz = startZ;
       rig.cameraOverride.tx = 0;
       rig.cameraOverride.ty = 0;
       rig.cameraOverride.tz = 0;
-      rig.cameraOverride.fov = 46;
+      rig.cameraOverride.fov = 45;
       notifyForkTransition();
 
       let routed = false;
@@ -196,7 +197,7 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
         tl.to(rig, { forkWarp: 1, duration: peakSec, ease: expoBezierEase }, 0);
         tl.to(
           rig.cameraOverride,
-          { py: 0.72, pz: 2.35, fov: 50, duration: peakSec, ease: expoBezierEase },
+          { py: 0.35, pz: 2.65, fov: 50, duration: peakSec, ease: expoBezierEase },
           0,
         );
       } else {
@@ -215,7 +216,7 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
         tl.to(rig, { forkWarp: 1, duration: peakSec, ease: expoBezierEase }, totalSec * 0.08);
         tl.to(
           rig.cameraOverride,
-          { py: 0.42, pz: 1.75, fov: 62, duration: peakSec * 0.92, ease: expoBezierEase },
+          { py: 0.18, pz: 1.85, fov: 62, duration: peakSec * 0.92, ease: expoBezierEase },
           totalSec * 0.08,
         );
       }

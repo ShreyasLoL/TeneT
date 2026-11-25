@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTenetState, useToday } from '@/lib/api/hooks';
 import { COPY } from '@/lib/copy';
 import { useTenetStore } from '@/lib/store';
@@ -16,6 +16,12 @@ export function ForkView() {
   const setDensity = useTenetStore((s) => s.setDensity);
   const quality = useTenetStore((s) => s.quality);
   const introDone = useTenetStore((s) => s.introDone);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHydrated(true);
+  }, []);
 
   const leftRef = useRef<HTMLAnchorElement>(null);
   const rightRef = useRef<HTMLAnchorElement>(null);
@@ -23,7 +29,8 @@ export function ForkView() {
 
   const tonightSealed = Boolean(state?.days.some((d) => d.day === today));
   const showChrome =
-    introDone || quality.lowPower || quality.reducedMotion || quality.webgl !== 'ok';
+    hydrated &&
+    (introDone || quality.lowPower || quality.reducedMotion || quality.webgl !== 'ok');
 
   const {
     holdingSide,

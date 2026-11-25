@@ -180,8 +180,12 @@ export function ForkCard({
 
       <div className="relative flex w-full items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint sm:text-[11px]">
         <span>{footer}</span>
-        <span className={holding ? 'text-accent' : 'text-text-faint/80'}>
-          {reducedMotion ? '' : holding ? COPY.doors.holdActive : COPY.doors.holdIdle}
+        <span
+          className={
+            reducedMotion ? 'opacity-0' : holding ? 'text-accent' : 'text-text-faint/80'
+          }
+        >
+          {holding ? COPY.doors.holdActive : COPY.doors.holdIdle}
         </span>
       </div>
     </Link>
