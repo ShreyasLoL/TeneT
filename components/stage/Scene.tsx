@@ -18,13 +18,16 @@ import { Postfx } from './Postfx';
 import { Recap } from './Recap';
 import { Rings } from './Rings';
 
-const POINTER_IDLE_MS = 2600;
-const PARALLAX_MAX_X = 0.6;
-const PARALLAX_MAX_Y = 0.42;
-const PARALLAX_MAX_TILT = 0.14; // ~8 degrees
-const BASE_ROLL_Z = -0.09;     // subtle ~5 deg cinematic roll on origin
-const PARALLAX_LAMBDA = 5.0;
+const POINTER_IDLE_MS = 2000;
+const FOLLOW_SCALE = 0.38;
+const POS_LAMBDA = 6.0;
+const SCALE_LAMBDA = 4.0;
+const DIM_LAMBDA = 6.0;
+const OVER_CARD_DIM = 0.68;
 
+const scratchNdc = new Vector3();
+const scratchRayDir = new Vector3();
+const scratchTargetWorld = new Vector3();
 const scratchProjected = new Vector3();
 
 export function Scene() {
@@ -47,8 +50,14 @@ export function Scene() {
   const governorRef = useRef<FrameGovernor | null>(null);
   const lastFrameAtRef = useRef(0);
   const viewportRef = useRef({ w: Math.max(1, size.width), h: Math.max(1, size.height) });
-  const pointerSampleRef = useRef({ x: 0, y: 0, inside: false, lastMoveMs: 0 });
-  const dampedPointerRef = useRef({ x: 0, y: 0, gate: 0 });
+  const pointerSampleRef = useRef({
+    x: 0,
+    y: 0,
+    inside: false,
+    overCard: false,
+    lastMoveMs: 0,
+  });
+  const followStateRef = useRef({ x: 0, y: 0, scale: 1, dim: 1 });
 
   useEffect(() => {
     viewportRef.current.w = Math.max(1, size.width);
@@ -90,7 +99,7 @@ export function Scene() {
     };
   }, [invalidate, reducedMotion]);
 
-  // High-rate (144Hz / 1600dpi) passive pointer sampling without setState or per-event work
+  // High-rate (144Hz / 1600dpi) passive pointer sampling with zero setState or per-event work
   useEffect(() => {
     const sample = pointerSampleRef.current;
 
@@ -99,12 +108,17 @@ export function Scene() {
       const vh = viewportRef.current.h;
       sample.x = MathUtils.clamp((e.clientX / vw) * 2 - 1, -1, 1);
       sample.y = MathUtils.clamp(-(e.clientY / vh) * 2 + 1, -1, 1);
+      const target = e.target as Element | null;
+      sample.overCard = Boolean(
+        target?.closest('[data-stage-card], article, section, form, header, [role="dialog"]'),
+      );
       sample.inside = true;
       sample.lastMoveMs = performance.now();
     };
 
     const onPointerLeave = () => {
       sample.inside = false;
+      sample.overCard = false;
     };
 
     window.addEventListener('pointermove', onPointerMove, { passive: true });
@@ -129,39 +143,56 @@ export function Scene() {
     const now = performance.now();
     const dt = Math.min(delta, 1 / 30);
 
-    // Sample latest pointer once per frame and damp strictly via delta-based MathUtils.damp
+    // Sample latest pointer once per frame; shrink & follow in world space at z = 0 after intro
     const p = pointerSampleRef.current;
-    const d = dampedPointerRef.current;
-    const canParallax =
+    const f = followStateRef.current;
+    const introFinished =
       !reducedMotion && !rig.introActive && useTenetStore.getState().introDone;
+    const activeCursor =
+      introFinished && p.inside && now - p.lastMoveMs <= POINTER_IDLE_MS;
 
-    if (!canParallax) {
-      d.gate = 0;
-    } else if (d.gate < 1) {
-      d.gate = Math.min(1, d.gate + dt / 0.6);
+    let targetWorldX = 0;
+    let targetWorldY = 0;
+    if (activeCursor) {
+      scratchNdc.set(p.x, p.y, 0.5).unproject(state.camera);
+      scratchRayDir.subVectors(scratchNdc, state.camera.position);
+      if (Math.abs(scratchRayDir.z) > 1e-4) {
+        const hitT = -state.camera.position.z / scratchRayDir.z;
+        if (hitT > 0) {
+          scratchTargetWorld.copy(state.camera.position).addScaledVector(scratchRayDir, hitT);
+          targetWorldX = MathUtils.clamp(scratchTargetWorld.x, -16, 16);
+          targetWorldY = MathUtils.clamp(scratchTargetWorld.y, -10, 10);
+        }
+      }
     }
-    const smoothGate = d.gate * d.gate * (3 - 2 * d.gate);
 
-    const activePointer = p.inside && now - p.lastMoveMs <= POINTER_IDLE_MS;
-    const targetX = activePointer ? p.x * smoothGate : 0;
-    const targetY = activePointer ? p.y * smoothGate : 0;
+    const targetScale = activeCursor ? FOLLOW_SCALE : 1.0;
+    const targetDim = activeCursor && p.overCard ? OVER_CARD_DIM : 1.0;
 
     if (reducedMotion) {
-      d.x = 0;
-      d.y = 0;
+      f.x = 0;
+      f.y = 0;
+      f.scale = 1.0;
+      f.dim = 1.0;
     } else {
-      d.x = MathUtils.damp(d.x, targetX, PARALLAX_LAMBDA, dt);
-      d.y = MathUtils.damp(d.y, targetY, PARALLAX_LAMBDA, dt);
+      f.x = MathUtils.damp(f.x, targetWorldX, POS_LAMBDA, dt);
+      f.y = MathUtils.damp(f.y, targetWorldY, POS_LAMBDA, dt);
+      f.scale = MathUtils.damp(f.scale, targetScale, SCALE_LAMBDA, dt);
+      f.dim = MathUtils.damp(f.dim, targetDim, DIM_LAMBDA, dt);
     }
 
-    rig.pointerX = d.x;
-    rig.pointerY = d.y;
+    rig.pointerX = activeCursor ? p.x : 0;
+    rig.pointerY = activeCursor ? p.y : 0;
+    rig.holeScale = f.scale;
+    rig.holeDim = f.dim;
 
     const holeGroup = holeGroupRef.current;
     if (holeGroup) {
-      holeGroup.position.set(d.x * PARALLAX_MAX_X, d.y * PARALLAX_MAX_Y, 0);
-      holeGroup.rotation.set(-d.y * PARALLAX_MAX_TILT, d.x * PARALLAX_MAX_TILT, BASE_ROLL_Z);
+      holeGroup.position.set(f.x, f.y, 0);
+      holeGroup.rotation.set(0, 0, 0);
+      holeGroup.scale.setScalar(f.scale);
 
+      rig.holeWorldDist = state.camera.position.distanceTo(holeGroup.position);
       scratchProjected.copy(holeGroup.position).project(state.camera);
       rig.holeScreenX = scratchProjected.x * 0.5 + 0.5;
       rig.holeScreenY = scratchProjected.y * 0.5 + 0.5;
@@ -199,8 +230,8 @@ export function Scene() {
         <BlackHole />
         <Disk />
         <Particles />
-        <Rings />
       </group>
+      <Rings />
       <Fork />
       <Intro />
       <Recap />

@@ -38,6 +38,7 @@ export function Disk() {
       uIntro: { value: 1 },
       uHeat: { value: 0.58 },
       uHold: { value: 0 },
+      uDim: { value: 1 },
       uSimplified: { value: 0 },
       uAmber: { value: new Vector3(amr, amg, amb) },
       uOrchid: { value: new Vector3(ar, ag, ab) },
@@ -68,6 +69,7 @@ export function Disk() {
       dt,
     );
     mat.uniforms.uHold.value = rig.sealHold;
+    mat.uniforms.uDim.value = rig.holeDim;
     mat.uniforms.uSimplified.value = profile.simplifiedDisk ? 1.0 : 0.0;
 
     const collapseScale = Math.max(

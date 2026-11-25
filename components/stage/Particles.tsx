@@ -93,6 +93,7 @@ export function Particles() {
     return {
       uCohortTex: { value: cohortTex },
       uDpr: { value: 1 },
+      uHoleScale: { value: 1 },
       uIntro: { value: 1 },
       uTime: { value: 0 },
       uHold: { value: 0 },
@@ -151,13 +152,14 @@ export function Particles() {
     if (dirty) tex.needsUpdate = true;
 
     mat.uniforms.uDpr.value = gl.getPixelRatio();
+    mat.uniforms.uHoleScale.value = rig.holeScale;
     mat.uniforms.uIntro.value = rig.introProgress;
     mat.uniforms.uTime.value = rig.elapsedTime;
     mat.uniforms.uHold.value = rig.sealHold;
     mat.uniforms.uBrightness.value = MathUtils.damp(
       mat.uniforms.uBrightness.value as number,
-      mode === 'ritual' ? 0.58 : 1.0,
-      5.0,
+      (mode === 'ritual' ? 0.65 : 1.0) * rig.holeDim,
+      6.0,
       dt,
     );
     mat.uniforms.uFocusArea.value = mode === 'area' ? rig.focusAreaIndex : -1;

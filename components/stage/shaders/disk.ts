@@ -15,6 +15,7 @@ export const diskFragmentShader = /* glsl */ `
   uniform float uIntro;
   uniform float uHeat;        // 0.35 .. 1.0
   uniform float uHold;        // 0..1 seal compression
+  uniform float uDim;         // 0.68..1.0 dim when over UI cards
   uniform float uSimplified;  // 1 on simplified tier
   uniform vec3 uAmber;
   uniform vec3 uOrchid;
@@ -108,7 +109,7 @@ export const diskFragmentShader = /* glsl */ `
     float outerRim = 1.0 - smoothstep(0.52, 1.0, rn);
     float edgeFade = innerRim * outerRim;
 
-    float intensity = tempFalloff * shear * beaming * edgeFade * (0.42 + 0.58 * uHeat + 0.42 * uHold) * diskIgnition;
+    float intensity = tempFalloff * shear * beaming * edgeFade * (0.42 + 0.58 * uHeat + 0.42 * uHold) * diskIgnition * uDim;
     float alpha = clamp(intensity * 0.78, 0.0, 0.96);
     if (alpha < 0.004) discard;
 

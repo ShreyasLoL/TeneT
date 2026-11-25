@@ -11,11 +11,11 @@ import { createTenetComposer, type TenetComposerRig } from './effects/TenetPostE
 
 function computeHoleScreenRadius(camera: unknown): number {
   if (camera instanceof PerspectiveCamera) {
-    const dist = Math.max(2.5, camera.position.length());
+    const dist = Math.max(2.0, rig.holeWorldDist);
     const halfH = dist * Math.tan(MathUtils.degToRad(camera.fov * 0.5));
-    return MathUtils.clamp(0.86 / Math.max(0.5, halfH * 2), 0.04, 0.16);
+    return MathUtils.clamp((0.86 * rig.holeScale) / Math.max(0.5, halfH * 2), 0.012, 0.24);
   }
-  return 0.095;
+  return 0.095 * rig.holeScale;
 }
 
 function SimplifiedLensQuad() {
@@ -123,7 +123,10 @@ export function Postfx() {
       const horizonAppear = MathUtils.smoothstep(rig.introProgress, 0.55, 0.98);
       const ritualAttenuation = mode === 'ritual' && rig.sealHold < 0.01 ? 0.62 : 1.0;
       const baseStrength =
-        (0.85 - 0.35 * density + rig.sealHold * 0.45) * ritualAttenuation * horizonAppear;
+        (0.85 - 0.35 * density + rig.sealHold * 0.45) *
+        ritualAttenuation *
+        horizonAppear *
+        rig.holeDim;
 
       const u = composerRig.tenet.uniforms;
       const center = u.get('uCenter')!.value as Vector2;
@@ -140,7 +143,7 @@ export function Postfx() {
       u.get('uAspect')!.value = aspect;
       u.get('uSpike')!.value = rig.recapSpike + rig.turnstilePulse * 0.4;
       u.get('uTime')!.value = rig.elapsedTime;
-      u.get('uMirrorEnabled')!.value = profile.mirror && mode === 'fork' ? 1.0 : 0.0;
+      u.get('uMirrorEnabled')!.value = 0.0;
       u.get('uGrainEnabled')!.value = profile.grain && !lowPower ? 1.0 : 0.0;
 
       composerRig.renderFrame(dt);

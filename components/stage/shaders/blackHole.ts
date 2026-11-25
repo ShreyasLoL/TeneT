@@ -15,6 +15,7 @@ export const horizonVertexShader = /* glsl */ `
 export const horizonFragmentShader = /* glsl */ `
   uniform float uIntro;
   uniform float uHold;
+  uniform float uDim;
   uniform vec3 uOrchid;
   uniform vec3 uAmber;
   uniform vec3 uColdBlue;
@@ -38,7 +39,7 @@ export const horizonFragmentShader = /* glsl */ `
     vec3 rimCol = mix(uOrchid, uAmber, 0.35 * max(0.0, -doppler));
     rimCol = mix(rimCol, mix(vec3(1.0, 0.96, 1.0), uColdBlue, 0.22), max(0.0, doppler) * 0.45);
 
-    vec3 col = rimCol * rim * (0.55 + uHold * 0.35) * (1.0 + 0.35 * doppler);
+    vec3 col = rimCol * rim * (0.55 + uHold * 0.35) * (1.0 + 0.35 * doppler) * uDim;
     fragColor = vec4(col, horizonFade);
   }
 `;
@@ -56,6 +57,7 @@ export const haloFragmentShader = /* glsl */ `
   uniform float uTime;
   uniform float uIntro;
   uniform float uHold;
+  uniform float uDim;
   uniform vec3 uAmber;
   uniform vec3 uOrchid;
   uniform vec3 uViolet;
@@ -149,9 +151,10 @@ export const haloFragmentShader = /* glsl */ `
       (photonCol * photon * (1.08 + uHold * 0.38) * (0.78 + 0.38 * beaming) +
         arcCol * arcProfile * turb * beaming * diskIgnition * 0.88 +
         coronaCol * corona) *
-      innerMask;
+      innerMask *
+      uDim;
 
-    float alpha = clamp((photon * 0.92 + arcProfile * beaming * 0.74 + corona) * innerMask, 0.0, 1.0);
+    float alpha = clamp((photon * 0.92 + arcProfile * beaming * 0.74 + corona) * innerMask, 0.0, 1.0) * mix(0.65, 1.0, uDim);
     if (alpha < 0.003) discard;
 
     fragColor = vec4(totalCol, alpha);

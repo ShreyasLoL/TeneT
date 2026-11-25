@@ -4,6 +4,7 @@ export const particlesVertexShader = /* glsl */ `
 
   uniform sampler2D uCohortTex; // 16x1 RGBA Float: r=dirSmooth, g=weight, b=areaIdx, a=Phi_c
   uniform float uDpr;
+  uniform float uHoleScale;
   uniform float uIntro;         // 0=scattered dark -> spiral infall -> 1=Keplerian disk
   uniform float uTime;
   uniform float uHold;          // 0..1 seal hold tightening
@@ -127,7 +128,7 @@ export const particlesVertexShader = /* glsl */ `
 
     float depthScale = clamp(11.8 / max(1.6, -mvPosition.z), 0.65, 3.1);
     float basePt = mix(1.25 + 1.55 * aSeed.y * (0.5 + 0.5 * satisfied), 0.95 + 0.85 * aSeed.y, isShell);
-    gl_PointSize = clamp(basePt * depthScale * uDpr, 1.0 * uDpr, 5.6 * uDpr);
+    gl_PointSize = clamp(basePt * depthScale * uDpr * mix(0.62, 1.0, uHoleScale), 1.0 * uDpr, 5.6 * uDpr);
     gl_Position = projectionMatrix * mvPosition;
 
     // Particles start dim/dark at uIntro = 0 and ignite as they spiral into the disk
