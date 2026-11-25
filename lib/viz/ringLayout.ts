@@ -106,8 +106,6 @@ export function ringLayout(
     const ageLum = ageLuminance(i, lumTau, lumFloor);
 
     if (!sealed) {
-      const hasPrev = sealedByDay.has(addDays(day, -1));
-      const hasNext = sealedByDay.has(addDays(day, 1));
       nodes.push({
         day,
         i,
@@ -120,8 +118,6 @@ export function ringLayout(
         inStreak: false,
         reflection: null,
       });
-      void hasPrev;
-      void hasNext;
       continue;
     }
 

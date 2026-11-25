@@ -67,4 +67,47 @@ describe('ringLayout', () => {
       }),
     ).toBe('Active Label');
   });
+
+  it('maintains strict radial monotonicity, [0, 2π] segment partition, and handles 1-day, 400-day, and all-rest nights', () => {
+    // Single-day layout
+    const one = ringLayout([makeSealed('2026-11-24', null, 0)], {
+      from: '2026-11-24',
+      to: '2026-11-24',
+    });
+    expect(one).toHaveLength(1);
+    expect(one[0].score).toBeNull();
+    expect(one[0].isVoid).toBe(false);
+
+    // Full 400-day span with periodic void gaps and score=0 / score=null nights
+    const many: ApiSealedDay[] = [];
+    for (let idx = 0; idx < 400; idx++) {
+      if (idx % 17 === 5) continue; // unsealed void gap
+      const y = 2025 + Math.floor(idx / 365);
+      const dayOfYr = (idx % 365) + 1;
+      const dt = new Date(Date.UTC(y, 0, dayOfYr)).toISOString().slice(0, 10);
+      const score = idx % 11 === 0 ? null : idx % 7 === 0 ? 0 : (idx * 13) % 101;
+      many.push(makeSealed(dt, score, idx % 5));
+    }
+    const sorted = [...many].sort((a, b) => a.day.localeCompare(b.day));
+    const nodes = ringLayout(sorted, {
+      from: sorted[0].day,
+      to: sorted[sorted.length - 1].day,
+    });
+    expect(nodes.length).toBeGreaterThan(380);
+    expect(nodes.length).toBeLessThanOrEqual(400);
+
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      expect(Number.isFinite(n.radius)).toBe(true);
+      expect(n.luminance).toBeGreaterThan(0);
+      expect(n.luminance).toBeLessThanOrEqual(1);
+      if (i > 0) {
+        expect(n.radius).toBeGreaterThan(nodes[i - 1].radius);
+      }
+      if (!n.isVoid) {
+        expect(n.segments[0].start).toBe(0);
+        expect(n.segments[n.segments.length - 1].end).toBeCloseTo(Math.PI * 2, 5);
+      }
+    }
+  });
 });
