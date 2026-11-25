@@ -125,6 +125,12 @@ export function Postfx() {
       const baseStrength =
         (0.85 - 0.35 * density + rig.sealHold * 0.45) * ritualAttenuation * horizonAppear;
 
+      const progradeFlare =
+        profile.bloom && rig.forkMode > 0 ? rig.forkMode * rig.forkWarp * 0.85 : 0;
+      if (profile.bloom) {
+        composerRig.bloom.intensity = 0.72 + progradeFlare;
+      }
+
       const u = composerRig.tenet.uniforms;
       const center = u.get('uCenter')!.value as Vector2;
       center.set(0.5, 0.5);

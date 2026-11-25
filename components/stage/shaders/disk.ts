@@ -15,6 +15,9 @@ export const diskFragmentShader = /* glsl */ `
   uniform float uIntro;
   uniform float uHeat;        // 0.35 .. 1.0
   uniform float uHold;        // 0..1 seal compression
+  uniform float uMode;        // -1 retrograde, 0 landing, +1 prograde
+  uniform float uWarp;        // 0..1 dive progression
+  uniform float uHue;         // 0..1 palette lerp
   uniform float uSimplified;  // 1 on simplified tier
   uniform vec3 uAmber;
   uniform vec3 uOrchid;
@@ -54,8 +57,7 @@ export const diskFragmentShader = /* glsl */ `
     return v;
   }
 
-  vec3 blackbodyRamp(float t) {
-    // 60/30/10 discipline: blown-bright photon rim (#E04DEA + white-hot) -> neutral silver -> deep slate
+  vec3 neutralRamp(float t) {
     vec3 whiteHot = vec3(1.0, 0.98, 1.0);
     vec3 rimOrchid = mix(whiteHot, uOrchid, 0.68);
     vec3 neutralSilver = vec3(0.30, 0.28, 0.35);
@@ -65,11 +67,33 @@ export const diskFragmentShader = /* glsl */ `
     return mix(neutralSilver, darkSlate, clamp((t - 0.22) / 0.78, 0.0, 1.0));
   }
 
+  vec3 retrogradeRamp(float t) {
+    // Ice-blue -> teal -> desaturated slate-violet, faint orchid thread
+    vec3 iceBlue = vec3(0.34, 0.74, 0.96);
+    vec3 deepTeal = vec3(0.035, 0.34, 0.44);
+    vec3 desatViolet = mix(vec3(0.11, 0.10, 0.22), uOrchid * 0.25, 0.18);
+    if (t < 0.28) return mix(iceBlue, deepTeal, t / 0.28);
+    return mix(deepTeal, desatViolet, clamp((t - 0.28) / 0.72, 0.0, 1.0));
+  }
+
+  vec3 progradeRamp(float t) {
+    // Blazing white-hot -> amber -> #E04DEA orchid
+    vec3 whiteHot = vec3(1.0, 0.98, 0.92);
+    if (t < 0.28) return mix(whiteHot, uAmber, t / 0.28);
+    if (t < 0.68) return mix(uAmber, uOrchid, (t - 0.28) / 0.40);
+    return mix(uOrchid, uViolet * 0.6, clamp((t - 0.68) / 0.32, 0.0, 1.0));
+  }
+
   void main() {
     float diskIgnition = smoothstep(0.24, 0.88, uIntro);
     if (diskIgnition <= 0.002) discard;
 
-    float r = length(vLocalPos);
+    float retro = clamp(-uMode, 0.0, 1.0) * uHue;
+    float prog = clamp(uMode, 0.0, 1.0) * uHue;
+
+    // Retrograde contracts calmly inward; Prograde expands outward
+    float radialWarp = 1.0 - retro * uWarp * 0.22 + prog * uWarp * 0.38;
+    float r = length(vLocalPos) / max(0.35, radialWarp);
     float rMin = 0.91;
     float rMax = 5.95;
     if (r < rMin || r > rMax) discard;
@@ -77,41 +101,48 @@ export const diskFragmentShader = /* glsl */ `
     float rn = (r - rMin) / (rMax - rMin);
     float theta = atan(vLocalPos.y, vLocalPos.x);
 
-    // Keplerian angular velocity: inner disk orbits substantially faster (omega ~ r^-1.5)
+    // Orbital direction: Retrograde reverses counter-clockwise & slows; Prograde accelerates clockwise
+    float spinMult = mix(1.0, -0.55, retro) + prog * (1.8 * uWarp);
     float rRatio = max(0.3, r / rMin);
-    float omega = (inversesqrt(rRatio) / rRatio) * 1.35;
+    float omega = (inversesqrt(rRatio) / rRatio) * 1.35 * spinMult;
     float swirl = theta + uTime * omega;
 
     float shear = 0.85;
     if (uSimplified < 0.5) {
       float spiral = fbm(vec2(cos(swirl) * 2.6 + rn * 6.5, sin(swirl) * 2.6 - uTime * 0.25));
-      float lanes = 0.82 + 0.18 * sin(rn * 42.0 + spiral * 3.2);
-      shear = (0.48 + 0.82 * spiral) * lanes;
+      float ringDivisions = mix(
+        0.82 + 0.18 * sin(rn * 42.0 + spiral * 3.2),
+        0.35 + 0.65 * smoothstep(-0.2, 0.6, sin(rn * 72.0)),
+        retro * uWarp
+      );
+      shear = (0.48 + 0.82 * spiral) * ringDivisions;
     } else {
       shear = 0.72 + 0.28 * sin(swirl * 3.0 + rn * 18.0);
     }
 
-    // Relativistic Doppler beaming: prograde tangent velocity vs view ray
-    // Plane is rotated -PI/2 around X, so local (x, y) maps to world (x, 0, -y);
-    // Left side (x < 0) approaches camera (+Z), right side (x > 0) recedes (-Z)
-    vec3 progradeVel = normalize(vec3(-vLocalPos.y, 0.0, -vLocalPos.x) + vec3(0.0001));
+    vec3 progradeVel = normalize(vec3(-vLocalPos.y, 0.0, -vLocalPos.x) * sign(spinMult + 0.001) + vec3(0.0001));
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
     float cosAngle = dot(progradeVel, viewDir);
     float beta = 0.44 * inversesqrt(rRatio);
     float dopplerFactor = 1.0 / max(0.38, 1.0 - beta * cosAngle);
     float beaming = clamp(pow(dopplerFactor, 2.35), 0.32, 2.65);
 
-    // Steep high-contrast falloff: blazing inner edge, restrained neutral outer wings
     float breathe = 0.88 + 0.12 * sin(uTime * 0.70);
-    float tempFalloff = pow(1.0 - rn, 2.35) * 0.92 + 0.08;
+    float falloffExp = mix(2.35, 1.55, max(retro, prog));
+    float tempFalloff = pow(1.0 - rn, falloffExp) * 0.92 + 0.08;
     float rTemp = clamp(rn - cosAngle * 0.07, 0.0, 1.0);
-    vec3 col = blackbodyRamp(rTemp);
+
+    vec3 col = neutralRamp(rTemp);
+    col = mix(col, retrogradeRamp(rTemp), retro);
+    col = mix(col, progradeRamp(rTemp), prog);
 
     float innerRim = smoothstep(0.0, 0.032, rn);
     float outerRim = 1.0 - smoothstep(0.55, 1.0, rn);
     float edgeFade = innerRim * outerRim;
 
-    float intensity = tempFalloff * pow(shear, 1.25) * beaming * edgeFade * (0.38 + 0.56 * uHeat + 0.48 * uHold) * breathe * diskIgnition;
+    float warpBoost = 1.0 + prog * uWarp * 1.15 - retro * uWarp * 0.12;
+    float intensity =
+      tempFalloff * pow(shear, 1.25) * beaming * edgeFade * (0.38 + 0.56 * uHeat + 0.48 * uHold) * breathe * diskIgnition * warpBoost;
     float alpha = clamp(intensity * 0.78, 0.0, 0.96);
     if (alpha < 0.004) discard;
 

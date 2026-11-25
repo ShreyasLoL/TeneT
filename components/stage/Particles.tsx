@@ -96,6 +96,9 @@ export function Particles() {
       uIntro: { value: 1 },
       uTime: { value: 0 },
       uHold: { value: 0 },
+      uMode: { value: 0 },
+      uWarp: { value: 0 },
+      uHue: { value: 0 },
       uLive: { value: 1 },
       uBrightness: { value: 1 },
       uFocusArea: { value: -1 },
@@ -128,7 +131,12 @@ export function Particles() {
     const mat = matRef.current;
     if (!mat) return;
     const dt = Math.min(delta, 1 / 30);
-    const dirFactor = rig.uDir;
+    const forkDir =
+      rig.forkMode < -0.05
+        ? MathUtils.lerp(1, -0.65, Math.min(1, -rig.forkMode))
+        : rig.forkMode > 0.05
+          ? 1 + rig.forkMode * rig.forkWarp * 2.4
+          : rig.uDir;
     const scrubBoost = 1 + Math.min(6, Math.abs(rig.cursorVelocity) * 1.4);
 
     const targets = targetDirRef.current;
@@ -138,7 +146,7 @@ export function Particles() {
     for (let i = 0; i < 16; i++) {
       rig.cohortDirSmooth[i] = MathUtils.damp(rig.cohortDirSmooth[i], targets[i], 4.5, dt);
       const omega0 = 0.32 + (i % 3) * 0.09;
-      rig.cohortPhases[i] += rig.cohortDirSmooth[i] * dirFactor * omega0 * scrubBoost * dt;
+      rig.cohortPhases[i] += rig.cohortDirSmooth[i] * forkDir * omega0 * scrubBoost * dt;
       if (
         Math.abs(data[i * 4] - rig.cohortDirSmooth[i]) > 1e-4 ||
         Math.abs(data[i * 4 + 3] - rig.cohortPhases[i]) > 1e-4
@@ -154,6 +162,9 @@ export function Particles() {
     mat.uniforms.uIntro.value = rig.introProgress;
     mat.uniforms.uTime.value = rig.elapsedTime;
     mat.uniforms.uHold.value = rig.sealHold;
+    mat.uniforms.uMode.value = rig.forkMode;
+    mat.uniforms.uWarp.value = rig.forkWarp;
+    mat.uniforms.uHue.value = rig.forkHue;
     mat.uniforms.uBrightness.value = MathUtils.damp(
       mat.uniforms.uBrightness.value as number,
       mode === 'ritual' ? 0.58 : 1.0,

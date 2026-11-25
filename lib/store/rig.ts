@@ -27,6 +27,11 @@ export const rig = {
   introProgress: 1,
   introActive: false,
   canvasReady: false,
+  forkMode: 0,      // -1 retrograde (cold), 0 neutral landing, +1 prograde (hot)
+  forkWarp: 0,      // 0..1 dive through hole into destination star system
+  forkHue: 0,       // 0..1 palette lerp factor
+  forkFlash: 0,     // 0..1 peak veil/flash covering route swap
+  forkActive: false,
   transitionProgress: 0,
   transitionTarget: null as string | null,
   turnstileProgress: 0,
@@ -101,4 +106,17 @@ export function subscribeCanvasReady(cb: () => void): () => void {
 
 export function notifyCanvasReady() {
   for (const cb of canvasReadyListeners) cb();
+}
+
+const forkTransitionListeners = new Set<() => void>();
+
+export function subscribeForkTransition(cb: () => void): () => void {
+  forkTransitionListeners.add(cb);
+  return () => {
+    forkTransitionListeners.delete(cb);
+  };
+}
+
+export function notifyForkTransition() {
+  for (const cb of forkTransitionListeners) cb();
 }

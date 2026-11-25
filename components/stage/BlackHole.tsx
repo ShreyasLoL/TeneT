@@ -38,6 +38,9 @@ export function BlackHole() {
       horizonUniforms: {
         uIntro: { value: 1 },
         uHold: { value: 0 },
+        uMode: { value: 0 },
+        uWarp: { value: 0 },
+        uHue: { value: 0 },
         uOrchid: { value: orchid },
         uAmber: { value: amber },
         uColdBlue: { value: coldBlue },
@@ -46,6 +49,9 @@ export function BlackHole() {
         uTime: { value: 0 },
         uIntro: { value: 1 },
         uHold: { value: 0 },
+        uMode: { value: 0 },
+        uWarp: { value: 0 },
+        uHue: { value: 0 },
         uAmber: { value: amber.clone() },
         uOrchid: { value: orchid.clone() },
         uViolet: { value: violet },
@@ -64,6 +70,9 @@ export function BlackHole() {
     if (hMat) {
       hMat.uniforms.uIntro.value = rig.introProgress;
       hMat.uniforms.uHold.value = rig.sealHold;
+      hMat.uniforms.uMode.value = rig.forkMode;
+      hMat.uniforms.uWarp.value = rig.forkWarp;
+      hMat.uniforms.uHue.value = rig.forkHue;
     }
 
     const lMat = haloMatRef.current;
@@ -71,12 +80,18 @@ export function BlackHole() {
       lMat.uniforms.uTime.value = rig.elapsedTime;
       lMat.uniforms.uIntro.value = rig.introProgress;
       lMat.uniforms.uHold.value = rig.sealHold;
+      lMat.uniforms.uMode.value = rig.forkMode;
+      lMat.uniforms.uWarp.value = rig.forkWarp;
+      lMat.uniforms.uHue.value = rig.forkHue;
     }
 
     const hMesh = horizonMeshRef.current;
     if (hMesh) {
-      const scale = 1 + rig.sealHold * 0.06 - (rig.recapBeat === 3 ? rig.recapProgress * 0.12 : 0);
-      hMesh.scale.setScalar(scale);
+      const starCondense = 1 - Math.min(1, Math.max(0, rig.forkWarp)) * 0.58;
+      const scale =
+        (1 + rig.sealHold * 0.06 - (rig.recapBeat === 3 ? rig.recapProgress * 0.12 : 0)) *
+        starCondense;
+      hMesh.scale.setScalar(Math.max(0.25, scale));
     }
   });
 

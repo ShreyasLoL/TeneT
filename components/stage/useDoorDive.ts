@@ -5,10 +5,23 @@ import { startTransition, useCallback, useEffect, useRef, useState } from 'react
 import { acquireFrames } from '@/lib/stage/activity';
 import { stageClock } from '@/lib/stage/clock';
 import type { QualityState } from '@/lib/store';
-import { rig } from '@/lib/store/rig';
-import { readMotionTokens } from '@/lib/viz/motion';
+import { notifyForkTransition, rig } from '@/lib/store/rig';
+import { expoBezierEase } from './expoBezier';
 
 type GsapCore = (typeof import('gsap/gsap-core'))['gsap'];
+
+function resetForkRigState() {
+  rig.forkActive = false;
+  rig.forkMode = 0;
+  rig.forkWarp = 0;
+  rig.forkHue = 0;
+  rig.forkFlash = 0;
+  rig.sealHold = 0;
+  rig.uDir = 1;
+  rig.doorHover = 0;
+  rig.cameraOverride.active = false;
+  notifyForkTransition();
+}
 
 export function useDoorDive(quality: QualityState, setDensity: (d: number) => void) {
   const router = useRouter();
@@ -16,7 +29,7 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
 
   const divingRef = useRef(false);
   const gsapRef = useRef<GsapCore | null>(null);
-  const diveTweenRef = useRef<ReturnType<GsapCore['to']> | null>(null);
+  const tlRef = useRef<ReturnType<GsapCore['timeline']> | null>(null);
   const diveReleaseRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -30,53 +43,55 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
     });
     return () => {
       cancelled = true;
-      diveTweenRef.current?.kill();
-      diveTweenRef.current = null;
-      diveReleaseRef.current?.();
-      diveReleaseRef.current = null;
-      divingRef.current = false;
       rig.doorHover = 0;
-      rig.cameraOverride.active = false;
     };
   }, [router, setDensity]);
 
-  useEffect(() => {
-    const interruptDive = () => {
-      if (!divingRef.current) return;
-      diveTweenRef.current?.kill();
-      diveTweenRef.current = null;
-      divingRef.current = false;
-      setDiving(false);
+  const interruptDive = useCallback(() => {
+    if (!divingRef.current && !rig.forkActive) return;
+    tlRef.current?.kill();
+    tlRef.current = null;
+    divingRef.current = false;
+    setDiving(false);
 
-      const gsapInstance = gsapRef.current;
-      if (!gsapInstance) {
-        rig.cameraOverride.active = false;
+    const gsapInstance = gsapRef.current;
+    if (!gsapInstance) {
+      resetForkRigState();
+      diveReleaseRef.current?.();
+      diveReleaseRef.current = null;
+      return;
+    }
+
+    gsapInstance.to(rig, {
+      forkMode: 0,
+      forkWarp: 0,
+      forkHue: 0,
+      forkFlash: 0,
+      sealHold: 0,
+      duration: 0.35,
+      ease: expoBezierEase,
+    });
+    gsapInstance.to(rig.cameraOverride, {
+      px: 0,
+      py: 1.18,
+      pz: 5.45,
+      tx: 0,
+      ty: 0,
+      tz: 0,
+      fov: 46,
+      duration: 0.35,
+      ease: expoBezierEase,
+      onComplete: () => {
+        resetForkRigState();
         diveReleaseRef.current?.();
         diveReleaseRef.current = null;
-        return;
-      }
+      },
+    });
+  }, []);
 
-      diveTweenRef.current = gsapInstance.to(rig.cameraOverride, {
-        px: 0,
-        py: 1.18,
-        pz: 5.45,
-        tx: 0,
-        ty: 0,
-        tz: 0,
-        fov: 46,
-        duration: 0.32,
-        ease: 'expo.out',
-        onComplete: () => {
-          rig.cameraOverride.active = false;
-          diveTweenRef.current = null;
-          diveReleaseRef.current?.();
-          diveReleaseRef.current = null;
-        },
-      });
-    };
-
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && divingRef.current) {
+      if (e.key === 'Escape' && (divingRef.current || rig.forkActive)) {
         e.preventDefault();
         interruptDive();
       }
@@ -88,81 +103,168 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('popstate', interruptDive);
     };
-  }, []);
+  }, [interruptDive]);
 
-  const handleDoorDive = useCallback(
-    (
-      _side: 'left' | 'right',
-      href: '/dashboard' | '/log',
-      e: React.MouseEvent<HTMLAnchorElement>,
-    ) => {
-      if (
-        e.metaKey ||
-        e.ctrlKey ||
-        e.shiftKey ||
-        quality.reducedMotion ||
-        quality.lowPower ||
-        quality.level >= 4 ||
-        quality.webgl !== 'ok'
-      ) {
+  const startJourney = useCallback(
+    (side: 'left' | 'right', href: '/dashboard' | '/log') => {
+      if (divingRef.current) return;
+
+      const mediaReduced =
+        typeof window !== 'undefined' &&
+        (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
+
+      if (quality.reducedMotion || mediaReduced || quality.webgl !== 'ok') {
+        // Reduced motion: calm crossfade only, zero camera zoom
+        const gsapInstance = gsapRef.current;
+        if (!gsapInstance) {
+          router.push(href);
+          return;
+        }
+        divingRef.current = true;
+        setDiving(true);
+        rig.forkMode = side === 'left' ? -1 : 1;
+        rig.forkActive = true;
+        notifyForkTransition();
+        const tl = gsapInstance.timeline({
+          onComplete: () => {
+            divingRef.current = false;
+            resetForkRigState();
+          },
+        });
+        tl.to(rig, { forkFlash: 0.92, duration: 0.14, ease: expoBezierEase });
+        tl.call(() => startTransition(() => router.push(href)));
+        tl.to(rig, { forkFlash: 0, duration: 0.18, ease: expoBezierEase });
+        tlRef.current = tl;
         return;
       }
 
-      e.preventDefault();
-      if (divingRef.current) return;
       const gsapInstance = gsapRef.current;
       if (!gsapInstance) {
         router.push(href);
         return;
       }
+
       divingRef.current = true;
       setDiving(true);
-
-      const durationSec = Math.min(0.48, Math.max(0.35, (readMotionTokens().sceneMs / 1000) * 0.55));
       diveReleaseRef.current?.();
       diveReleaseRef.current = acquireFrames('fork-dive');
 
-      if (!rig.cameraOverride.active) {
-        rig.cameraOverride.active = true;
-        rig.cameraOverride.px = 0;
-        rig.cameraOverride.py = 1.18;
-        rig.cameraOverride.pz = 5.45;
-        rig.cameraOverride.tx = 0;
-        rig.cameraOverride.ty = 0;
-        rig.cameraOverride.tz = 0;
-        rig.cameraOverride.fov = 46;
-      }
+      const isRetro = side === 'left';
+      const totalSec = quality.lowPower ? 0.95 : isRetro ? 2.4 : 1.8;
+      const peakSec = totalSec * 0.74;
 
-      let pushed = false;
-      diveTweenRef.current = gsapInstance.to(rig.cameraOverride, {
-        px: 0,
-        py: 0.85,
-        pz: 2.8,
-        fov: 56,
-        duration: durationSec,
-        ease: 'expo.out',
-        onUpdate: function () {
-          if (!pushed && divingRef.current && this.progress() >= 0.85) {
-            pushed = true;
-            startTransition(() => router.push(href));
-          }
-        },
+      rig.forkActive = true;
+      rig.cameraOverride.active = true;
+      rig.cameraOverride.px = 0;
+      rig.cameraOverride.py = 1.18;
+      rig.cameraOverride.pz = 5.45;
+      rig.cameraOverride.tx = 0;
+      rig.cameraOverride.ty = 0;
+      rig.cameraOverride.tz = 0;
+      rig.cameraOverride.fov = 46;
+      notifyForkTransition();
+
+      let routed = false;
+      const tl = gsapInstance.timeline({
         onComplete: () => {
-          if (!pushed && divingRef.current) {
-            startTransition(() => router.push(href));
-          }
-          rig.cameraOverride.active = false;
+          if (!routed) startTransition(() => router.push(href));
           divingRef.current = false;
-          diveTweenRef.current = null;
+          tlRef.current = null;
+          resetForkRigState();
           if (diveReleaseRef.current) {
             diveReleaseRef.current();
             diveReleaseRef.current = null;
           }
         },
       });
+      tlRef.current = tl;
+
+      if (isRetro) {
+        // RETROGRADE (~2.4s): cold ice-blue/teal, counter-clockwise, calm heavy glide into ringed star
+        tl.to(
+          rig,
+          {
+            forkMode: -1,
+            forkHue: 1,
+            sealHold: 0.25,
+            duration: totalSec * 0.45,
+            ease: expoBezierEase,
+          },
+          0,
+        );
+        tl.to(rig, { forkWarp: 1, duration: peakSec, ease: expoBezierEase }, 0);
+        tl.to(
+          rig.cameraOverride,
+          { py: 0.72, pz: 2.35, fov: 50, duration: peakSec, ease: expoBezierEase },
+          0,
+        );
+      } else {
+        // PROGRADE (~1.8s): hot orchid/amber/white-hot, clockwise burst, fast snap + ignition flash
+        tl.to(
+          rig,
+          {
+            forkMode: 1,
+            forkHue: 1,
+            sealHold: 0.65,
+            duration: totalSec * 0.32,
+            ease: expoBezierEase,
+          },
+          0,
+        );
+        tl.to(rig, { forkWarp: 1, duration: peakSec, ease: expoBezierEase }, totalSec * 0.08);
+        tl.to(
+          rig.cameraOverride,
+          { py: 0.42, pz: 1.75, fov: 62, duration: peakSec * 0.92, ease: expoBezierEase },
+          totalSec * 0.08,
+        );
+      }
+
+      // Peak veil/flash covers route swap cleanly, then fades out on the destination route
+      tl.to(
+        rig,
+        { forkFlash: 1, duration: totalSec * 0.16, ease: expoBezierEase },
+        peakSec - totalSec * 0.14,
+      );
+      tl.call(
+        () => {
+          if (!routed) {
+            routed = true;
+            rig.cameraOverride.active = false;
+            startTransition(() => router.push(href));
+          }
+        },
+        undefined,
+        peakSec,
+      );
+      tl.to(
+        rig,
+        {
+          forkFlash: 0,
+          forkWarp: 0,
+          forkHue: 0,
+          forkMode: 0,
+          sealHold: 0,
+          duration: totalSec - peakSec,
+          ease: expoBezierEase,
+        },
+        peakSec + 0.02,
+      );
     },
-    [quality.level, quality.lowPower, quality.reducedMotion, quality.webgl, router],
+    [quality.lowPower, quality.reducedMotion, quality.webgl, router],
   );
 
-  return { diving, handleDoorDive };
+  const handleDoorDive = useCallback(
+    (
+      side: 'left' | 'right',
+      href: '/dashboard' | '/log',
+      e: React.MouseEvent<HTMLElement>,
+    ) => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+      e.preventDefault();
+      startJourney(side, href);
+    },
+    [startJourney],
+  );
+
+  return { diving, handleDoorDive, startJourney, interruptDive };
 }

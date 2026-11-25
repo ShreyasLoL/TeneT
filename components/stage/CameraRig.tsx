@@ -29,7 +29,8 @@ export function CameraRig() {
       targetLook.set(pose.target[0], pose.target[1], pose.target[2]);
     }
 
-    const directFollow = reducedMotion || (rig.introActive && rig.cameraOverride.active);
+    const directFollow =
+      reducedMotion || ((rig.introActive || rig.forkActive) && rig.cameraOverride.active);
     if (directFollow) {
       cam.position.copy(targetPos);
       currentLook.copy(targetLook);

@@ -38,6 +38,9 @@ export function Disk() {
       uIntro: { value: 1 },
       uHeat: { value: 0.58 },
       uHold: { value: 0 },
+      uMode: { value: 0 },
+      uWarp: { value: 0 },
+      uHue: { value: 0 },
       uSimplified: { value: 0 },
       uAmber: { value: new Vector3(amr, amg, amb) },
       uOrchid: { value: new Vector3(ar, ag, ab) },
@@ -68,6 +71,9 @@ export function Disk() {
       dt,
     );
     mat.uniforms.uHold.value = rig.sealHold;
+    mat.uniforms.uMode.value = rig.forkMode;
+    mat.uniforms.uWarp.value = rig.forkWarp;
+    mat.uniforms.uHue.value = rig.forkHue;
     mat.uniforms.uSimplified.value = profile.simplifiedDisk ? 1.0 : 0.0;
 
     const collapseScale = Math.max(
