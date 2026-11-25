@@ -11,7 +11,6 @@ import { notifyCanvasReady, rig } from '@/lib/store/rig';
 import { BlackHole } from './BlackHole';
 import { CameraRig } from './CameraRig';
 import { Disk } from './Disk';
-import { Fork } from './Fork';
 import { Intro } from './Intro';
 import { Particles } from './Particles';
 import { Postfx } from './Postfx';
@@ -232,7 +231,6 @@ export function Scene() {
         <Particles />
       </group>
       <Rings />
-      <Fork />
       <Intro />
       <Recap />
       <Postfx />

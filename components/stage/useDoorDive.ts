@@ -6,7 +6,6 @@ import { acquireFrames } from '@/lib/stage/activity';
 import { stageClock } from '@/lib/stage/clock';
 import type { QualityState } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
-import { forkLayout } from '@/lib/viz/forkLayout';
 import { readMotionTokens } from '@/lib/viz/motion';
 
 type GsapCore = (typeof import('gsap/gsap-core'))['gsap'];
@@ -59,7 +58,7 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
 
       diveTweenRef.current = gsapInstance.to(rig.cameraOverride, {
         px: 0,
-        py: 0.3,
+        py: 2.35,
         pz: 11.4,
         tx: 0,
         ty: 0,
@@ -93,7 +92,7 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
 
   const handleDoorDive = useCallback(
     (
-      side: 'left' | 'right',
+      _side: 'left' | 'right',
       href: '/dashboard' | '/log',
       e: React.MouseEvent<HTMLAnchorElement>,
     ) => {
@@ -119,8 +118,6 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
       divingRef.current = true;
       setDiving(true);
 
-      const { left, right } = forkLayout();
-      const door = side === 'left' ? left : right;
       const durationSec = Math.min(0.48, Math.max(0.35, (readMotionTokens().sceneMs / 1000) * 0.55));
       diveReleaseRef.current?.();
       diveReleaseRef.current = acquireFrames('fork-dive');
@@ -128,20 +125,20 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
       if (!rig.cameraOverride.active) {
         rig.cameraOverride.active = true;
         rig.cameraOverride.px = 0;
-        rig.cameraOverride.py = 0.3;
+        rig.cameraOverride.py = 2.35;
         rig.cameraOverride.pz = 11.4;
-        rig.cameraOverride.tx = door.x;
-        rig.cameraOverride.ty = door.y;
-        rig.cameraOverride.tz = 0.4;
+        rig.cameraOverride.tx = 0;
+        rig.cameraOverride.ty = 0;
+        rig.cameraOverride.tz = 0;
         rig.cameraOverride.fov = 44;
       }
 
       let pushed = false;
       diveTweenRef.current = gsapInstance.to(rig.cameraOverride, {
-        px: door.x,
-        py: door.y,
-        pz: 0.9,
-        fov: 58,
+        px: 0,
+        py: 0.85,
+        pz: 2.8,
+        fov: 56,
         duration: durationSec,
         ease: 'expo.out',
         onUpdate: function () {
