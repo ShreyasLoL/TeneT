@@ -30,6 +30,8 @@ export function Nav() {
   const setPaletteOpen = useTenetStore((s) => s.setPaletteOpen);
   const rolloverNotice = useTenetStore((s) => s.rolloverNotice);
   const setRolloverNotice = useTenetStore((s) => s.setRolloverNotice);
+  const isOffline = useTenetStore((s) => s.isOffline);
+  const outboxCount = useTenetStore((s) => s.offlineOutboxCount);
 
   const dayLabel = useMemo(() => formatLogicalDayLabel(today), [today]);
 
@@ -104,6 +106,19 @@ export function Nav() {
             );
           })}
         </div>
+
+        {isOffline || outboxCount > 0 ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mx-auto flex max-w-6xl items-center justify-between border-t border-line py-1.5 font-mono text-[11px] text-text-dim tabular-nums"
+          >
+            <span>{COPY.status.offline}</span>
+            {outboxCount > 0 ? (
+              <span className="text-accent">{outboxCount} queued</span>
+            ) : null}
+          </div>
+        ) : null}
 
         {rolloverNotice ? (
           <div

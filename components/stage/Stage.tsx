@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { detectInitialLevel, detectWebGL2Support } from '@/lib/stage/tiers';
 import { useTenetStore } from '@/lib/store';
+import { StageErrorBoundary } from './StageErrorBoundary';
 
 const LazyStageCanvas = dynamic(() => import('./StageCanvas'), {
   ssr: false,
@@ -82,7 +83,9 @@ export function Stage() {
           : 'pointer-events-none fixed inset-0 z-0'
       }
     >
-      <LazyStageCanvas />
+      <StageErrorBoundary>
+        <LazyStageCanvas />
+      </StageErrorBoundary>
     </div>
   );
 }

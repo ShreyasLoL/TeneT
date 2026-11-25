@@ -29,7 +29,7 @@ import { Stepper } from './controls/Stepper';
 const LazyDurationDial = dynamic(
   () => import('./controls/DurationDial').then((m) => m.DurationDial),
   {
-    loading: () => <div className="h-24 w-56 rounded-lg border border-line/60 bg-bg/40" />,
+    loading: () => <div className="h-[92px] w-56 rounded-lg border border-line/60 bg-bg/40 sm:h-24" />,
   },
 );
 

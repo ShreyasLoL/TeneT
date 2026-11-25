@@ -42,6 +42,8 @@ export interface TenetStore {
   alwaysAlive: boolean;
   soundEnabled: boolean;
   rolloverNotice: string | null;
+  offlineOutboxCount: number;
+  isOffline: boolean;
   paletteOpen: boolean;
 
   setMode: (mode: Mode) => void;
@@ -58,6 +60,7 @@ export interface TenetStore {
   setAlwaysAlive: (alwaysAlive: boolean) => void;
   setSoundEnabled: (enabled: boolean) => void;
   setRolloverNotice: (notice: string | null) => void;
+  setOfflineState: (isOffline: boolean, outboxCount: number) => void;
   setPaletteOpen: (open: boolean) => void;
 }
 
@@ -99,6 +102,8 @@ export const useTenetStore = create<TenetStore>()(
     alwaysAlive: false,
     soundEnabled: false,
     rolloverNotice: null,
+    offlineOutboxCount: 0,
+    isOffline: false,
     paletteOpen: false,
 
     setMode: (mode) => set({ mode }),
@@ -137,6 +142,8 @@ export const useTenetStore = create<TenetStore>()(
     setAlwaysAlive: (alwaysAlive) => set({ alwaysAlive }),
     setSoundEnabled: (soundEnabled) => set({ soundEnabled }),
     setRolloverNotice: (rolloverNotice) => set({ rolloverNotice }),
+    setOfflineState: (isOffline, offlineOutboxCount) =>
+      set({ isOffline, offlineOutboxCount }),
     setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
   })),
 );

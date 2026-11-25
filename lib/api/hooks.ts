@@ -116,7 +116,36 @@ export function useLogEntry() {
       return { prevByQuery };
     },
 
+    onSuccess: (_res, input) => {
+      void import('./sync').then((m) => {
+        m.clearOutboxEntry(input.day, input.key);
+        m.broadcastTenetSync({
+          type: 'entry_logged',
+          entry: {
+            day: input.day,
+            key: input.key,
+            version: input.version,
+            value: input.value,
+          },
+        });
+      });
+    },
+
     onError: (err, input, context) => {
+      // Offline resilience: queue entry in localStorage outbox and keep optimistic UI state intact
+      if (err instanceof ApiError && err.code === 'network_error') {
+        void import('./sync').then((m) => {
+          m.enqueueOutboxEntry({
+            day: input.day,
+            key: input.key,
+            version: input.version,
+            value: input.value,
+            queuedAt: Date.now(),
+          });
+        });
+        return;
+      }
+
       if (context) {
         for (const [queryKey, priorEntry] of context.prevByQuery.entries()) {
           const current = queryClient.getQueryData<StateResponse>(queryKey);
@@ -145,6 +174,9 @@ export function useSeal() {
   return useMutation({
     mutationFn: (input: { day: DayKey; reflection?: string }) => postSeal(input),
     onSuccess: async (_res, input) => {
+      void import('./sync').then((m) => {
+        m.broadcastTenetSync({ type: 'day_sealed', day: input.day });
+      });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['tenet', 'state'] }),
         queryClient.invalidateQueries({ queryKey: tenetKeys.definitions() }),

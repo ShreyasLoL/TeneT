@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Mirror } from '@/components/chrome/Mirror';
 import { SatorGlyph } from '@/components/chrome/SatorGlyph';
 import { useTenetState } from '@/lib/api/hooks';
@@ -87,18 +87,27 @@ function RecapDialog({
   const results = sealed.results;
   const lines = review?.lines ?? [];
 
+  const [canSkipFallback, setCanSkipFallback] = useState(false);
+
   const effectiveBeat = isInstant ? 5 : rigState.beat;
   const effectiveJudgedIndex = isInstant ? results.length : rigState.itemIndex;
   const effectiveVisibleLines = isInstant ? lines.length : rigState.visibleLines;
-  const effectiveCanSkip = isInstant ? true : rigState.canSkip;
+  const effectiveCanSkip = isInstant || rigState.canSkip || canSkipFallback;
 
   useEffect(() => {
     regionRef.current?.focus();
   }, []);
 
   useEffect(() => {
+    if (isInstant) return;
+    const id = window.setTimeout(() => setCanSkipFallback(true), 1500);
+    return () => window.clearTimeout(id);
+  }, [isInstant]);
+
+  useEffect(() => {
     if (effectiveBeat >= 5) {
-      doneLinkRef.current?.focus();
+      const id = window.setTimeout(() => doneLinkRef.current?.focus(), 0);
+      return () => window.clearTimeout(id);
     }
   }, [effectiveBeat]);
 
@@ -160,29 +169,29 @@ function RecapDialog({
           </span>
         </div>
 
-        {effectiveBeat === 2 && activeJudge ? (
-          <div className="min-h-16 space-y-1">
-            <p className="text-lg text-text">
-              {labelFor(activeJudge.key, { trackables: state.definitions.trackables })}
-            </p>
-            <p
-              className={`font-mono text-xs uppercase tracking-[0.14em] ${
-                activeJudge.status === 'off'
-                  ? 'text-text-faint'
+        <div className="flex h-36 flex-col items-center justify-center">
+          {effectiveBeat === 2 && activeJudge ? (
+            <div className="space-y-1">
+              <p className="text-lg text-text">
+                {labelFor(activeJudge.key, { trackables: state.definitions.trackables })}
+              </p>
+              <p
+                className={`font-mono text-xs uppercase tracking-[0.14em] ${
+                  activeJudge.status === 'off'
+                    ? 'text-text-faint'
+                    : activeJudge.satisfied
+                      ? 'text-accent'
+                      : 'text-text-dim'
+                }`}
+              >
+                {activeJudge.status === 'off'
+                  ? 'rest'
                   : activeJudge.satisfied
-                    ? 'text-accent'
-                    : 'text-text-dim'
-              }`}
-            >
-              {activeJudge.status === 'off'
-                ? 'rest'
-                : activeJudge.satisfied
-                  ? 'locked'
-                  : 'missed'}
-            </p>
-          </div>
-        ) : (
-          <div className="py-2">
+                    ? 'locked'
+                    : 'missed'}
+              </p>
+            </div>
+          ) : (
             <Mirror>
               <span
                 className={`inline-block font-mono text-[clamp(4rem,12vw,7rem)] font-light leading-none text-text tabular-nums transition-[filter,letter-spacing,opacity] duration-[var(--duration-scene)] ease-[var(--ease-out)] ${
@@ -194,8 +203,8 @@ function RecapDialog({
                 {sealed.score === null ? '—' : sealed.score}
               </span>
             </Mirror>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="min-h-24 space-y-2 text-sm text-text-dim">
           {lines.slice(0, effectiveVisibleLines).map((line, idx) => (
@@ -208,28 +217,33 @@ function RecapDialog({
           ))}
         </div>
 
-        {effectiveBeat >= 5 ? (
-          <div className="flex flex-col items-center gap-5 border-t border-line pt-6">
-            <SatorGlyph compact caption={COPY.ritual.recapEnd} />
-            <div className="flex items-center gap-3">
-              <Link
-                ref={doneLinkRef}
-                href="/dashboard"
-                onClick={() => endRecap()}
-                className="inline-flex min-h-11 items-center border border-accent/60 px-5 font-mono text-xs uppercase tracking-[0.14em] text-accent transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:bg-bg"
-              >
-                {COPY.doors.lookBack}
-              </Link>
-              <button
-                type="button"
-                onClick={() => endRecap()}
-                className="inline-flex min-h-11 items-center border border-line px-4 font-mono text-xs uppercase tracking-[0.14em] text-text-dim hover:text-text"
-              >
-                close
-              </button>
-            </div>
+        <div
+          aria-hidden={effectiveBeat < 5}
+          className={`flex flex-col items-center gap-5 border-t border-line pt-6 transition-opacity duration-[var(--duration-ui)] ease-[var(--ease-out)] ${
+            effectiveBeat >= 5 ? 'opacity-100' : 'pointer-events-none invisible opacity-0'
+          }`}
+        >
+          <SatorGlyph compact caption={COPY.ritual.recapEnd} />
+          <div className="flex items-center gap-3">
+            <Link
+              ref={doneLinkRef}
+              tabIndex={effectiveBeat >= 5 ? 0 : -1}
+              href="/dashboard"
+              onClick={() => endRecap()}
+              className="inline-flex min-h-11 items-center border border-accent/60 px-5 font-mono text-xs uppercase tracking-[0.14em] text-accent transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:bg-bg"
+            >
+              {COPY.doors.lookBack}
+            </Link>
+            <button
+              type="button"
+              tabIndex={effectiveBeat >= 5 ? 0 : -1}
+              onClick={() => endRecap()}
+              className="inline-flex min-h-11 items-center border border-line px-4 font-mono text-xs uppercase tracking-[0.14em] text-text-dim hover:text-text"
+            >
+              close
+            </button>
           </div>
-        ) : null}
+        </div>
       </div>
     </div>
   );

@@ -59,9 +59,9 @@ export function Intro() {
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ onComplete: finish });
       // Dust -> Wordmark (0 -> 0.5) -> Hold -> Collapse -> Fork (1.0)
-      tl.to(rig, { introProgress: 0.5, duration: 1.8, ease: 'power3.out' });
-      tl.to(rig, { introProgress: 0.5, duration: 0.6 });
-      tl.to(rig, { introProgress: 1.0, duration: 1.6, ease: 'expo.out' });
+      tl.to(rig, { introProgress: 0.5, duration: 1.4, ease: 'power3.out' });
+      tl.to(rig, { introProgress: 0.5, duration: 0.35 });
+      tl.to(rig, { introProgress: 1.0, duration: 1.25, ease: 'expo.out' });
     });
 
     const skip = () => {

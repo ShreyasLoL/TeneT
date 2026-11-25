@@ -117,7 +117,7 @@ export const DurationDial = memo(function DurationDial({
   const quickChips = rule.op === 'lte' ? [0, 30, 60, 90, 120] : [15, 30, 45, 60, 90];
 
   return (
-    <div className="flex flex-wrap items-center gap-4">
+    <div className="flex items-center gap-3 sm:gap-4">
       <svg
         ref={svgRef}
         viewBox={`0 0 ${DIAL_SIZE} ${DIAL_SIZE}`}
@@ -148,7 +148,7 @@ export const DurationDial = memo(function DurationDial({
         onPointerCancel={() => {
           draggingRef.current = false;
         }}
-        className={`size-24 shrink-0 touch-none select-none rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+        className={`size-20 shrink-0 touch-none select-none rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-24 ${
           disabled ? 'opacity-45' : 'cursor-pointer'
         }`}
       >

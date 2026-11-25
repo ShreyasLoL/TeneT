@@ -32,6 +32,7 @@ function RuntimeEffects() {
   const setCursor = useTenetStore((s) => s.setCursor);
   const setQuality = useTenetStore((s) => s.setQuality);
   const setRolloverNotice = useTenetStore((s) => s.setRolloverNotice);
+  const setOfflineState = useTenetStore((s) => s.setOfflineState);
   const setPaletteOpen = useTenetStore((s) => s.setPaletteOpen);
 
   const prevDayRef = useRef(today);
@@ -81,6 +82,21 @@ function RuntimeEffects() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [setPaletteOpen]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
+
+    void import('@/lib/api/sync').then((sync) => {
+      if (cancelled) return;
+      cleanup = sync.startTenetSyncRuntime(queryClient, setOfflineState);
+    });
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, [queryClient, setOfflineState]);
 
   return null;
 }

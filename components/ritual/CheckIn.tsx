@@ -115,6 +115,12 @@ function CheckInForm({ today }: { today: DayKey }) {
             }
             return true;
           } catch (error) {
+            if (error instanceof ApiError && error.code === 'network_error') {
+              if (mountedRef.current) {
+                setRowStates((prev) => ({ ...prev, [trackable.key]: 'saved' }));
+              }
+              return false;
+            }
             if (mountedRef.current) {
               setRowStates((prev) => ({ ...prev, [trackable.key]: 'error' }));
               setRowErrors((prev) => ({ ...prev, [trackable.key]: mapApiErrorCopy(error) }));
@@ -317,11 +323,16 @@ function CheckInForm({ today }: { today: DayKey }) {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-8 sm:px-8">
       <Scrim className="rounded-xl border border-line p-6">
-        <div className="mb-5 flex items-baseline justify-between gap-4">
+        <div className="mb-5 flex flex-wrap items-baseline justify-between gap-4">
           <h1 className="text-2xl font-normal tracking-tight text-text">{COPY.ritual.header}</h1>
-          <span className="font-mono text-xs uppercase tracking-[0.14em] text-text-dim tabular-nums">
-            {today}
-          </span>
+          <div className="flex items-center gap-3 font-mono text-xs uppercase tracking-[0.14em] tabular-nums">
+            {sealedToday ? (
+              <Link href="/dashboard" className="text-accent hover:underline">
+                {recap ? COPY.ritual.recapEnd : COPY.doors.sealed} · {COPY.doors.lookBack}
+              </Link>
+            ) : null}
+            <span className="text-text-dim">{today}</span>
+          </div>
         </div>
 
         <LiveScore
@@ -337,20 +348,6 @@ function CheckInForm({ today }: { today: DayKey }) {
               : requiredResults.length
           }
         />
-
-        {sealedToday ? (
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
-            <p className="font-mono text-xs uppercase tracking-[0.14em] text-accent">
-              {recap ? COPY.ritual.recapEnd : COPY.doors.sealed}
-            </p>
-            <Link
-              href="/dashboard"
-              className="inline-flex min-h-10 items-center border border-line px-3 font-mono text-[11px] uppercase tracking-[0.12em] text-text-dim hover:text-text"
-            >
-              {COPY.doors.lookBack}
-            </Link>
-          </div>
-        ) : null}
       </Scrim>
 
       <div className="space-y-6">

@@ -200,7 +200,7 @@ export const SealControl = memo(function SealControl({
 
   if (isSealed) {
     return (
-      <section className="rounded-xl border border-accent/45 bg-surface p-6 text-center">
+      <section className="flex min-h-44 flex-col items-center justify-center rounded-xl border border-accent/45 bg-surface p-6 text-center">
         <p className="font-mono text-xs uppercase tracking-[0.16em] text-accent">
           {COPY.doors.sealed}
         </p>
