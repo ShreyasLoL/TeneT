@@ -2,16 +2,24 @@
 
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { MathUtils, type ShaderMaterial, Vector2, Vector3 } from 'three';
-import { LADDER_PROFILES, type QualityLevel } from '@/lib/stage/tiers';
+import { MathUtils, PerspectiveCamera, type ShaderMaterial, Vector2, Vector3 } from 'three';
+import { isTouchDevice, profileForLevel, type QualityLevel } from '@/lib/stage/tiers';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
 import { hexToRgbNormalized, readPalette } from '@/lib/viz/palette';
 import { createTenetComposer, type TenetComposerRig } from './effects/TenetPostEffect';
 
+function computeHoleScreenRadius(camera: unknown): number {
+  if (camera instanceof PerspectiveCamera) {
+    const dist = Math.max(2.5, camera.position.length());
+    const halfH = dist * Math.tan(MathUtils.degToRad(camera.fov * 0.5));
+    return MathUtils.clamp(0.86 / Math.max(0.5, halfH * 2), 0.04, 0.16);
+  }
+  return 0.095;
+}
+
 function SimplifiedLensQuad() {
-  const { size } = useThree();
-  const mode = useTenetStore((s) => s.mode);
+  const { size, camera } = useThree();
   const matRef = useRef<ShaderMaterial | null>(null);
   const uniforms = useMemo(() => {
     const pal = readPalette();
@@ -20,24 +28,19 @@ function SimplifiedLensQuad() {
       uOrchid: { value: new Vector3(ar, ag, ab) },
       uCenter: { value: new Vector2(0.5, 0.5) },
       uAspect: { value: 1.77 },
-      uRadiusS: { value: 0.1 },
+      uRadiusS: { value: 0.095 },
       uHold: { value: 0 },
     };
   }, []);
 
-  useFrame((_state, delta) => {
+  useFrame(() => {
     const mat = matRef.current;
     if (!mat) return;
-    const dt = Math.min(delta, 1 / 20);
     const aspect = size.width / Math.max(1, size.height);
-    const quietRitual = mode === 'ritual' && rig.recapBeat === 0 && rig.sealHold < 0.01;
-    const targetX = quietRitual ? 0.88 : mode === 'ritual' ? 0.5 : 0.5 + rig.doorHover * 0.16;
-    const targetY = quietRitual ? 0.86 : 0.5;
     const center = mat.uniforms.uCenter.value as Vector2;
-    center.x = MathUtils.damp(center.x, targetX, 5.5, dt);
-    center.y = MathUtils.damp(center.y, targetY, 5.5, dt);
+    center.set(rig.holeScreenX, rig.holeScreenY);
     mat.uniforms.uAspect.value = aspect;
-    mat.uniforms.uRadiusS.value = quietRitual ? 0.016 : 0.1;
+    mat.uniforms.uRadiusS.value = computeHoleScreenRadius(camera);
     mat.uniforms.uHold.value = rig.sealHold;
   });
 
@@ -70,8 +73,7 @@ function SimplifiedLensQuad() {
             float r = length(d);
             float s = uRadiusS * (1.0 + uHold * 0.08);
             float ring = exp(-pow((r - s * 1.04) / max(0.003, s * 0.07), 2.0));
-            float hole = 1.0 - smoothstep(s * 0.95, s * 1.03, r);
-            gl_FragColor = vec4(uOrchid * ring * 0.6, max(hole * 0.9, ring * 0.72));
+            gl_FragColor = vec4(uOrchid * ring * 0.55, ring * 0.65);
           }
         `}
       />
@@ -82,9 +84,10 @@ function SimplifiedLensQuad() {
 export function Postfx() {
   const { gl, scene, camera, size } = useThree();
   const level = useTenetStore((s) => s.quality.level) as QualityLevel;
+  const lowPower = useTenetStore((s) => s.quality.lowPower);
   const density = useTenetStore((s) => s.density);
   const mode = useTenetStore((s) => s.mode);
-  const profile = LADDER_PROFILES[level];
+  const profile = profileForLevel(level, isTouchDevice(), lowPower);
   const composerActive = profile.lensMode === 'full';
 
   const rigRef = useRef<TenetComposerRig | null>(null);
@@ -115,34 +118,18 @@ export function Postfx() {
       const composerRig = rigRef.current;
       if (!composerActive || !composerRig) return;
 
-      const dt = Math.min(delta, 1 / 20);
+      const dt = Math.min(delta, 1 / 30);
       const aspect = size.width / Math.max(1, size.height);
-      const quietRitual = mode === 'ritual' && rig.recapBeat === 0 && rig.sealHold < 0.01;
-      const activeRitualHold = mode === 'ritual' && rig.recapBeat === 0 && rig.sealHold >= 0.01;
-      const baseStrength = quietRitual
-        ? 0.06
-        : activeRitualHold
-          ? 0.25 + rig.sealHold * 0.7
-          : 1 - 0.65 * density;
-      const radiusS = quietRitual
-        ? 0.016
-        : activeRitualHold
-          ? 0.045 + rig.sealHold * 0.055
-          : 0.11 - 0.02 * density;
-
-      const targetCenterX = quietRitual
-        ? 0.88
-        : activeRitualHold
-          ? 0.5
-          : 0.5 + rig.doorHover * 0.16;
-      const targetCenterY = quietRitual ? 0.86 : 0.5;
+      const horizonAppear = MathUtils.smoothstep(rig.introProgress, 0.55, 0.98);
+      const ritualAttenuation = mode === 'ritual' && rig.sealHold < 0.01 ? 0.62 : 1.0;
+      const baseStrength =
+        (0.85 - 0.35 * density + rig.sealHold * 0.45) * ritualAttenuation * horizonAppear;
 
       const u = composerRig.tenet.uniforms;
       const center = u.get('uCenter')!.value as Vector2;
-      center.x = MathUtils.damp(center.x, targetCenterX, 5.5, dt);
-      center.y = MathUtils.damp(center.y, targetCenterY, 5.5, dt);
+      center.set(rig.holeScreenX, rig.holeScreenY);
 
-      u.get('uRadiusS')!.value = radiusS;
+      u.get('uRadiusS')!.value = computeHoleScreenRadius(camera);
       u.get('uStrength')!.value = MathUtils.damp(
         u.get('uStrength')!.value as number,
         baseStrength,
@@ -154,9 +141,9 @@ export function Postfx() {
       u.get('uSpike')!.value = rig.recapSpike + rig.turnstilePulse * 0.4;
       u.get('uTime')!.value = rig.elapsedTime;
       u.get('uMirrorEnabled')!.value = profile.mirror && mode === 'fork' ? 1.0 : 0.0;
-      u.get('uGrainEnabled')!.value = profile.grain ? 1.0 : 0.0;
+      u.get('uGrainEnabled')!.value = profile.grain && !lowPower ? 1.0 : 0.0;
 
-      composerRig.renderFrame(delta);
+      composerRig.renderFrame(dt);
     },
     composerActive ? 1 : 0,
   );

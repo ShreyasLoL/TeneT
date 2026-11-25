@@ -11,40 +11,38 @@ import {
   type ShaderMaterial,
   Vector3,
 } from 'three';
-import { useTenetState, useToday } from '@/lib/api/hooks';
-import { LADDER_PROFILES, type QualityLevel } from '@/lib/stage/tiers';
+import { isTouchDevice, profileForLevel, type QualityLevel } from '@/lib/stage/tiers';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
-import { hexToRgbNormalized, readPalette } from '@/lib/viz/palette';
+import { readPalette } from '@/lib/viz/palette';
+import { hexToLinearRgb, readAmberLinear } from './shaders/color';
 import { diskFragmentShader, diskVertexShader } from './shaders/disk';
 
 export function Disk() {
-  const today = useToday();
-  const { data: state } = useTenetState();
-  const cursor = useTenetStore((s) => s.cursor);
   const liveScore = useTenetStore((s) => s.livePreview.score);
+  const mode = useTenetStore((s) => s.mode);
   const level = useTenetStore((s) => s.quality.level) as QualityLevel;
-  const profile = LADDER_PROFILES[level];
+  const lowPower = useTenetStore((s) => s.quality.lowPower);
+  const profile = profileForLevel(level, isTouchDevice(), lowPower);
 
   const matRef = useRef<ShaderMaterial | null>(null);
   const meshRef = useRef<Mesh | null>(null);
 
-  const tonightSealed = Boolean(state?.days.some((d) => d.day === today));
-  const showDisk = cursor === today && !tonightSealed;
-
   const uniforms = useMemo(() => {
     const pal = readPalette();
-    const [abr, abg, abb] = hexToRgbNormalized(pal.accentAbyss);
-    const [ar, ag, ab] = hexToRgbNormalized(pal.accent);
-    const [hr, hg, hb] = hexToRgbNormalized(pal.accentHot);
+    const [abr, abg, abb] = hexToLinearRgb(pal.accentAbyss);
+    const [ar, ag, ab] = hexToLinearRgb(pal.accent);
+    const [amr, amg, amb] = readAmberLinear();
     return {
       uTime: { value: 0 },
-      uHeat: { value: 0.2 },
+      uIntro: { value: 1 },
+      uHeat: { value: 0.58 },
       uHold: { value: 0 },
       uSimplified: { value: 0 },
-      uOrchidAbyss: { value: new Vector3(abr, abg, abb) },
+      uAmber: { value: new Vector3(amr, amg, amb) },
       uOrchid: { value: new Vector3(ar, ag, ab) },
-      uOrchidHot: { value: new Vector3(hr, hg, hb) },
+      uViolet: { value: new Vector3(abr * 1.35 + 0.04, abg * 1.2 + 0.02, abb * 2.4 + 0.18) },
+      uColdBlue: { value: new Vector3(0.035, 0.22, 0.88) },
     };
   }, []);
 
@@ -52,14 +50,17 @@ export function Disk() {
     const mat = matRef.current;
     const mesh = meshRef.current;
     if (!mat || !mesh) return;
-    const isVisible = showDisk || rig.recapBeat > 0;
+
+    const isVisible = rig.introProgress > 0.22 || rig.recapBeat > 0;
     mesh.visible = isVisible;
     if (!isVisible) return;
 
-    const dt = Math.min(delta, 1 / 20);
-    const targetHeat = showDisk ? (liveScore === null ? 0.16 : 0.25 + (liveScore / 100) * 0.75) : 0;
+    const dt = Math.min(delta, 1 / 30);
+    const baseHeat = liveScore === null ? 0.56 : 0.44 + (liveScore / 100) * 0.56;
+    const targetHeat = mode === 'ritual' ? baseHeat * 0.82 : baseHeat;
 
     mat.uniforms.uTime.value = rig.elapsedTime;
+    mat.uniforms.uIntro.value = rig.introProgress;
     mat.uniforms.uHeat.value = MathUtils.damp(
       mat.uniforms.uHeat.value as number,
       targetHeat,
@@ -69,22 +70,26 @@ export function Disk() {
     mat.uniforms.uHold.value = rig.sealHold;
     mat.uniforms.uSimplified.value = profile.simplifiedDisk ? 1.0 : 0.0;
 
-    const collapseScale = Math.max(0.15, 1 - rig.sealHold * 0.22 - (rig.recapBeat === 3 ? rig.recapProgress * 0.85 : 0));
+    const collapseScale = Math.max(
+      0.15,
+      1 - rig.sealHold * 0.22 - (rig.recapBeat === 3 ? rig.recapProgress * 0.85 : 0),
+    );
     mesh.scale.setScalar(collapseScale);
   });
 
   return (
     <mesh
       ref={meshRef}
+      renderOrder={3}
       rotation={[-Math.PI / 2, 0, 0]}
       frustumCulled={false}
-      visible={showDisk}
     >
-      <planeGeometry args={[4.1, 4.1, 1, 1]} />
+      <planeGeometry args={[7.2, 7.2, 1, 1]} />
       <shaderMaterial
         ref={matRef}
         glslVersion={GLSL3}
         transparent
+        depthTest
         depthWrite={false}
         side={DoubleSide}
         blending={AdditiveBlending}

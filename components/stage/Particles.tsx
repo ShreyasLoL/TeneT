@@ -1,7 +1,7 @@
 'use client';
 
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   AdditiveBlending,
   type BufferGeometry,
@@ -12,16 +12,17 @@ import {
   Vector3,
 } from 'three';
 import { useLivePreview, useTenetState, useToday } from '@/lib/api/hooks';
-import { isTouchDevice, profileForLevel, type QualityLevel } from '@/lib/stage/tiers';
+import { isTouchDevice, NORMAL_PARTICLES, profileForLevel, type QualityLevel } from '@/lib/stage/tiers';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
 import { buildCohortMap } from '@/lib/viz/cohorts';
-import { hexToRgbNormalized, readPalette } from '@/lib/viz/palette';
+import { readPalette } from '@/lib/viz/palette';
 import {
   buildCohortParticleBuffers,
   buildStaticParticleBuffers,
   createCohortTexture,
 } from './particlesBuffers';
+import { hexToLinearRgb, readAmberLinear } from './shaders/color';
 import { particlesFragmentShader, particlesVertexShader } from './shaders/particles';
 
 export function Particles() {
@@ -33,16 +34,8 @@ export function Particles() {
   const cursor = useTenetStore((s) => s.cursor);
   const mode = useTenetStore((s) => s.mode);
   const level = useTenetStore((s) => s.quality.level) as QualityLevel;
-  const profile = profileForLevel(level, isTouchDevice());
-
-  // Grow VBO capacity only upward (never allocate 200k at L1, never reallocate on step-down)
-  const [capacity, setCapacity] = useState(() => Math.max(15_000, profile.particles));
-  useEffect(() => {
-    if (profile.particles > capacity) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCapacity(profile.particles);
-    }
-  }, [capacity, profile.particles]);
+  const lowPower = useTenetStore((s) => s.quality.lowPower);
+  const profile = profileForLevel(level, isTouchDevice(), lowPower);
 
   const matRef = useRef<ShaderMaterial | null>(null);
   const geomRef = useRef<BufferGeometry | null>(null);
@@ -63,10 +56,10 @@ export function Particles() {
     );
   }, [areasDef, trackablesDef, sealedDays]);
 
-  const staticBuffers = useMemo(() => buildStaticParticleBuffers(capacity), [capacity]);
+  const staticBuffers = useMemo(() => buildStaticParticleBuffers(NORMAL_PARTICLES), []);
   const cohortMeta = useMemo(
-    () => buildCohortParticleBuffers(cohortMap, capacity),
-    [capacity, cohortMap],
+    () => buildCohortParticleBuffers(cohortMap, NORMAL_PARTICLES),
+    [cohortMap],
   );
 
   const targetDirRef = useRef(new Float32Array(16).fill(1));
@@ -85,7 +78,7 @@ export function Particles() {
     for (const slot of cohortMap.slots) {
       const r = byKey.get(slot.key);
       if (!r || r.status === 'off') {
-        dirs[slot.slotIndex] = 0.25;
+        dirs[slot.slotIndex] = 0.35;
       } else {
         dirs[slot.slotIndex] = r.satisfied ? 1 : -1;
       }
@@ -94,9 +87,9 @@ export function Particles() {
 
   const uniforms = useMemo(() => {
     const pal = readPalette();
-    const [abr, abg, abb] = hexToRgbNormalized(pal.accentAbyss);
-    const [ar, ag, ab] = hexToRgbNormalized(pal.accent);
-    const [hr, hg, hb] = hexToRgbNormalized(pal.accentHot);
+    const [abr, abg, abb] = hexToLinearRgb(pal.accentAbyss);
+    const [ar, ag, ab] = hexToLinearRgb(pal.accent);
+    const [amr, amg, amb] = readAmberLinear();
     return {
       uCohortTex: { value: cohortTex },
       uDpr: { value: 1 },
@@ -108,9 +101,10 @@ export function Particles() {
       uFocusArea: { value: -1 },
       uRecapJudge: { value: -1 },
       uRecapSpike: { value: 0 },
-      uOrchidAbyss: { value: new Vector3(abr, abg, abb) },
+      uAmber: { value: new Vector3(amr, amg, amb) },
       uOrchid: { value: new Vector3(ar, ag, ab) },
-      uOrchidHot: { value: new Vector3(hr, hg, hb) },
+      uViolet: { value: new Vector3(abr * 1.35 + 0.04, abg * 1.2 + 0.02, abb * 2.4 + 0.18) },
+      uColdBlue: { value: new Vector3(0.035, 0.22, 0.88) },
     };
   }, [cohortTex]);
 
@@ -125,15 +119,15 @@ export function Particles() {
     if (geomRef.current) {
       geomRef.current.setDrawRange(0, profile.particles);
       if (!geomRef.current.boundingSphere) {
-        geomRef.current.boundingSphere = new Sphere(new Vector3(0, 0, 0), 18);
+        geomRef.current.boundingSphere = new Sphere(new Vector3(0, 0, 0), 24);
       }
     }
-  }, [capacity, profile.particles]);
+  }, [profile.particles]);
 
   useFrame((_state, delta) => {
     const mat = matRef.current;
     if (!mat) return;
-    const dt = Math.min(delta, 1 / 20);
+    const dt = Math.min(delta, 1 / 30);
     const dirFactor = rig.uDir;
     const scrubBoost = 1 + Math.min(6, Math.abs(rig.cursorVelocity) * 1.4);
 
@@ -143,7 +137,7 @@ export function Particles() {
     let dirty = false;
     for (let i = 0; i < 16; i++) {
       rig.cohortDirSmooth[i] = MathUtils.damp(rig.cohortDirSmooth[i], targets[i], 4.5, dt);
-      const omega0 = 0.28 + (i % 3) * 0.08;
+      const omega0 = 0.32 + (i % 3) * 0.09;
       rig.cohortPhases[i] += rig.cohortDirSmooth[i] * dirFactor * omega0 * scrubBoost * dt;
       if (
         Math.abs(data[i * 4] - rig.cohortDirSmooth[i]) > 1e-4 ||
@@ -162,7 +156,7 @@ export function Particles() {
     mat.uniforms.uHold.value = rig.sealHold;
     mat.uniforms.uBrightness.value = MathUtils.damp(
       mat.uniforms.uBrightness.value as number,
-      mode === 'ritual' ? 0.38 : 1.0,
+      mode === 'ritual' ? 0.58 : 1.0,
       5.0,
       dt,
     );
@@ -175,8 +169,8 @@ export function Particles() {
 
   return (
     <points frustumCulled={false}>
-      <bufferGeometry key={capacity} ref={geomRef}>
-        <bufferAttribute attach="attributes-position" args={[staticBuffers.targets, 3]} />
+      <bufferGeometry ref={geomRef}>
+        <bufferAttribute attach="attributes-position" args={[staticBuffers.spawn, 3]} />
         <bufferAttribute attach="attributes-aSeed" args={[staticBuffers.seeds, 4]} />
         <bufferAttribute attach="attributes-aMeta" args={[cohortMeta, 2]} />
       </bufferGeometry>

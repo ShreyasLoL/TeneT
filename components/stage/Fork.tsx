@@ -7,7 +7,8 @@ import { useTenetState, useToday } from '@/lib/api/hooks';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
 import { forkLayout } from '@/lib/viz/forkLayout';
-import { hexToRgbNormalized, readPalette } from '@/lib/viz/palette';
+import { readPalette } from '@/lib/viz/palette';
+import { hexToLinearRgb } from './shaders/color';
 import { doorFragmentShader, doorVertexShader } from './shaders/door';
 
 export function Fork() {
@@ -25,13 +26,13 @@ export function Fork() {
 
   const leftUniforms = useMemo(() => {
     const pal = readPalette();
-    const [abr, abg, abb] = hexToRgbNormalized(pal.accentAbyss);
-    const [ar, ag, ab] = hexToRgbNormalized(pal.accent);
-    const [hr, hg, hb] = hexToRgbNormalized(pal.accentHot);
+    const [abr, abg, abb] = hexToLinearRgb(pal.accentAbyss);
+    const [ar, ag, ab] = hexToLinearRgb(pal.accent);
+    const [hr, hg, hb] = hexToLinearRgb(pal.accentHot);
     return {
       uTime: { value: 0 },
       uFlowDir: { value: layout.left.flowDir },
-      uIntensity: { value: 0.6 },
+      uIntensity: { value: 0.12 },
       uHover: { value: 0 },
       uSealed: { value: 0 },
       uOrchidAbyss: { value: new Vector3(abr, abg, abb) },
@@ -42,13 +43,13 @@ export function Fork() {
 
   const rightUniforms = useMemo(() => {
     const pal = readPalette();
-    const [abr, abg, abb] = hexToRgbNormalized(pal.accentAbyss);
-    const [ar, ag, ab] = hexToRgbNormalized(pal.accent);
-    const [hr, hg, hb] = hexToRgbNormalized(pal.accentHot);
+    const [abr, abg, abb] = hexToLinearRgb(pal.accentAbyss);
+    const [ar, ag, ab] = hexToLinearRgb(pal.accent);
+    const [hr, hg, hb] = hexToLinearRgb(pal.accentHot);
     return {
       uTime: { value: 0 },
       uFlowDir: { value: layout.right.flowDir },
-      uIntensity: { value: 0.75 },
+      uIntensity: { value: 0.16 },
       uHover: { value: 0 },
       uSealed: { value: 0 },
       uOrchidAbyss: { value: new Vector3(abr, abg, abb) },
@@ -59,35 +60,37 @@ export function Fork() {
 
   useFrame((_state, delta) => {
     const group = groupRef.current;
-    const isVisible = mode === 'fork' && rig.introProgress >= 0.72;
+    const isVisible = mode === 'fork' && rig.introProgress >= 0.82;
     if (group) group.visible = isVisible;
     if (!isVisible) return;
 
-    const dt = Math.min(delta, 1 / 20);
+    const dt = Math.min(delta, 1 / 30);
     const lm = leftMatRef.current;
     const rm = rightMatRef.current;
     if (!lm || !rm) return;
 
-    const reveal = MathUtils.smoothstep(rig.introProgress, 0.72, 1.0);
-
-    lm.uniforms.uTime.value = rig.elapsedTime;
-    lm.uniforms.uHover.value = MathUtils.damp(
+    const reveal = MathUtils.smoothstep(rig.introProgress, 0.82, 1.0);
+    const lh = MathUtils.damp(
       lm.uniforms.uHover.value as number,
       rig.doorHover === -1 ? 1 : 0,
       7.0,
       dt,
     );
-    lm.uniforms.uIntensity.value = reveal * (tonightSealed ? 0.95 : 0.55);
-
-    rm.uniforms.uTime.value = rig.elapsedTime;
-    rm.uniforms.uHover.value = MathUtils.damp(
+    const rh = MathUtils.damp(
       rm.uniforms.uHover.value as number,
       rig.doorHover === 1 ? 1 : 0,
       7.0,
       dt,
     );
-    const liveFactor = liveScore === null ? 0.55 : 0.45 + (liveScore / 100) * 0.55;
-    rm.uniforms.uIntensity.value = reveal * (tonightSealed ? 0.35 : liveFactor);
+
+    lm.uniforms.uTime.value = rig.elapsedTime;
+    lm.uniforms.uHover.value = lh;
+    lm.uniforms.uIntensity.value = reveal * (0.06 + lh * 0.34);
+
+    rm.uniforms.uTime.value = rig.elapsedTime;
+    rm.uniforms.uHover.value = rh;
+    const liveFactor = liveScore === null ? 0.08 : 0.07 + (liveScore / 100) * 0.08;
+    rm.uniforms.uIntensity.value = reveal * (liveFactor + rh * 0.34);
     rm.uniforms.uSealed.value = tonightSealed ? 1 : 0;
   });
 

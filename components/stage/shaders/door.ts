@@ -46,8 +46,8 @@ export const doorFragmentShader = /* glsl */ `
     vec3 col = mix(uOrchidAbyss, uOrchid, clamp(rings * 0.7 + uHover * 0.3, 0.0, 1.0));
     col = mix(col, uOrchidHot, border * (0.4 + 0.6 * uHover));
 
-    float innerAlpha = inside * (uSealed > 0.5 ? 0.14 : (0.14 + 0.26 * rings + 0.35 * swirl)) * uIntensity;
-    float borderAlpha = border * (0.35 + 0.55 * uHover + 0.25 * uIntensity);
+    float innerAlpha = inside * (uSealed > 0.5 ? 0.08 : (0.12 + 0.20 * rings + 0.25 * swirl)) * uHover * uIntensity;
+    float borderAlpha = border * (0.45 * uHover) * uIntensity;
 
     float alpha = clamp(innerAlpha + borderAlpha, 0.0, 0.95);
     if (alpha < 0.008) discard;

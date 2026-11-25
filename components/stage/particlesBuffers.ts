@@ -1,11 +1,13 @@
 import { DataTexture, FloatType, NearestFilter, RGBAFormat } from 'three';
-import { buildWordmarkTargets } from '@/lib/stage/wordmark';
+import { NORMAL_PARTICLES } from '@/lib/stage/tiers';
 import type { buildCohortMap } from '@/lib/viz/cohorts';
 
-export const MAX_PARTICLES = 200_000;
-const WORDMARK_COUNT = 6_000;
-const R_IN = 2.05;
-const R_OUT = 9.4;
+export const MAX_PARTICLES = NORMAL_PARTICLES; // 45,000 max per perf budget
+const DISK_FRACTION = 0.82;
+const R_DISK_IN = 1.02;
+const R_DISK_OUT = 6.8;
+const R_SHELL_IN = 3.4;
+const R_SHELL_OUT = 10.8;
 
 type CohortMap = ReturnType<typeof buildCohortMap>;
 
@@ -36,40 +38,52 @@ export function createCohortTexture(): DataTexture {
 }
 
 /**
- * Builds static particle attributes sized to `capacity` (avoiding 10MB 200k allocations at L1).
- * `position` stores symmetric wordmark targets directly; `aSeed.x` stores precomputed orbital `aBase`.
+ * Builds static particle attributes up to `MAX_PARTICLES` (45,000):
+ * - `spawn` (`position` vec3): scattered outer 3D cloud for `uIntro = 0`, spiraling inward on GPU.
+ * - `seeds` (`aSeed` vec4): x = orbital semi-major axis `aBase`, y = eccRand, z = phase, w = inclRand.
  */
 export function buildStaticParticleBuffers(capacity: number): {
-  targets: Float32Array;
+  spawn: Float32Array;
   seeds: Float32Array;
 } {
   const count = Math.min(MAX_PARTICLES, Math.max(1, capacity));
   const rng = mulberry32(99173);
-  const targets = new Float32Array(count * 3);
+  const spawn = new Float32Array(count * 3);
   const seeds = new Float32Array(count * 4);
-  const wordmark = buildWordmarkTargets(Math.min(WORDMARK_COUNT, count), 7);
-  const wordLen = Math.floor(wordmark.length / 3);
+  const diskLimit = Math.floor(count * DISK_FRACTION);
 
   for (let i = 0; i < count; i++) {
-    const r = rng();
-    // Precompute Keplerian semi-major axis so the vertex shader skips `pow(r, 1.6)` per frame
-    seeds[i * 4] = R_IN + (R_OUT - R_IN) * Math.pow(r, 1.6);
+    // Interleave disk & dust-shell particles evenly so `setDrawRange(0, count/4)` in LOW POWER
+    // preserves the exact 82% Keplerian disk / 18% dust shell visual ratio!
+    const isShell = i % 11 === 0 || i % 13 === 0 || i >= diskLimit + Math.floor(count * 0.18);
+    const rRand = rng();
+    const aBase = isShell
+      ? R_SHELL_IN + (R_SHELL_OUT - R_SHELL_IN) * Math.pow(rRand, 1.15)
+      : R_DISK_IN + (R_DISK_OUT - R_DISK_IN) * Math.pow(rRand, 1.75);
+
+    seeds[i * 4] = aBase;
     seeds[i * 4 + 1] = rng();
     seeds[i * 4 + 2] = rng();
+    // Encode shell flag in sign of w (+2 offset for shell) or separate channel; keep w in [0,1] and encode shell in spawn/meta
     seeds[i * 4 + 3] = rng();
 
-    if (i < wordLen) {
-      targets[i * 3] = wordmark[i * 3];
-      targets[i * 3 + 1] = wordmark[i * 3 + 1];
-      targets[i * 3 + 2] = wordmark[i * 3 + 2];
-    }
+    // Scattered outer dark nebula coordinates for uIntro = 0
+    const theta0 = rng() * Math.PI * 2;
+    const cosPhi = rng() * 2 - 1;
+    const sinPhi = Math.sqrt(Math.max(0, 1 - cosPhi * cosPhi));
+    const spawnR = 8.5 + Math.pow(rng(), 0.85) * 14.5;
+    spawn[i * 3] = spawnR * sinPhi * Math.cos(theta0);
+    spawn[i * 3 + 1] = spawnR * cosPhi * 0.68;
+    spawn[i * 3 + 2] = spawnR * sinPhi * Math.sin(theta0);
   }
 
-  return { targets, seeds };
+  return { spawn, seeds };
 }
 
 /**
- * Packs `(cohortSlot, areaIndex)` into a single vec2 attribute `aMeta` (-25% vertex fetch bandwidth).
+ * Packs `(cohortSlot, encodedLayerAndArea)` into `aMeta` (`vec2`):
+ * `aMeta.x` = cohort slot `0..15`
+ * `aMeta.y` = `areaArchetype (0..2)` for disk particles, or `10.0 + areaArchetype` for outer dust-shell particles.
  */
 export function buildCohortParticleBuffers(
   cohortMap: CohortMap | null,
@@ -80,8 +94,10 @@ export function buildCohortParticleBuffers(
   const slotCount = cohortMap?.slots.length || 3;
   for (let i = 0; i < count; i++) {
     const slot = cohortMap?.slots[i % slotCount];
+    const areaIdx = slot ? slot.areaIndex % 3 : i % 3;
+    const isShell = i % 6 === 5; // ~17% outer dust shell evenly interleaved across drawRange
     meta[i * 2] = slot ? slot.slotIndex : i % 3;
-    meta[i * 2 + 1] = slot ? slot.areaIndex % 3 : i % 3;
+    meta[i * 2 + 1] = isShell ? 10 + areaIdx : areaIdx;
   }
   return meta;
 }

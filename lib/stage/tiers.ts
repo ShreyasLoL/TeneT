@@ -11,10 +11,13 @@ export type LadderProfile = {
   simplifiedDisk: boolean;
 };
 
+export const NORMAL_PARTICLES = 45_000;
+export const LOW_POWER_PARTICLES = 11_250;
+
 export const LADDER_PROFILES: Record<QualityLevel, LadderProfile> = {
   0: {
     level: 0,
-    particles: 200_000,
+    particles: NORMAL_PARTICLES,
     dprMax: 1.5,
     bloom: true,
     mirror: true,
@@ -24,8 +27,8 @@ export const LADDER_PROFILES: Record<QualityLevel, LadderProfile> = {
   },
   1: {
     level: 1,
-    particles: 60_000,
-    dprMax: 1.25,
+    particles: NORMAL_PARTICLES,
+    dprMax: 1.5,
     bloom: true,
     mirror: false,
     grain: true,
@@ -34,8 +37,8 @@ export const LADDER_PROFILES: Record<QualityLevel, LadderProfile> = {
   },
   2: {
     level: 2,
-    particles: 60_000,
-    dprMax: 1.15,
+    particles: 30_000,
+    dprMax: 1.25,
     bloom: false,
     mirror: false,
     grain: false,
@@ -44,32 +47,48 @@ export const LADDER_PROFILES: Record<QualityLevel, LadderProfile> = {
   },
   3: {
     level: 3,
-    particles: 15_000,
-    dprMax: 1.0,
+    particles: LOW_POWER_PARTICLES,
+    dprMax: 1.15,
     bloom: false,
     mirror: false,
     grain: false,
-    lensMode: 'quad',
+    lensMode: 'full',
     simplifiedDisk: true,
   },
   4: {
     level: 4,
-    particles: 0,
-    dprMax: 1.0,
+    particles: LOW_POWER_PARTICLES,
+    dprMax: 1.15,
     bloom: false,
     mirror: false,
     grain: false,
-    lensMode: 'none',
-    simplifiedDisk: true,
+    lensMode: 'full',
+    simplifiedDisk: false,
   },
 };
 
 const TOUCH_LEVEL_0_PROFILE: LadderProfile = {
   ...LADDER_PROFILES[0],
-  particles: 60_000,
+  particles: 32_000,
 };
 
-export function profileForLevel(level: QualityLevel, isTouch: boolean): LadderProfile {
+const LOW_POWER_PROFILE: LadderProfile = {
+  level: 4,
+  particles: LOW_POWER_PARTICLES,
+  dprMax: 1.25,
+  bloom: false,
+  mirror: false,
+  grain: false,
+  lensMode: 'full',
+  simplifiedDisk: false,
+};
+
+export function profileForLevel(
+  level: QualityLevel,
+  isTouch: boolean,
+  lowPower: boolean = false,
+): LadderProfile {
+  if (lowPower) return LOW_POWER_PROFILE;
   if (isTouch && level === 0) return TOUCH_LEVEL_0_PROFILE;
   return LADDER_PROFILES[level];
 }

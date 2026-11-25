@@ -16,7 +16,8 @@ import {
   Vector3,
   type WebGLRenderer,
 } from 'three';
-import { hexToRgbNormalized, readPalette } from '@/lib/viz/palette';
+import { readPalette } from '@/lib/viz/palette';
+import { hexToLinearRgb } from '../shaders/color';
 import { tenetPostFragmentShader } from '../shaders/lens';
 
 export class TenetPostEffect extends Effect {
@@ -24,19 +25,20 @@ export class TenetPostEffect extends Effect {
     super('TenetPostEffect', tenetPostFragmentShader, {
       uniforms: new Map<string, Uniform>([
         ['uCenter', new Uniform(new Vector2(0.5, 0.5))],
-        ['uRadiusS', new Uniform(0.11)],
+        ['uRadiusS', new Uniform(0.095)],
         ['uStrength', new Uniform(1.0)],
         ['uHold', new Uniform(0.0)],
         ['uAspect', new Uniform(1.77)],
         ['uSpike', new Uniform(0.0)],
-        ['uHorizonY', new Uniform(0.28)],
+        ['uHorizonY', new Uniform(0.24)],
         ['uTime', new Uniform(0.0)],
         ['uMirrorEnabled', new Uniform(1.0)],
         ['uGrainEnabled', new Uniform(1.0)],
-        ['uGrain', new Uniform(0.018)],
-        ['uOrchidAbyss', new Uniform(new Vector3(0.37, 0.09, 0.39))],
-        ['uOrchid', new Uniform(new Vector3(0.88, 0.3, 0.92))],
-        ['uOrchidHot', new Uniform(new Vector3(0.96, 0.79, 0.98))],
+        ['uGrain', new Uniform(0.004)],
+        ['uBg', new Uniform(new Vector3(0.0033, 0.0027, 0.0052))],
+        ['uOrchidAbyss', new Uniform(new Vector3(0.11, 0.01, 0.13))],
+        ['uOrchid', new Uniform(new Vector3(0.74, 0.075, 0.82))],
+        ['uOrchidHot', new Uniform(new Vector3(0.92, 0.58, 0.95))],
       ]),
     });
   }
@@ -46,7 +48,7 @@ export type TenetComposerRig = {
   composer: EffectComposer;
   tenet: TenetPostEffect;
   bloom: BloomEffect;
-  bloomPass: EffectPass;
+  effectPass: EffectPass;
   syncBloom: (enabled: boolean) => void;
   renderFrame: (delta: number) => void;
   dispose: () => void;
@@ -64,9 +66,11 @@ export function createTenetComposer(
 
   const tenet = new TenetPostEffect();
   const pal = readPalette();
-  const [ar, ag, ab] = hexToRgbNormalized(pal.accent);
-  const [abr, abg, abb] = hexToRgbNormalized(pal.accentAbyss);
-  const [hr, hg, hb] = hexToRgbNormalized(pal.accentHot);
+  const [bgr, bgg, bgb] = hexToLinearRgb(pal.bg);
+  const [ar, ag, ab] = hexToLinearRgb(pal.accent);
+  const [abr, abg, abb] = hexToLinearRgb(pal.accentAbyss);
+  const [hr, hg, hb] = hexToLinearRgb(pal.accentHot);
+  (tenet.uniforms.get('uBg')?.value as Vector3).set(bgr, bgg, bgb);
   (tenet.uniforms.get('uOrchid')?.value as Vector3).set(ar, ag, ab);
   (tenet.uniforms.get('uOrchidAbyss')?.value as Vector3).set(abr, abg, abb);
   (tenet.uniforms.get('uOrchidHot')?.value as Vector3).set(hr, hg, hb);
@@ -74,10 +78,10 @@ export function createTenetComposer(
   const bloom = new BloomEffect({
     blendFunction: BlendFunction.ADD,
     mipmapBlur: true,
-    luminanceThreshold: 0.62,
-    luminanceSmoothing: 0.2,
-    intensity: 0.65,
-    radius: 0.78,
+    luminanceThreshold: 0.72,
+    luminanceSmoothing: 0.22,
+    intensity: 0.58,
+    radius: 0.68,
     levels: 4,
   });
 
@@ -88,13 +92,12 @@ export function createTenetComposer(
     frameBufferType: HalfFloatType,
   });
 
+  // Single merged EffectPass prevents double Linear->sRGB encoding so --bg stays exact #0B0910
   const renderPass = new RenderPass(scene, camera);
-  const bloomPass = new EffectPass(camera, bloom);
-  const postPass = new EffectPass(camera, tenet);
+  const effectPass = new EffectPass(camera, bloom, tenet);
 
   composer.addPass(renderPass);
-  composer.addPass(bloomPass);
-  composer.addPass(postPass);
+  composer.addPass(effectPass);
 
   renderer.getSize(scratchSize);
   let appliedW = scratchSize.width;
@@ -106,10 +109,10 @@ export function createTenetComposer(
     composer,
     tenet,
     bloom,
-    bloomPass,
+    effectPass,
     syncBloom(enabled: boolean) {
-      bloomPass.enabled = enabled;
-      bloom.intensity = enabled ? 0.65 : 0;
+      bloom.intensity = enabled ? 0.58 : 0;
+      bloom.blendMode.setBlendFunction(enabled ? BlendFunction.ADD : BlendFunction.SKIP);
     },
     renderFrame(delta: number) {
       renderer.getSize(scratchSize);

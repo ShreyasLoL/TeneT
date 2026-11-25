@@ -3,7 +3,7 @@ export const diskVertexShader = /* glsl */ `
   out vec3 vWorldPos;
 
   void main() {
-    vLocalPos = uv * 2.0 - 1.0;
+    vLocalPos = position.xy;
     vec4 wp = modelMatrix * vec4(position, 1.0);
     vWorldPos = wp.xyz;
     gl_Position = projectionMatrix * viewMatrix * wp;
@@ -12,12 +12,14 @@ export const diskVertexShader = /* glsl */ `
 
 export const diskFragmentShader = /* glsl */ `
   uniform float uTime;
-  uniform float uHeat;        // 0.15 ember .. 1.0 bright
+  uniform float uIntro;
+  uniform float uHeat;        // 0.35 .. 1.0
   uniform float uHold;        // 0..1 seal compression
-  uniform float uSimplified;  // 1 on L3 low tier
-  uniform vec3 uOrchidAbyss;
+  uniform float uSimplified;  // 1 on simplified tier
+  uniform vec3 uAmber;
   uniform vec3 uOrchid;
-  uniform vec3 uOrchidHot;
+  uniform vec3 uViolet;
+  uniform vec3 uColdBlue;
 
   in vec2 vLocalPos;
   in vec3 vWorldPos;
@@ -46,45 +48,70 @@ export const diskFragmentShader = /* glsl */ `
     float a = 0.5;
     for (int i = 0; i < 3; i++) {
       v += a * noise(p);
-      p *= 2.03;
+      p *= 2.05;
       a *= 0.5;
     }
     return v;
   }
 
+  vec3 blackbodyRamp(float t) {
+    vec3 whiteHot = vec3(1.0, 0.98, 1.0);
+    if (t < 0.18) return mix(whiteHot, uAmber, t / 0.18);
+    if (t < 0.45) return mix(uAmber, uOrchid, (t - 0.18) / 0.27);
+    if (t < 0.74) return mix(uOrchid, uViolet, (t - 0.45) / 0.29);
+    return mix(uViolet, uColdBlue, clamp((t - 0.74) / 0.26, 0.0, 1.0));
+  }
+
   void main() {
+    float diskIgnition = smoothstep(0.24, 0.88, uIntro);
+    if (diskIgnition <= 0.002) discard;
+
     float r = length(vLocalPos);
-    float rMin = 0.34;
-    float rMax = 0.98;
+    float rMin = 0.91;
+    float rMax = 3.55;
     if (r < rMin || r > rMax) discard;
 
     float rn = (r - rMin) / (rMax - rMin);
     float theta = atan(vLocalPos.y, vLocalPos.x);
 
-    // Temperature falloff T ~ r^(-0.75)
-    float temp = pow(max(0.28, r / rMin), -0.75);
+    // Keplerian angular velocity: inner disk orbits substantially faster (omega ~ r^-1.5)
+    float rRatio = max(0.3, r / rMin);
+    float omega = (inversesqrt(rRatio) / rRatio) * 1.35;
+    float swirl = theta + uTime * omega;
 
-    // Differential Keplerian plasma shear
-    float shear = 1.0;
+    float shear = 0.85;
     if (uSimplified < 0.5) {
-      float omega = pow(max(0.32, r), -1.5) * 0.55;
-      float swirl = theta + uTime * omega;
-      shear = 0.55 + 0.75 * fbm(vec2(cos(swirl) * 3.0 + rn * 5.0, sin(swirl) * 3.0 - uTime * 0.3));
+      float spiral = fbm(vec2(cos(swirl) * 2.6 + rn * 6.5, sin(swirl) * 2.6 - uTime * 0.25));
+      float lanes = 0.82 + 0.18 * sin(rn * 42.0 + spiral * 3.2);
+      shear = (0.48 + 0.82 * spiral) * lanes;
+    } else {
+      shear = 0.72 + 0.28 * sin(swirl * 3.0 + rn * 18.0);
     }
 
-    // Relativistic Doppler beaming: approaching side brighter than receding (~6-8:1)
-    vec3 vdir = normalize(vec3(-vLocalPos.y, 0.0, vLocalPos.x));
+    // Relativistic Doppler beaming: prograde tangent velocity vs view ray
+    // Plane is rotated -PI/2 around X, so local (x, y) maps to world (x, 0, -y);
+    // Left side (x < 0) approaches camera (+Z), right side (x > 0) recedes (-Z)
+    vec3 progradeVel = normalize(vec3(-vLocalPos.y, 0.0, -vLocalPos.x) + vec3(0.0001));
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
-    float beta = 0.42 * pow(max(0.35, r / rMin), -0.5);
-    float doppler = 1.0 / max(0.35, 1.0 - beta * dot(vdir, viewDir));
-    float beaming = pow(doppler, 2.5);
+    float cosAngle = dot(progradeVel, viewDir);
+    float beta = 0.44 * inversesqrt(rRatio);
+    float dopplerFactor = 1.0 / max(0.38, 1.0 - beta * cosAngle);
+    float beaming = clamp(pow(dopplerFactor, 2.35), 0.32, 2.65);
 
-    float edgeFade = smoothstep(0.0, 0.08, rn) * (1.0 - smoothstep(0.62, 1.0, rn));
-    float intensity = temp * shear * beaming * edgeFade * (0.28 + 0.88 * uHeat + 0.45 * uHold);
+    // Temperature falloff + Doppler spectral shift (approaching side hotter & bluer)
+    float tempFalloff = pow(1.0 - rn, 1.35) * 0.85 + 0.15;
+    float rTemp = clamp(rn - cosAngle * 0.15, 0.0, 1.0);
+    vec3 col = blackbodyRamp(rTemp);
+    col = mix(col, vec3(0.76, 0.90, 1.06), max(0.0, cosAngle) * 0.32);
 
-    vec3 col = mix(uOrchidAbyss, uOrchid, clamp(intensity * 0.85, 0.0, 1.0));
-    col = mix(col, uOrchidHot, smoothstep(0.75, 1.65, intensity));
+    float innerRim = smoothstep(0.0, 0.055, rn);
+    float outerRim = 1.0 - smoothstep(0.52, 1.0, rn);
+    float edgeFade = innerRim * outerRim;
 
-    fragColor = vec4(col * intensity, clamp(intensity * 0.72, 0.0, 0.95));
+    float intensity = tempFalloff * shear * beaming * edgeFade * (0.42 + 0.58 * uHeat + 0.42 * uHold) * diskIgnition;
+    float alpha = clamp(intensity * 0.78, 0.0, 0.96);
+    if (alpha < 0.004) discard;
+
+    fragColor = vec4(col * intensity, alpha);
   }
 `;
