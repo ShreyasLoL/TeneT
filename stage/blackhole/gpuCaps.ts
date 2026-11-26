@@ -13,10 +13,11 @@ export type GpuCaps = {
 
 const SOFTWARE_RE = /swiftshader|llvmpipe|softpipe|microsoft basic render/i;
 
-let cachedCaps: GpuCaps | null = null;
+const capsCache = new WeakMap<WebGL2RenderingContext, GpuCaps>();
 
 export function detectGpuCaps(gl: WebGL2RenderingContext): GpuCaps {
-  if (cachedCaps) return cachedCaps;
+  const hit = capsCache.get(gl);
+  if (hit) return hit;
 
   const colorBufferFloat = Boolean(gl.getExtension('EXT_color_buffer_float'));
   const colorBufferHalfFloat = Boolean(gl.getExtension('EXT_color_buffer_half_float'));
@@ -37,7 +38,7 @@ export function detectGpuCaps(gl: WebGL2RenderingContext): GpuCaps {
     rendererName = 'unknown';
   }
 
-  cachedCaps = {
+  const caps: GpuCaps = {
     colorBufferFloat,
     colorBufferHalfFloat,
     textureHalfFloatLinear,
@@ -49,5 +50,6 @@ export function detectGpuCaps(gl: WebGL2RenderingContext): GpuCaps {
     rendererName,
     isSoftwareRenderer: SOFTWARE_RE.test(rendererName),
   };
-  return cachedCaps;
+  capsCache.set(gl, caps);
+  return caps;
 }
