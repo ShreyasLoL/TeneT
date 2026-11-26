@@ -240,7 +240,7 @@ export const blackHoleFragmentShader = /* glsl */ `
     mediump vec3 coreCol = mix(vec3(1.00, 0.95, 0.90), vec3(0.84, 0.92, 1.00), max(0.0, dopplerScreen) * 0.32);
     mediump vec3 lensRimCol = mix(uAccentDim * 0.65, vec3(0.72, 0.84, 1.00), 0.35);
     mediump vec3 photonRing =
-      (coreCol * (ringCore * 1.60 * breathe + glint) +
+      (coreCol * (ringCore * 1.88 * breathe + glint) +
         fringeCol * (ringFringe * 0.55) +
         lensRimCol * (einsteinFocus * 0.055)) *
       fgBeltMask;
