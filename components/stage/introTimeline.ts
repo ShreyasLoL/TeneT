@@ -56,10 +56,11 @@ export function buildIntroTimeline(
   rig.introShadow = 0;
   rig.introLens = 0;
   rig.introDisk = 0;
+  rig.introDiskSweep = 0;
   rig.introRing = 0;
   rig.introTremor = 0;
   rig.introProgress = 0;
-  rig.introSpin = -8.5;
+  rig.introSpin = -6.5;
   rig.introTick = 1;
 
   rig.cameraOverride.active = true;
@@ -147,36 +148,39 @@ export function buildIntroTimeline(
   tl.to(rig, { introTick: 0, duration: 0.90 * s, ease: expoBezierEase }, 0.95 * s);
 
   setStatusCue('SINGULARITY // DORMANT', 1.05 * s);
-  tl.to(rig, { introSky: 1.45, duration: 1.25 * s, ease: expoBezierEase }, 1.00 * s);
+  tl.to(rig, { introSky: 2.8, duration: 1.30 * s, ease: expoBezierEase }, 1.00 * s);
   tl.to(rig, { introShadow: 1.0, duration: 0.85 * s, ease: expoBezierEase }, 1.00 * s);
-  tl.to(rig, { introLens: 0.08, duration: 1.10 * s, ease: expoBezierEase }, 1.05 * s);
-  tl.to(rig, { introProgress: 0.18, duration: 1.20 * s, ease: expoBezierEase }, 1.05 * s);
+  tl.to(rig, { introLens: 0.06, duration: 1.10 * s, ease: expoBezierEase }, 1.05 * s);
+  tl.to(rig, { introProgress: 0.24, duration: 1.25 * s, ease: expoBezierEase }, 1.05 * s);
   tl.to(rig.bhCam, { distance: 28.5, duration: 1.45 * s, ease: 'power2.inOut' }, 1.00 * s);
   tl.to(rig.cameraOverride, { pz: 6.8, duration: 1.45 * s, ease: 'power2.inOut' }, 1.00 * s);
 
-  // Act III (2.55-3.40s): Starter crank tremor + first ember/photon sputter
+  // Act III (2.55-3.40s): Starter crank tremor + fiery ember stream wraps around ISCO
   setStatusCue('GRAVITY // ENGAGING', 2.55 * s);
   tl.to(rig, { introTremor: 0.52, duration: 0.18 * s, ease: 'power2.out' }, 2.55 * s);
   tl.to(rig, { introTremor: 0.16, duration: 0.48 * s, ease: 'power2.out' }, 2.73 * s);
-  tl.to(rig, { introDisk: 0.14, duration: 0.22 * s, ease: 'power2.out' }, 2.58 * s);
-  tl.to(rig, { introDisk: 0.06, duration: 0.42 * s, ease: 'power2.inOut' }, 2.80 * s);
-  tl.to(rig, { introRing: 0.34, duration: 0.20 * s, ease: 'power2.out' }, 2.60 * s);
-  tl.to(rig, { introRing: 0.12, duration: 0.44 * s, ease: 'power2.inOut' }, 2.80 * s);
+  tl.to(rig, { introDiskSweep: 0.42, duration: 0.38 * s, ease: 'power2.out' }, 2.56 * s);
+  tl.to(rig, { introDiskSweep: 0.34, duration: 0.32 * s, ease: 'power2.inOut' }, 2.94 * s);
+  tl.to(rig, { introDisk: 0.24, duration: 0.26 * s, ease: 'power2.out' }, 2.58 * s);
+  tl.to(rig, { introDisk: 0.10, duration: 0.38 * s, ease: 'power2.inOut' }, 2.84 * s);
+  tl.to(rig, { introRing: 0.36, duration: 0.22 * s, ease: 'power2.out' }, 2.60 * s);
+  tl.to(rig, { introRing: 0.14, duration: 0.40 * s, ease: 'power2.inOut' }, 2.82 * s);
   tl.to(rig, { introLens: 0.38, duration: 0.65 * s, ease: expoBezierEase }, 2.58 * s);
-  tl.to(rig, { introSpin: -7.6, duration: 0.65 * s, ease: 'power1.inOut' }, 2.58 * s);
+  tl.to(rig, { introSpin: -5.8, duration: 0.65 * s, ease: 'power1.inOut' }, 2.58 * s);
 
-  // Act IV (3.35-5.45s): Full ignition roar, HDR surge, auto-exposure sky dim, stardust whip, recoil pull-back
+  // Act IV (3.35-5.45s): Full 360 wrap + radial ignition roar, sky iris stop-down, dust flatten & whip
   setStatusCue('ACCRETION // IGNITION', 3.35 * s);
   tl.to(rig, { introTremor: 1.0, duration: 0.16 * s, ease: 'power3.out' }, 3.35 * s);
   tl.to(rig, { introTremor: 0, duration: 0.95 * s, ease: 'power2.out' }, 3.51 * s);
+  tl.to(rig, { introDiskSweep: 1.0, duration: 1.35 * s, ease: expoBezierEase }, 3.35 * s);
   tl.to(rig, { introDisk: 1.32, duration: 0.58 * s, ease: 'power3.out' }, 3.35 * s);
   tl.to(rig, { introDisk: 1.0, duration: 1.15 * s, ease: expoBezierEase }, 3.93 * s);
   tl.to(rig, { introRing: 1.38, duration: 0.52 * s, ease: 'power3.out' }, 3.38 * s);
   tl.to(rig, { introRing: 1.0, duration: 1.10 * s, ease: expoBezierEase }, 3.90 * s);
   tl.to(rig, { introLens: 1.0, duration: 1.25 * s, ease: expoBezierEase }, 3.35 * s);
-  tl.to(rig, { introSky: 0.74, duration: 0.65 * s, ease: 'power2.out' }, 3.38 * s);
+  tl.to(rig, { introSky: 0.72, duration: 0.72 * s, ease: 'power2.out' }, 3.38 * s);
   tl.to(rig, { introSky: 1.0, duration: 1.45 * s, ease: expoBezierEase }, 4.25 * s);
-  tl.to(rig, { introProgress: 0.94, duration: 1.55 * s, ease: expoBezierEase }, 3.35 * s);
+  tl.to(rig, { introProgress: 0.94, duration: 1.60 * s, ease: expoBezierEase }, 3.35 * s);
   tl.to(rig, { introSpin: 0, duration: 2.10 * s, ease: expoBezierEase }, 3.35 * s);
   tl.to(
     rig.bhCam,
