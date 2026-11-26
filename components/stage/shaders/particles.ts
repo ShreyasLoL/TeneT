@@ -64,7 +64,8 @@ export const particlesVertexShader = /* glsl */ `
       isShell
     );
     float ecc = mix(min(0.32, baseEcc + 0.08), baseEcc * 0.5, coherence) * (0.65 + 0.65 * aSeed.y);
-    float incl = mix(baseIncl, baseIncl * 0.22, coherence) * (aSeed.w * 2.0 - 1.0);
+    float cloudPuff = 1.0 - smoothstep(0.08, 0.92, uIntro);
+    float incl = mix(baseIncl, baseIncl * 0.22, coherence) * (aSeed.w * 2.0 - 1.0) + cloudPuff * (aSeed.w * 2.0 - 1.0) * 1.15;
 
     float shellRadius = mix(0.72, 1.65, aSeed.y);
     float aTarget = mix(aSeed.x, shellRadius, isShell);
@@ -73,13 +74,13 @@ export const particlesVertexShader = /* glsl */ `
     float quantizedRing = floor(a * 2.4 + 0.5) / 2.4;
     a = mix(a, quantizedRing * 0.85, retroWarp * 0.72);
     a *= mix(1.42, 1.0, max(retroWarp, progWarp)) * (1.0 + progWarp * (0.65 + aSeed.y * 0.95));
+    a *= 1.0 + cloudPuff * (0.55 + aSeed.y * 0.45);
 
     float aRatio = max(0.22, a / A0);
     float omegaFactor = (inversesqrt(aRatio) / aRatio) * mix(1.25, 0.38, isShell);
 
     float stagger = clamp((a - R_IN) / 5.5, 0.0, 1.0) * 0.18;
-    float introLocal = smoothstep(stagger, min(1.0, 0.88 + stagger * 0.65), uIntro);
-    float infallWindup = (1.0 - introLocal) * (4.4 + aSeed.z * 2.4) - uSpin * omegaFactor * 0.55;
+    float infallWindup = -uSpin * omegaFactor * 0.55;
 
     float journeySpin = progWarp * 3.8 * omegaFactor - retroWarp * 1.6 * omegaFactor;
     float M = aSeed.z * TAU + omegaFactor * phiC + journeySpin - infallWindup;
@@ -109,20 +110,8 @@ export const particlesVertexShader = /* glsl */ `
     vec3 diskPos = tilted + sampleCurl3(tilted * 0.52, phiC * 0.05 + uTime * 0.22, 0.45, 0.28) * (1.0 - coherence * 0.72) * (1.0 - isShell * 0.4);
     diskPos.z += progWarp * (aSeed.z - 0.35) * 4.2;
 
-    // Branchless blend between 60-tick spoke origin and Keplerian disk
-    float tickAngle = (floor(aSeed.z * 60.0) / 60.0) * TAU;
-    float tickR = mix(2.8, 4.6, aSeed.y);
-    vec3 tickSpoke = vec3(cos(tickAngle) * tickR, (aSeed.w - 0.5) * 0.2, sin(tickAngle) * tickR);
-    float spinAngle = (1.0 - introLocal) * (2.2 + aSeed.y * 1.4);
-    float cs = cos(spinAngle);
-    float ss = sin(spinAngle);
-    vec3 spunSpawn = vec3(
-      position.x * cs - position.z * ss,
-      position.y * mix(1.0, 0.18, introLocal),
-      position.x * ss + position.z * cs
-    );
-    vec3 originPos = mix(spunSpawn, tickSpoke, clamp(uTick, 0.0, 1.0));
-    vec3 finalPos = mix(originPos, diskPos, introLocal);
+    // Loose 3D cloud settles directly along tilted Keplerian orbits (no spoke snap)
+    vec3 finalPos = diskPos;
 
     vec3 localTang = vec3(-sinE, 0.0, bScale * cosE);
     vec3 worldTang = normalize(vec3(
@@ -151,7 +140,7 @@ export const particlesVertexShader = /* glsl */ `
     gl_PointSize = clamp(basePt * bodyBoost * depthScale * uDpr, 0.75 * uDpr, 5.2 * uDpr);
     gl_Position = projectionMatrix * mvPosition;
 
-    float introGlow = smoothstep(0.02, 0.58, uIntro);
+    float introGlow = smoothstep(stagger * 1.8, 0.72 + stagger * 0.4, uIntro);
     float radialFade = mix(pow(1.0 - clamp((a - R_IN * 1.42) / (R_SPAN * 1.42), 0.0, 1.0), 1.35), 0.22, isShell);
     radialFade = mix(radialFade, 0.78, max(retroWarp, progWarp) * 0.65);
 

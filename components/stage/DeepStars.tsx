@@ -174,7 +174,10 @@ export function DeepStars() {
     u.uRoll.value = cam.roll;
     u.uLensStrength.value = rig.introLens;
     u.uShadowReveal.value = rig.introShadow;
-    const skyScale = MathUtils.clamp(rig.introSky, 0, 1.45);
+    const skyScale =
+      rig.introSky > 1.0
+        ? Math.min(2.2, 1.0 + (rig.introSky - 1.0) * 0.65)
+        : MathUtils.clamp(rig.introSky, 0, 1);
     u.uBrightness.value = MathUtils.damp(
       u.uBrightness.value as number,
       (mode === 'fork' ? 1.0 : mode === 'ritual' ? 0.45 : 0.72) * skyScale,
