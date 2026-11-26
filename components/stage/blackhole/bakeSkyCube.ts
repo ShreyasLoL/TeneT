@@ -13,7 +13,8 @@ import {
   WebGLCubeRenderTarget,
   type WebGLRenderer,
 } from 'three';
-import { blackHoleSkyGlsl } from '../shaders/blackholeSky.glsl';
+import { blackHoleLandmarksGlsl } from '../shaders/blackholeLandmarks.glsl';
+import { blackHoleSkyGlsl, blackHoleSkyNoiseGlsl } from '../shaders/blackholeSky.glsl';
 
 const skyBakeVertexShader = /* glsl */ `
   out vec3 vWorldDir;
@@ -35,6 +36,8 @@ const skyBakeFragmentShader = /* glsl */ `
 
   out vec4 fragColor;
 
+  ${blackHoleSkyNoiseGlsl}
+  ${blackHoleLandmarksGlsl}
   ${blackHoleSkyGlsl}
 
   void main() {
