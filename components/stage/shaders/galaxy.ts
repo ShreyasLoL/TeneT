@@ -69,14 +69,16 @@ export const galaxyVertexShader = /* glsl */ `
     vec4 mvPos = modelViewMatrix * vec4(finalPos, 1.0);
     float depthScale = clamp(10.8 / max(1.6, -mvPos.z), 0.35, 3.2);
 
-    // Keep background/foreground bulge & field stars out of the black hole shadow + immediate inner core
-    float bhClear = smoothstep(1.08, 2.10, length(mvPos.xy));
+    // Keep background/foreground bulge & field stars out of the black hole shadow AND bottom-right M87* void
+    vec2 ndc = (projectionMatrix * mvPos).xy / max((projectionMatrix * mvPos).w, 1e-4);
+    float m87Void = smoothstep(0.28, 0.56, length((ndc - vec2(0.62, -0.58)) * vec2(1.6, 1.0)));
+    float bhClear = smoothstep(1.08, 2.10, length(mvPos.xy)) * m87Void;
 
     float isKnot = step(2.5, kind) * step(kind, 3.5);
     float isHeroStar = step(3.5, kind) * step(0.92, lum);
-    float ptBase = 1.55 + lum * 2.0 + isKnot * 1.15 + isHeroStar * 4.2;
+    float ptBase = 1.20 + pow(lum, 1.35) * 1.95 + isKnot * 0.95 + isHeroStar * 3.8;
 
-    gl_PointSize = clamp(ptBase * depthScale * uDpr, 0.95 * uDpr, 11.0 * uDpr);
+    gl_PointSize = clamp(ptBase * depthScale * uDpr, 0.85 * uDpr, 9.5 * uDpr);
     gl_Position = projectionMatrix * mvPos;
 
     float outerFade = 1.0 - smoothstep(0.74, 1.0, rNorm);
@@ -113,12 +115,12 @@ export const galaxyFragmentShader = /* glsl */ `
     float d2 = dot(c, c);
     float radialWindow = smoothstep(0.25, 0.015, d2);
 
-    // Soft Gaussian falloff + subtle 4-point diffraction spikes on the brightest stars
-    float gauss = exp(-d2 * 22.0) * radialWindow;
+    // Crisp Gaussian PSF + 4-point diffraction needles on bright hero stars
+    float gauss = exp(-d2 * 34.0) * radialWindow;
     float spikeGate = smoothstep(0.84, 0.98, vLum) * radialWindow;
     float spikes =
-      (exp(-abs(c.y) * 36.0) * exp(-abs(c.x) * 6.0) +
-        exp(-abs(c.x) * 36.0) * exp(-abs(c.y) * 6.0)) *
+      (exp(-abs(c.y) * 40.0) * exp(-abs(c.x) * 6.5) +
+        exp(-abs(c.x) * 40.0) * exp(-abs(c.y) * 6.5)) *
       0.42 *
       spikeGate;
     float profile = gauss + spikes;

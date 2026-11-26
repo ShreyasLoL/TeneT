@@ -13,6 +13,7 @@ import {
 } from './blackhole/constants';
 import { BlackHolePass } from './BlackHolePass';
 import { CameraRig } from './CameraRig';
+import { DeepStars } from './DeepStars';
 import { Galaxy } from './Galaxy';
 import { Particles } from './Particles';
 import { Postfx } from './Postfx';
@@ -120,6 +121,7 @@ export function Scene() {
     <>
       <CameraRig />
       <BlackHolePass />
+      <DeepStars />
       <group rotation={[0, 0, CAMERA_ROLL_RAD]}>
         <group rotation={[0.58, 0, 0]}>
           <Galaxy />

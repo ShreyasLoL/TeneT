@@ -33,13 +33,6 @@ export const blackHoleSkyGlsl = /* glsl */ `
     return sum;
   }
 
-  mediump vec3 blackbodyStarColor(mediump float t) {
-    mediump vec3 cool = vec3(1.00, 0.64, 0.40);
-    mediump vec3 mid = vec3(1.00, 0.96, 0.92);
-    mediump vec3 hot = vec3(0.66, 0.82, 1.00);
-    return t < 0.5 ? mix(cool, mid, t * 2.0) : mix(mid, hot, (t - 0.5) * 2.0);
-  }
-
   void projectCubeFace(vec3 dir, out float faceId, out vec2 uv) {
     vec3 a = abs(dir);
     if (a.x >= a.y && a.x >= a.z) {
@@ -54,31 +47,56 @@ export const blackHoleSkyGlsl = /* glsl */ `
     }
   }
 
-  mediump vec3 sampleDeepNebula(vec3 dir, mediump vec3 accentDim, mediump vec3 accentAbyss, mediump vec3 amber) {
+  // Distant emission nebulae mixing [O III] emerald/teal, rose-pink H-alpha, and warm umber over deep negative space
+  mediump vec3 sampleDeepNebula(
+    vec3 dir,
+    mediump vec3 accentDim,
+    mediump vec3 accentAbyss,
+    mediump vec3 amber,
+    float m87VoidMask
+  ) {
     vec2 sp = vec2(atan(dir.x, -dir.z), asin(clamp(dir.y, -1.0, 1.0)));
-    float n1 = fbm2(sp * 2.6 + vec2(1.4, -0.7));
-    float n2 = fbm2(sp * 5.2 + vec2(n1 * 1.4, -2.2));
-    float band = exp(-abs(sp.y + 0.18 * sin(sp.x * 1.8)) * 4.2);
-    float wisp = smoothstep(0.50, 0.88, n1 * 0.65 + n2 * 0.35) * (0.25 + 0.75 * band);
+    float n1 = fbm2(sp * 3.1 + vec2(1.4, -0.7));
+    float n2 = fbm2(sp * 6.4 + vec2(n1 * 1.6, -2.2));
+    float darkPocket = smoothstep(0.32, 0.74, fbm2(sp * 1.9 + vec2(-2.1, 0.8)));
 
-    mediump vec3 umberVeil = amber * vec3(0.14, 0.07, 0.04);
-    mediump vec3 roseViolet = mix(accentAbyss * 0.95, accentDim * 0.45, smoothstep(0.45, 0.85, n2));
-    return mix(umberVeil, roseViolet, smoothstep(0.32, 0.72, n1)) * wisp * 0.075;
+    // Distant [O III] emerald-teal emission complex in upper-left & subtle upper-center-right cloud
+    vec3 anchorG1 = normalize(vec3(-0.344, -0.044, -0.938));
+    vec3 anchorG2 = normalize(vec3(0.020, 0.141, -0.990));
+    float dG1 = acos(clamp(dot(dir, anchorG1), -1.0, 1.0));
+    float dG2 = acos(clamp(dot(dir, anchorG2), -1.0, 1.0));
+    float gPatch1 = exp(-dG1 * dG1 / (2.0 * 0.115 * 0.115));
+    float gPatch2 = exp(-dG2 * dG2 / (2.0 * 0.088 * 0.088)) * 0.72;
+    float greenCloud = (gPatch1 + gPatch2) * smoothstep(0.34, 0.86, n1 * 0.6 + n2 * 0.4);
+
+    mediump vec3 oiiiEmerald = mix(vec3(0.035, 0.42, 0.25), vec3(0.06, 0.30, 0.38), smoothstep(0.35, 0.78, n2));
+    mediump vec3 umberRose = mix(amber * vec3(0.18, 0.085, 0.045), mix(accentAbyss * 1.15, accentDim * 0.56, n2), 0.58);
+    float ambientWisp = smoothstep(0.55, 0.90, n1 * 0.65 + n2 * 0.35) * darkPocket * 0.048;
+
+    mediump vec3 col = oiiiEmerald * greenCloud * 0.21 + umberRose * (ambientWisp + (gPatch1 + gPatch2) * n2 * 0.075);
+    return col * m87VoidMask;
   }
 
-  // Far-distance quiet galaxy barely peeking out of the dark upper-right cosmos
-  mediump vec3 sampleDistantGalaxy(vec3 dir, mediump vec3 accent, mediump vec3 accentAbyss, mediump vec3 amber) {
-    vec3 anchor = normalize(vec3(0.28, 0.16, -0.946));
+  mediump vec3 evalDistantGalaxy(
+    vec3 dir,
+    vec3 anchor,
+    float scaleRad,
+    float tiltAngle,
+    float flatness,
+    float gain,
+    mediump vec3 coreCol,
+    mediump vec3 haloCol
+  ) {
     float cosSep = dot(dir, anchor);
-    if (cosSep < 0.992) return vec3(0.0);
+    if (cosSep < 0.990) return vec3(0.0);
 
     vec3 gx = normalize(cross(vec3(0.0, 1.0, 0.0), anchor));
     vec3 gy = cross(anchor, gx);
-    vec2 p = vec2(dot(dir, gx), dot(dir, gy)) / 0.036;
+    vec2 p = vec2(dot(dir, gx), dot(dir, gy)) / scaleRad;
 
-    float ca = 0.848;
-    float sa = 0.530;
-    vec2 q = vec2(p.x * ca - p.y * sa, (p.x * sa + p.y * ca) * 3.6);
+    float ca = cos(tiltAngle);
+    float sa = sin(tiltAngle);
+    vec2 q = vec2(p.x * ca - p.y * sa, (p.x * sa + p.y * ca) * flatness);
 
     float r = length(q);
     float theta = atan(q.y, q.x);
@@ -88,32 +106,58 @@ export const blackHoleSkyGlsl = /* glsl */ `
     float dustSplit = 1.0 - 0.52 * exp(-pow(q.y * 5.0, 2.0)) * smoothstep(0.12, 0.45, r);
     float mask = smoothstep(1.35, 0.15, r);
 
-    mediump vec3 coreCol = mix(amber, vec3(1.00, 0.92, 0.84), 0.72);
-    mediump vec3 haloCol = mix(vec3(0.46, 0.62, 0.92), mix(accentAbyss, accent * 0.55, 0.42), 0.58);
-    return (coreCol * core * 0.24 + haloCol * disk * dustSplit * 0.11) * mask;
+    return (coreCol * core + haloCol * disk * dustSplit * 0.46) * mask * gain;
   }
 
-  mediump vec3 starLayer(vec2 cubeUv, float faceId, float scale, float densityCut, float minCellPsf, float layerGain) {
-    vec2 grid = cubeUv * scale + vec2(faceId * 37.0, faceId * 19.0);
+  // Messier 87*-style distant supermassive black hole & pale-blue relativistic jet inside the big bottom-right void
+  mediump vec3 sampleDistantM87(vec3 dir, vec3 anchorM87, mediump vec3 amber) {
+    float cosSep = dot(dir, anchorM87);
+    if (cosSep < 0.994) return vec3(0.0);
+
+    vec3 gx = normalize(cross(vec3(0.0, 1.0, 0.0), anchorM87));
+    vec3 gy = cross(anchorM87, gx);
+    vec2 p = vec2(dot(dir, gx), dot(dir, gy));
+    float r = length(p);
+    float theta = atan(p.y, p.x);
+
+    // Authentic soft EHT blurry amber-crimson crescent (with subtle asymmetry knots, never a sharp flat ring)
+    float shadowCut = smoothstep(0.0026, 0.0052, r);
+    float ringMain = exp(-pow((r - 0.0072) / 0.0034, 2.0)) * shadowCut;
+    float outerHaze = exp(-max(0.0, r - 0.0068) * 115.0) * 0.28 * shadowCut;
+    float asym = 0.22 + 0.78 * pow(clamp(0.5 + 0.5 * cos(theta + 2.25), 0.0, 1.0), 1.4);
+    float knots = 0.82 + 0.18 * cos(theta * 3.0 - 1.1) + 0.12 * sin(theta * 5.0 + 0.4);
+
+    mediump vec3 ehtDarkRed = vec3(0.58, 0.12, 0.02);
+    mediump vec3 ehtBright = mix(vec3(0.95, 0.38, 0.06), amber, 0.55);
+    mediump vec3 ehtCol = mix(ehtDarkRed, ehtBright, clamp(asym * knots, 0.0, 1.0));
+    mediump vec3 m87Ring = ehtCol * (ringMain * asym * knots * 0.62 + outerHaze * asym * 0.55);
+
+    // Delicate, diffuse synchrotron plasma jet tapering smoothly into the dark void
+    vec2 jAxis = normalize(vec2(-0.82, 0.57));
+    vec2 jPerpAxis = vec2(-jAxis.y, jAxis.x);
+    float along = dot(p, jAxis);
+    float perp = abs(dot(p, jPerpAxis));
+    float jetKnots = 0.72 + 0.28 * sin(along * 260.0);
+    float jet =
+      smoothstep(0.006, 0.015, along) *
+      exp(-max(0.0, along - 0.010) * 58.0) *
+      exp(-pow(perp / (0.0009 + 0.036 * max(along, 0.0)), 2.0));
+    mediump vec3 jetCol = vec3(0.54, 0.74, 0.98) * (jet * jetKnots * 0.15);
+
+    return m87Ring + jetCol;
+  }
+
+  // Ultra-faint unresolved background star dust only; crisp stars render at native res in DeepStars
+  mediump vec3 unresolvedDustLayer(vec2 cubeUv, float faceId, float m87VoidMask) {
+    vec2 grid = cubeUv * 410.0 + vec2(faceId * 37.0, faceId * 19.0);
     vec2 cell = floor(grid);
     vec2 local = fract(grid);
-
-    float invTwoSigma2 = 0.5 / (minCellPsf * minCellPsf);
-    mediump vec3 sum = vec3(0.0);
-    for (int j = -1; j <= 1; j++) {
-      for (int i = -1; i <= 1; i++) {
-        vec2 nCell = cell + vec2(float(i), float(j));
-        vec3 rnd = hash32(nCell + vec2(scale * 0.13, faceId * 7.1));
-        if (rnd.x > densityCut) {
-          vec2 starPos = vec2(float(i), float(j)) + vec2(0.24 + 0.52 * rnd.y, 0.24 + 0.52 * rnd.z);
-          vec2 diff = local - starPos;
-          float g = exp(-dot(diff, diff) * invTwoSigma2);
-          float magSeed = hash12(nCell.yx + vec2(faceId * 11.3, scale * 0.07));
-          sum += blackbodyStarColor(rnd.y) * (g * pow(magSeed, 9.2) * layerGain);
-        }
-      }
-    }
-    return sum;
+    vec3 rnd = hash32(cell + vec2(51.3, faceId * 7.1));
+    if (rnd.x < 0.925) return vec3(0.0);
+    vec2 d = local - vec2(0.25 + 0.5 * rnd.y, 0.25 + 0.5 * rnd.z);
+    float g = exp(-dot(d, d) / (2.0 * 0.16 * 0.16));
+    float mag = pow(hash12(cell.yx + vec2(faceId * 11.3, 9.7)), 10.0);
+    return vec3(0.75, 0.80, 0.92) * (g * mag * 0.32 * m87VoidMask);
   }
 
   mediump vec3 sampleDeepSpaceStatic(
@@ -125,15 +169,29 @@ export const blackHoleSkyGlsl = /* glsl */ `
     mediump vec3 accentAbyss,
     mediump vec3 amber
   ) {
+    vec3 anchorM87 = normalize(vec3(0.328, -0.128, -0.936));
+    float dM87 = acos(clamp(dot(dir, anchorM87), -1.0, 1.0));
+    float m87VoidMask = smoothstep(0.145, 0.265, dM87);
+
     float faceId;
     vec2 cubeUv;
     projectCubeFace(dir, faceId, cubeUv);
-    mediump vec3 stars = vec3(0.0);
-    stars += starLayer(cubeUv, faceId, 175.0, 0.915, clamp(basePsfRad * 175.0 * 1.35, 0.085, 0.16), 1.45);
-    stars += starLayer(cubeUv, faceId, 340.0, 0.905, clamp(basePsfRad * 340.0 * 1.25, 0.125, 0.22), 0.65);
+    mediump vec3 dust = unresolvedDustLayer(cubeUv, faceId, m87VoidMask) * step(0.0, basePsfRad);
 
-    mediump vec3 nebula = sampleDeepNebula(dir, accentDim, accentAbyss, amber);
-    mediump vec3 distantGal = sampleDistantGalaxy(dir, accent, accentAbyss, amber);
-    return bgCol + nebula + distantGal + stars;
+    mediump vec3 nebula = sampleDeepNebula(dir, accentDim, accentAbyss, amber, m87VoidMask);
+
+    mediump vec3 gGold = mix(amber, vec3(1.00, 0.92, 0.84), 0.72);
+    mediump vec3 gBlueViolet = mix(vec3(0.46, 0.62, 0.92), mix(accentAbyss, accent * 0.55, 0.42), 0.58);
+    mediump vec3 gTeal = vec3(0.55, 0.80, 0.96);
+    mediump vec3 gRose = mix(accent * 0.65, vec3(0.95, 0.56, 0.74), 0.5);
+
+    mediump vec3 galaxies = vec3(0.0);
+    galaxies += evalDistantGalaxy(dir, normalize(vec3(0.262, 0.162, -0.951)), 0.036, 0.56, 3.6, 0.24, gGold, gBlueViolet);
+    galaxies += evalDistantGalaxy(dir, normalize(vec3(-0.382, -0.017, -0.924)), 0.025, -0.84, 4.6, 0.18, gGold, gTeal);
+    galaxies += evalDistantGalaxy(dir, normalize(vec3(-0.234, -0.356, -0.905)), 0.025, 0.31, 3.0, 0.19, gGold, gRose);
+    galaxies += evalDistantGalaxy(dir, normalize(vec3(-0.210, 0.073, -0.975)), 0.018, -0.28, 2.2, 0.14, vec3(0.96, 0.88, 0.76), gBlueViolet);
+
+    mediump vec3 m87 = sampleDistantM87(dir, anchorM87, amber);
+    return bgCol + nebula + galaxies * m87VoidMask + m87 + dust;
   }
 `;
