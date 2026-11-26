@@ -25,8 +25,8 @@ export const INTEGRATOR_STEPS_MID = 48;
 export const INTEGRATOR_STEPS_FULL = 64;
 export const INTEGRATOR_STEPS_HIGH = 96;
 
-export const ANALYTIC_B_START = 20.0;
-export const ANALYTIC_B_END = 26.0;
+export const ANALYTIC_B_START = 16.5;
+export const ANALYTIC_B_END = 19.5;
 
 export type GravitySample = {
   omega: number;
@@ -97,7 +97,7 @@ export function traceGeodesicCpu(
 
     const nearPhoton = Math.max(0, Math.min(1, (u - 0.18) / (0.64 - 0.18)));
     const smoothNear = nearPhoton * nearPhoton * (3 - 2 * nearPhoton);
-    const h = (0.24 + (0.088 - 0.24) * smoothNear) * stepScale;
+    const h = (0.28 + (0.088 - 0.28) * smoothNear) * stepScale;
 
     const k1u = du;
     const k1du = duDeriv(u);

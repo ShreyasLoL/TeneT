@@ -1,5 +1,4 @@
 import { blackHoleDiskGlsl } from './blackholeDisk.glsl';
-import { blackHoleSkyGlsl } from './blackholeSky.glsl';
 
 export const blackHoleVertexShader = /* glsl */ `
   out vec2 vUv;
@@ -26,6 +25,7 @@ export const blackHoleFragmentShader = /* glsl */ `
   uniform float uAnalyticBStart;
   uniform float uAnalyticBEnd;
   uniform int uMaxSteps;
+  uniform samplerCube uSkyCube;
 
   uniform float uTime;
   uniform float uDopplerStrength;
@@ -46,7 +46,6 @@ export const blackHoleFragmentShader = /* glsl */ `
 
   const float PI = 3.14159265359;
 
-  ${blackHoleSkyGlsl}
   ${blackHoleDiskGlsl}
 
   void traceGeodesicAndDisk(
@@ -92,7 +91,7 @@ export const blackHoleFragmentShader = /* glsl */ `
     for (int step = 0; step < 96; step++) {
       if (step >= uMaxSteps) break;
 
-      float h = mix(0.24, 0.088, smoothstep(0.18, 0.64, u)) * stepScale;
+      float h = mix(0.28, 0.088, smoothstep(0.18, 0.64, u)) * stepScale;
 
       float k1u = du;
       float k1du = 1.5 * u * u - u;
@@ -117,12 +116,11 @@ export const blackHoleFragmentShader = /* glsl */ `
       float phiNext = phi + h;
       vec3 pNext = cos(phiNext) * e1 + sin(phiNext) * e2;
 
-      // Detect equatorial plane crossing (y = 0) up to 3 images; distinguish top-face vs underside seamlessly
       if (crossings < 3 && pPrev.y * pNext.y <= 0.0 && pPrev.y != pNext.y) {
         float tCross = clamp(abs(pPrev.y) / max(abs(pPrev.y) + abs(pNext.y), 1e-6), 0.0, 1.0);
         float uCross = mix(u, uNext, tCross);
         float rCross = 1.0 / max(uCross, 1e-4);
-        if (rCross >= 2.75 && rCross <= 16.0) {
+        if (rCross >= 2.75 && rCross <= 18.8) {
           float phiCross = phi + h * tCross;
           vec3 pCross = normalize(cos(phiCross) * e1 + sin(phiCross) * e2);
           vec3 rdCross = normalize(pNext / max(uNext, 1e-4) - pPrev / max(u, 1e-4));
@@ -212,34 +210,37 @@ export const blackHoleFragmentShader = /* glsl */ `
       fgBeltMask
     );
 
-    // Soften outer-sky lensing beyond b > 5.5 rs so outer stars read cinematic, not clinical
-    vec3 dStar = mix(dOut, rd, smoothstep(5.5, 16.0, b) * 0.72);
-    float rayDiff = clamp(max(length(dFdx(dStar)), length(dFdy(dStar))), 0.0003, 0.035);
-    float pxRad = (2.0 * uTanHalfFov) / max(uResolution.y, 1.0);
+    vec3 dStar = mix(dOut, rd, smoothstep(4.2, 12.8, b) * 0.84);
+    float rot = uTime * 0.0018;
+    float cr = cos(rot);
+    float sr = sin(rot);
+    vec3 rotStar = vec3(dStar.x * cr + dStar.z * sr, dStar.y, -dStar.x * sr + dStar.z * cr);
+    vec3 skyDx = dFdx(rotStar);
+    vec3 skyDy = dFdy(rotStar);
 
     float dPx = (cosAlpha > 0.0) ? ((b - uShadowBc) / db) : 1.0e4;
     float outsideShadow = smoothstep(-0.5, 0.5, dPx);
 
-    mediump vec3 skyCol = uBgColor + sampleFarStars(dStar, rayDiff, pxRad);
+    mediump vec3 skyCol = textureGrad(uSkyCube, rotStar, skyDx, skyDy).rgb;
 
-    // Razor-clean photon ring + subtle orbiting relativistic glint + pink-orchid outer fringe
     float posPx = max(dPx, 0.0);
+    float breathe = 0.72 + 0.28 * sin(uTime * 0.34);
     float ringCore = outsideShadow * exp(-posPx * 1.15);
-    float ringFringe = outsideShadow * exp(-max(posPx - 0.35, 0.0) * 0.42);
+    float ringFringe = outsideShadow * exp(-max(posPx - 0.35, 0.0) * 0.40);
     float thetaScreen = atan(ndc.y, ndc.x);
-    float glintTheta = mod(uTime * 0.55, 6.2831853) - PI;
+    float glintTheta = mod(uTime * 0.19, 6.2831853) - PI;
     float dAng = abs(atan(sin(thetaScreen - glintTheta), cos(thetaScreen - glintTheta)));
-    float glint = exp(-dAng * dAng * 42.0) * ringCore * pow(max(0.0, sin(uTime * 0.62 + 0.9)), 8.0) * 1.1;
+    float glint = exp(-dAng * dAng * 32.0) * ringCore * pow(max(0.0, sin(uTime * 0.28 + 0.9)), 6.0) * 0.75;
 
     float dopplerScreen = clamp(-ndc.x * 2.2, -1.0, 1.0);
-    mediump vec3 fringeCol = mix(uAccent * 0.9 + uAmber * 0.25, uAccentDim * 0.7, clamp(posPx * 0.22, 0.0, 1.0));
-    mediump vec3 coreCol = mix(vec3(1.00, 0.95, 0.90), vec3(0.84, 0.92, 1.00), max(0.0, dopplerScreen) * 0.35);
+    mediump vec3 pinkOrchid = mix(uAccent, vec3(0.96, 0.56, 0.80), 0.42);
+    mediump vec3 fringeCol = mix(mix(uAmber * 0.45, pinkOrchid, 0.65), uAccentDim * 0.75, clamp(posPx * 0.24, 0.0, 1.0));
+    mediump vec3 coreCol = mix(vec3(1.00, 0.95, 0.90), vec3(0.84, 0.92, 1.00), max(0.0, dopplerScreen) * 0.32);
     mediump vec3 photonRing =
-      (coreCol * (ringCore * 1.45 + glint) +
-        fringeCol * (ringFringe * 0.32)) *
+      (coreCol * (ringCore * 1.38 * breathe + glint) +
+        fringeCol * (ringFringe * 0.36)) *
       fgBeltMask;
 
-    // Near-side disk transmittance partially occludes background sky, shadow stays pure black behind near disk
     mediump vec3 backCol = skyCol * outsideShadow + photonRing;
     mediump vec3 linearCol = diskCol + transmittance * backCol;
 

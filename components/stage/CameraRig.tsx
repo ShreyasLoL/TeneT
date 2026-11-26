@@ -23,9 +23,10 @@ export function CameraRig() {
       targetPos.set(rig.cameraOverride.px, rig.cameraOverride.py, rig.cameraOverride.pz);
       targetLook.set(rig.cameraOverride.tx, rig.cameraOverride.ty, rig.cameraOverride.tz);
     } else {
-      const zDrift =
-        mode === 'fork' && !reducedMotion ? Math.sin(rig.elapsedTime * 0.28) * 0.28 : 0;
-      targetPos.set(pose.position[0], pose.position[1], pose.position[2] + zDrift);
+      const calm = mode === 'fork' && !reducedMotion;
+      const yBreath = calm ? Math.sin(rig.elapsedTime * 0.14) * 0.16 : 0;
+      const zDrift = calm ? Math.sin(rig.elapsedTime * 0.105 + 0.8) * 0.34 : 0;
+      targetPos.set(pose.position[0], pose.position[1] + yBreath, pose.position[2] + zDrift);
       targetLook.set(pose.target[0], pose.target[1], pose.target[2]);
     }
 

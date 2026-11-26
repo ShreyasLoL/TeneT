@@ -103,7 +103,7 @@ export function Galaxy() {
       sMat.uniforms.uHue.value = rig.forkHue;
       sMat.uniforms.uBrightness.value = MathUtils.damp(
         sMat.uniforms.uBrightness.value as number,
-        mode === 'fork' ? 0.42 : mode === 'ritual' ? 0.28 : 0.38,
+        mode === 'fork' ? 0.50 : mode === 'ritual' ? 0.28 : 0.40,
         4.5,
         dt,
       );

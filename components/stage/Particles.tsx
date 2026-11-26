@@ -171,7 +171,7 @@ export function Particles() {
     mat.uniforms.uHue.value = rig.forkHue;
     mat.uniforms.uBrightness.value = MathUtils.damp(
       mat.uniforms.uBrightness.value as number,
-      mode === 'fork' ? 0.34 : mode === 'ritual' ? 0.24 : 0.64,
+      mode === 'fork' ? 0.40 : mode === 'ritual' ? 0.24 : 0.64,
       5.0,
       dt,
     );

@@ -243,9 +243,12 @@ export const particlesFragmentShader = /* glsl */ `
     diskCol = mix(diskCol, progradePalette(rTemp), prog);
     diskCol = mix(diskCol, vec3(0.68, 0.90, 1.0), vMemoryBody * 0.75);
 
-    vec3 lensDustCol = mix(uAmber * 0.55, uColdBlue * 0.65, smoothstep(-0.3, 0.5, vDoppler));
+    vec3 dustWarmUmber = mix(uAmber * 0.52, vec3(0.32, 0.06, 0.025), smoothstep(0.0, 0.5, vRadiusNorm));
+    vec3 dustRoseViolet = mix(uOrchid * 0.48, uViolet * 0.85, smoothstep(0.4, 1.0, vRadiusNorm));
+    vec3 lensDustCol = mix(dustWarmUmber, dustRoseViolet, smoothstep(-0.35, 0.55, -vDoppler));
     lensDustCol = mix(mix(lensDustCol, vec3(0.08, 0.30, 0.40), retro), uAmber * 0.75, prog);
-    vec3 col = mix(diskCol, lensDustCol, vShell) * dopplerGain;
+    float horizonDim = 0.55 + 0.45 * smoothstep(0.0, 0.14, vRadiusNorm);
+    vec3 col = mix(diskCol, lensDustCol, vShell) * dopplerGain * horizonDim;
 
     float outA = clamp(core * vAlpha, 0.0, 1.0);
     if (outA < 0.002) discard;

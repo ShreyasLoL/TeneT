@@ -38,7 +38,9 @@ export const galaxyVertexShader = /* glsl */ `
     float prog = clamp(uMode, 0.0, 1.0) * uWarp;
 
     float rSafe = max(1.0, rBase);
-    float diffOmega = 0.055 * pow(rSafe / 2.4, -1.12);
+    float isField = step(3.5, kind);
+    // True r^-1.5 Keplerian shear near hole, decaying gently into ultra-subtle cosmic drift at large r
+    float diffOmega = 0.064 * pow(rSafe / 2.2, -1.5) * mix(1.0, 0.16, isField);
     float modeSpin = mix(1.0, -1.8, retro) + prog * 3.2;
     float theta = theta0 + uTime * diffOmega * modeSpin + uSpin * pow(rSafe / 2.4, -0.78) * 0.85;
 
@@ -127,13 +129,13 @@ export const galaxyFragmentShader = /* glsl */ `
     float isField = step(3.5, vKind);
 
     vec3 warmCore = mix(
-      vec3(1.0, 0.92, 0.72),
-      mix(uAmber, vec3(0.72, 0.16, 0.022), smoothstep(0.04, 0.18, vRadiusNorm)),
-      smoothstep(0.0, 0.14, vRadiusNorm)
+      vec3(1.0, 0.90, 0.76),
+      mix(uAmber * 0.92, vec3(0.36, 0.075, 0.032), smoothstep(0.04, 0.20, vRadiusNorm)),
+      smoothstep(0.0, 0.15, vRadiusNorm)
     );
 
-    vec3 youngArm = mix(vec3(0.76, 0.92, 1.0), uColdBlue, smoothstep(0.14, 0.48, vRadiusNorm));
-    vec3 deepVioletEdge = uViolet * 0.28;
+    vec3 youngArm = mix(vec3(0.78, 0.90, 1.0), mix(uColdBlue, vec3(0.78, 0.42, 0.68), 0.24), smoothstep(0.14, 0.56, vRadiusNorm));
+    vec3 deepVioletEdge = mix(uViolet * 0.34, vec3(0.32, 0.07, 0.04), 0.35);
 
     vec3 baseCol = mix(warmCore, youngArm, smoothstep(0.08, 0.22, vRadiusNorm));
     baseCol = mix(baseCol, mix(uColdBlue * 0.65, deepVioletEdge, 0.58), isSecArm * 0.42);
@@ -178,19 +180,23 @@ export const dustLaneFragmentShader = /* glsl */ `
 
   void main() {
     float r = length(vPos);
-    float radialMask = smoothstep(2.0, 3.3, r) * (1.0 - smoothstep(10.0, 13.5, r));
+    float radialMask = pow(smoothstep(2.4, 5.2, r), 1.4) * pow(1.0 - smoothstep(6.8, 12.4, r), 2.0);
 
     float theta = atan(-vPos.y, vPos.x);
-    float diffOmega = 0.055 * pow(max(1.0, r) / 2.4, -1.12);
+    float diffOmega = 0.064 * pow(max(1.0, r) / 2.2, -1.5);
     float dynTheta = theta - uTime * diffOmega - uSpin * pow(max(1.0, r) / 2.4, -0.78) * 0.85;
 
     float spiralRef = 2.45 * log(max(1.2, r) / 2.2);
-    float lane = smoothstep(0.58, 0.96, sin(2.0 * (dynTheta - spiralRef) + 0.58));
+    float lane = smoothstep(0.62, 0.96, sin(2.0 * (dynTheta - spiralRef) + 0.58));
+    float matterVeil = (0.5 + 0.5 * cos(2.0 * (dynTheta - spiralRef) + 0.58)) * 0.09;
     float introMask = smoothstep(0.32, 0.92, uIntro);
 
-    float alpha = lane * radialMask * introMask * 0.72;
+    float alpha = max(lane * 0.45, matterVeil) * radialMask * introMask;
     if (alpha < 0.008) discard;
 
-    fragColor = vec4(vec3(0.002, 0.0016, 0.003), alpha);
+    vec3 darkLaneCol = vec3(0.002, 0.0016, 0.003);
+    vec3 umberPinkVeil = mix(vec3(0.055, 0.015, 0.012), vec3(0.065, 0.014, 0.058), smoothstep(3.0, 10.5, r));
+    vec3 col = mix(umberPinkVeil, darkLaneCol, smoothstep(0.15, 0.65, lane));
+    fragColor = vec4(col, alpha);
   }
 `;

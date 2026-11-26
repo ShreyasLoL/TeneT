@@ -2,14 +2,25 @@
 
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { GLSL3, ShaderMaterial, Vector2, Vector3 } from 'three';
+import {
+  CubeTexture,
+  GLSL3,
+  ShaderMaterial,
+  Vector2,
+  Vector3,
+  type WebGLCubeRenderTarget,
+} from 'three';
 import { isTouchDevice, profileForLevel, type QualityLevel } from '@/lib/stage/tiers';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
 import { hexToRgbNormalized, readPalette } from '@/lib/viz/palette';
+import { bakeDeepSpaceCube } from './blackhole/bakeSkyCube';
 import {
   ANALYTIC_B_END,
   ANALYTIC_B_START,
+  CAMERA_DISTANCE_DEFAULT,
+  CAMERA_INCLINATION_RAD,
+  CAMERA_ROLL_RAD,
   DOPPLER_STRENGTH_DEFAULT,
   SHADOW_RADIUS_BC,
 } from './blackhole/constants';
@@ -21,6 +32,7 @@ const scratchForward = new Vector3();
 const scratchRight = new Vector3();
 const scratchUp = new Vector3();
 const scratchWorldUp = new Vector3(0, 1, 0);
+const FALLBACK_CUBE = new CubeTexture();
 
 function srgbChannelToLinear(c: number): number {
   return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
@@ -32,18 +44,25 @@ function hexToLinearVec3(hex: string, target: Vector3) {
 }
 
 export function BlackHolePass() {
+  const gl = useThree((s) => s.gl);
   const size = useThree((s) => s.size);
   const invalidate = useThree((s) => s.invalidate);
   const level = useTenetStore((s) => s.quality.level) as QualityLevel;
   const lowPower = useTenetStore((s) => s.quality.lowPower);
+  const reducedMotion = useTenetStore((s) => s.quality.reducedMotion);
   const profile = profileForLevel(level, isTouchDevice(), lowPower);
   const composerActive = profile.lensMode === 'full';
+  const cubeFaceSize = lowPower || level >= 2 ? 512 : 1024;
+
   const matRef = useRef<ShaderMaterial | null>(null);
+  const skyTargetRef = useRef<WebGLCubeRenderTarget | null>(null);
+  const emaDtRef = useRef(1 / 60);
+  const smoothTimeRef = useRef(0);
 
   const initialUniforms = useMemo(() => {
     const [amr, amg, amb] = readAmberLinear();
     return {
-      uCamPos: { value: new Vector3(0, 0, 42) },
+      uCamPos: { value: new Vector3(0, 0, CAMERA_DISTANCE_DEFAULT) },
       uCamRight: { value: new Vector3(1, 0, 0) },
       uCamUp: { value: new Vector3(0, 1, 0) },
       uCamForward: { value: new Vector3(0, 0, -1) },
@@ -54,6 +73,7 @@ export function BlackHolePass() {
       uAnalyticBStart: { value: ANALYTIC_B_START },
       uAnalyticBEnd: { value: ANALYTIC_B_END },
       uMaxSteps: { value: 64 },
+      uSkyCube: { value: FALLBACK_CUBE },
       uTime: { value: 0 },
       uDopplerStrength: { value: DOPPLER_STRENGTH_DEFAULT },
       uHold: { value: 0 },
@@ -74,19 +94,50 @@ export function BlackHolePass() {
     const mat = matRef.current;
     if (!mat) return;
     const pal = readPalette();
-    hexToLinearVec3(pal.bg, mat.uniforms.uBgColor.value as Vector3);
-    hexToLinearVec3(pal.accent, mat.uniforms.uAccent.value as Vector3);
-    hexToLinearVec3(pal.accentDim, mat.uniforms.uAccentDim.value as Vector3);
-    hexToLinearVec3(pal.accentAbyss, mat.uniforms.uAccentAbyss.value as Vector3);
+    const bg = mat.uniforms.uBgColor.value as Vector3;
+    const accent = mat.uniforms.uAccent.value as Vector3;
+    const accentDim = mat.uniforms.uAccentDim.value as Vector3;
+    const accentAbyss = mat.uniforms.uAccentAbyss.value as Vector3;
+    const amber = mat.uniforms.uAmber.value as Vector3;
+    hexToLinearVec3(pal.bg, bg);
+    hexToLinearVec3(pal.accent, accent);
+    hexToLinearVec3(pal.accentDim, accentDim);
+    hexToLinearVec3(pal.accentAbyss, accentAbyss);
     mat.uniforms.uOutputSrgb.value = composerActive ? 0.0 : 1.0;
-    invalidate();
-  }, [composerActive, invalidate, size.width, size.height]);
 
-  useFrame(() => {
+    const prevTarget = skyTargetRef.current;
+    const baked = bakeDeepSpaceCube(gl, cubeFaceSize, { bg, accent, accentDim, accentAbyss, amber });
+    skyTargetRef.current = baked;
+    mat.uniforms.uSkyCube.value = baked.texture;
+    if (prevTarget) prevTarget.dispose();
+
+    invalidate();
+    return () => {
+      baked.dispose();
+      if (skyTargetRef.current === baked) skyTargetRef.current = null;
+    };
+  }, [composerActive, cubeFaceSize, gl, invalidate, size.width, size.height]);
+
+  useFrame((_state, delta) => {
     const mat = matRef.current;
     if (!mat) return;
-    const u = mat.uniforms;
+
+    const clampedDt = Math.min(delta, 1 / 30);
+    emaDtRef.current = emaDtRef.current * 0.85 + clampedDt * 0.15;
+    if (!reducedMotion) {
+      smoothTimeRef.current += emaDtRef.current;
+    }
+    const t = smoothTimeRef.current;
+
     const cam = rig.bhCam;
+    if (!rig.forkActive && !reducedMotion) {
+      cam.inclination = CAMERA_INCLINATION_RAD + Math.sin(t * 0.14) * 0.036;
+      cam.distance = CAMERA_DISTANCE_DEFAULT + Math.sin(t * 0.105 + 0.8) * 1.6;
+      cam.azimuth = t * 0.0045;
+      cam.roll = CAMERA_ROLL_RAD + Math.sin(t * 0.095 + 1.4) * 0.016;
+    }
+
+    const u = mat.uniforms;
     const sinInc = Math.sin(cam.inclination);
     const cosInc = Math.cos(cam.inclination);
     const sinAz = Math.sin(cam.azimuth);
@@ -120,7 +171,7 @@ export function BlackHolePass() {
     u.uAspect.value = size.width / Math.max(size.height, 1);
     (u.uResolution.value as Vector2).set(size.width, size.height);
     u.uMaxSteps.value = cam.steps;
-    u.uTime.value = rig.elapsedTime;
+    u.uTime.value = t;
     u.uDopplerStrength.value = cam.dopplerStrength;
     u.uHold.value = rig.sealHold;
     u.uMode.value = rig.forkMode;

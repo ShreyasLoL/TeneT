@@ -19,7 +19,7 @@ export const blackHoleDiskGlsl = /* glsl */ `
   float diskFbm(float logR, float phi, float twist) {
     float sum = 0.0;
     float amp = 0.54;
-    float fLog = logR * 9.0;
+    float fLog = logR * 8.6;
     float fAng = phi + twist;
     for (int i = 0; i < 3; i++) {
       vec2 p = vec2(cos(fAng) * 2.5 + fLog, sin(fAng) * 2.5 - fLog * 0.34);
@@ -31,22 +31,23 @@ export const blackHoleDiskGlsl = /* glsl */ `
     return sum;
   }
 
-  // Two-phase Keplerian differential shear (period ~ r^1.5; ISCO ~6.8s, outer ~10x slower)
-  float sampleDiskStructure(float r, float phi, float time, bool isPrimary) {
+  // C1-smooth two-phase Keplerian differential shear (period ~ r^1.5; ISCO ~7.7s, outer ~12x slower)
+  float sampleDiskStructure(float r, float phi, float time, bool isTopFace) {
     float rClamped = max(r, 2.85);
-    float omega = 0.92 * pow(rClamped / 3.0, -1.5);
+    float omega = 0.82 * pow(rClamped / 3.0, -1.5);
     float logR = log(rClamped / 3.0);
 
-    float phaseA = fract(time * 0.085);
-    float phaseB = fract(time * 0.085 + 0.5);
-    float blend = abs(2.0 * phaseA - 1.0);
+    float phaseA = fract(time * 0.042);
+    float phaseB = fract(time * 0.042 + 0.5);
+    float blend = 0.5 - 0.5 * cos(phaseA * 6.2831853);
 
-    float angleOffsetA = (phaseA - 0.5) * omega * 11.76;
-    float angleOffsetB = (phaseB - 0.5) * omega * 11.76;
+    float span = 1.0 / 0.042;
+    float angleOffsetA = (phaseA - 0.5) * omega * span;
+    float angleOffsetB = (phaseB - 0.5) * omega * span;
 
     float density = 0.0;
-    if (isPrimary) {
-      float blurArc = clamp(0.11 * pow(3.2 / rClamped, 1.15), 0.015, 0.14);
+    if (isTopFace) {
+      float blurArc = clamp(0.11 * pow(3.2 / rClamped, 1.15), 0.012, 0.13);
       for (int k = -1; k <= 1; k++) {
         float dPhi = float(k) * blurArc;
         float nA = diskFbm(logR, phi - angleOffsetA + dPhi, logR * 2.15);
@@ -60,31 +61,31 @@ export const blackHoleDiskGlsl = /* glsl */ `
       density = mix(nA, nB, blend);
     }
 
-    float rings = 0.68 + 0.32 * sin(logR * 26.0 + density * 4.5);
-    float filaments = smoothstep(0.14, 0.86, density * 1.18) * rings;
+    float rings = 0.68 + 0.32 * sin(logR * 25.0 + density * 4.4);
+    float filaments = smoothstep(0.14, 0.88, density * 1.18) * rings;
     return mix(0.24, 1.48, filaments);
   }
 
-  // Hybrid Novikov-Thorne thermal gradient + TENET Comb-jelly Orchid outer dissolve
+  // Hybrid Novikov-Thorne thermal gradient + umber, rose-pink, orchid, and abyssal violet matter envelope
   mediump vec3 evalDiskPalette(float r, float gEff, float mode, float hue) {
-    float rNorm = clamp((r - 3.0) / 12.5, 0.0, 1.0);
+    float rNorm = clamp((r - 3.0) / 15.5, 0.0, 1.0);
     float ntRaw = pow(max(0.0, (1.0 - sqrt(3.0 / max(r, 3.005))) / pow(max(r, 3.0) / 3.0, 3.0)), 0.25);
     float tHeat = clamp((ntRaw / 0.588) * mix(1.0, gEff * 1.08, 0.72), 0.0, 1.0);
 
-    mediump vec3 innerWhiteGold = vec3(1.00, 0.90, 0.80) + vec3(0.09, 0.01, 0.08) * smoothstep(0.75, 1.0, tHeat);
-    mediump vec3 hotOrange = vec3(0.84, 0.20, 0.024);
-    mediump vec3 deepEmber = vec3(0.28, 0.032, 0.018);
-    mediump vec3 outerOrchid = mix(uAccent * 0.44, uAccentAbyss * 1.25, smoothstep(0.62, 1.0, rNorm));
+    mediump vec3 innerWhiteGold = vec3(1.00, 0.90, 0.84) + vec3(0.10, 0.01, 0.09) * smoothstep(0.72, 1.0, tHeat);
+    mediump vec3 hotOrange = vec3(0.84, 0.21, 0.030);
+    mediump vec3 warmUmber = vec3(0.32, 0.068, 0.028);
+    mediump vec3 dustyPink = mix(uAccent, vec3(0.95, 0.52, 0.78), 0.48);
+    mediump vec3 outerEnvelope = mix(dustyPink * 0.42, uAccentAbyss * 1.35, smoothstep(0.55, 1.0, rNorm));
 
-    mediump vec3 base = mix(deepEmber, hotOrange, smoothstep(0.05, 0.44, tHeat));
-    base = mix(base, uAmber * 1.12, smoothstep(0.42, 0.78, tHeat));
-    base = mix(base, innerWhiteGold, smoothstep(0.76, 1.0, tHeat));
-    base = mix(base, outerOrchid, smoothstep(0.46, 0.95, rNorm) * 0.68);
+    mediump vec3 base = mix(warmUmber, hotOrange, smoothstep(0.05, 0.42, tHeat));
+    base = mix(base, uAmber * 1.12, smoothstep(0.40, 0.76, tHeat));
+    base = mix(base, innerWhiteGold, smoothstep(0.74, 1.0, tHeat));
+    base = mix(base, outerEnvelope, smoothstep(0.36, 0.92, rNorm) * 0.76);
 
-    // Strong spectral shift: approaching shifts pale-gold/rose/ice; receding dims to crimson-umber-abyss
-    mediump vec3 blueShiftCol = mix(innerWhiteGold, mix(uColdBlue, vec3(0.88, 0.92, 1.0), 0.75), 0.32);
-    mediump vec3 redShiftCol = mix(deepEmber, uAccentAbyss * 1.2, 0.62);
-    base = mix(base, blueShiftCol, smoothstep(1.04, 1.42, gEff) * 0.45);
+    mediump vec3 blueShiftCol = mix(innerWhiteGold, mix(uColdBlue, vec3(0.90, 0.92, 1.0), 0.72), 0.28);
+    mediump vec3 redShiftCol = mix(warmUmber, uAccentAbyss * 1.25, 0.58);
+    base = mix(base, blueShiftCol, smoothstep(1.04, 1.42, gEff) * 0.42);
     base = mix(base, redShiftCol, smoothstep(0.95, 0.56, gEff) * 0.68);
 
     float retro = clamp(-mode, 0.0, 1.0) * hue;
@@ -104,10 +105,11 @@ export const blackHoleDiskGlsl = /* glsl */ `
     out mediump vec3 emission,
     out float opacity
   ) {
-    float outerBound = isTopFace ? 15.5 : 10.5;
+    float outerBound = isTopFace ? 18.5 : 10.8;
     float innerFade = smoothstep(2.84, 3.35, rCross);
-    float outerFade = 1.0 - smoothstep(isTopFace ? 6.8 : 4.8, outerBound, rCross);
-    float radialMask = innerFade * outerFade;
+    float outerFade = 1.0 - smoothstep(isTopFace ? 6.4 : 4.8, outerBound, rCross);
+    float veilBoost = isTopFace ? smoothstep(8.0, 14.5, rCross) * (1.0 - smoothstep(14.5, 18.5, rCross)) * 0.22 : 0.0;
+    float radialMask = innerFade * max(outerFade, veilBoost);
     if (radialMask <= 0.002) {
       emission = vec3(0.0);
       opacity = 0.0;
@@ -127,14 +129,13 @@ export const blackHoleDiskGlsl = /* glsl */ `
     float beaming = clamp(pow(gEff, 3.8), 0.14, 2.75);
 
     float incSoft = smoothstep(0.010, 0.085, abs(rdCross.y));
-    float imageWeight = isTopFace ? 1.0 : 0.62;
+    float imageWeight = isTopFace ? 1.0 : 0.60;
 
     float density = clamp(radialMask * structure * mix(0.68, 1.0, incSoft), 0.0, 1.0);
     mediump vec3 albedo = evalDiskPalette(rCross, gEff, uMode, uHue);
 
-    // Dense inner plasma cleanly occludes background sky and lensed sub-images
-    float frontOcc = smoothstep(2.9, 4.0, rCross) * (1.0 - smoothstep(6.5, 12.0, rCross));
-    opacity = clamp(density * (0.64 + 0.34 * frontOcc) * imageWeight, 0.0, 0.985);
+    float frontOcc = smoothstep(2.9, 4.0, rCross) * (1.0 - smoothstep(6.5, 12.5, rCross));
+    opacity = clamp(density * (0.62 + 0.36 * frontOcc) * imageWeight, 0.0, 0.985);
     emission = albedo * (density * beaming * imageWeight * 0.94 * (1.0 + uHold * 0.35));
   }
 `;
