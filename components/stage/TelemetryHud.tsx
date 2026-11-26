@@ -53,7 +53,7 @@ export function TelemetryHud({
         <span className="text-text-dim">{COPY.doors.telemetryNode}</span>
       </div>
 
-      <span className="hidden sm:inline">{`${formattedDate} // ist`}</span>
+      <span suppressHydrationWarning className="hidden sm:inline">{`${formattedDate} // ist`}</span>
 
       <span>{`streak // ${String(streak).padStart(2, '0')}d`}</span>
 

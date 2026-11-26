@@ -118,12 +118,12 @@ export function ArrivalHud() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-x-0 top-16 z-40 flex justify-center px-4"
+      className="pointer-events-none fixed right-4 bottom-5 left-4 z-40 flex justify-end sm:right-8 sm:left-auto"
     >
       <div
         ref={frameRef}
         data-arrival-hud={activeKind}
-        className="relative w-full max-w-lg overflow-hidden border border-line bg-surface px-6 py-4 opacity-0 shadow-[0_16px_48px_rgba(0,0,0,0.9)]"
+        className="relative w-full max-w-sm overflow-hidden border border-line bg-surface px-5 py-3.5 opacity-0 shadow-[0_16px_48px_rgba(0,0,0,0.9)]"
         style={{ willChange: 'transform, opacity' }}
       >
         <div

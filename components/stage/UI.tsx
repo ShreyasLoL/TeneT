@@ -3,6 +3,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTenetStore } from '@/lib/store';
 import { rig, subscribeCanvasReady } from '@/lib/store/rig';
+import { ArrivalHud } from './ArrivalHud';
+import { ForkTransitionOverlay } from './ForkTransitionOverlay';
 
 /**
  * Fades UI in only after the WebGL canvas has rendered its first frame
@@ -38,6 +40,8 @@ export function UI({ children }: { children: ReactNode }) {
       }`}
     >
       {children}
+      <ForkTransitionOverlay />
+      <ArrivalHud />
     </div>
   );
 }

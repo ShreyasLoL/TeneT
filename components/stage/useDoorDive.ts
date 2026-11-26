@@ -197,7 +197,7 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
         tl.to(rig, { forkWarp: 1, duration: peakSec, ease: expoBezierEase }, 0);
         tl.to(
           rig.cameraOverride,
-          { py: 0.35, pz: 2.65, fov: 50, duration: peakSec, ease: expoBezierEase },
+          { py: 0.28, pz: 2.15, fov: 50, duration: peakSec, ease: expoBezierEase },
           0,
         );
       } else {
@@ -216,7 +216,7 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
         tl.to(rig, { forkWarp: 1, duration: peakSec, ease: expoBezierEase }, totalSec * 0.08);
         tl.to(
           rig.cameraOverride,
-          { py: 0.18, pz: 1.85, fov: 62, duration: peakSec * 0.92, ease: expoBezierEase },
+          { py: 0.14, pz: 1.55, fov: 62, duration: peakSec * 0.92, ease: expoBezierEase },
           totalSec * 0.08,
         );
       }

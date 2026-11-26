@@ -61,9 +61,8 @@ export function Nav() {
                     key={item.href}
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
-                    className={`inline-flex min-h-10 items-center px-2.5 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] ${
-                      active ? 'text-accent' : 'text-text-dim hover:text-text'
-                    }`}
+                    className={`inline-flex min-h-10 items-center px-2.5 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] ${active ? 'text-accent' : 'text-text-dim hover:text-text'
+                      }`}
                   >
                     {item.label}
                   </Link>
@@ -72,7 +71,10 @@ export function Nav() {
             </div>
           </div>
 
-          <span className="hidden font-mono text-[11px] uppercase tracking-[0.14em] text-text-dim tabular-nums md:inline">
+          <span
+            suppressHydrationWarning
+            className="hidden font-mono text-[11px] uppercase tracking-[0.14em] text-text-dim tabular-nums md:inline"
+          >
             {dayLabel}
           </span>
 
@@ -97,9 +99,8 @@ export function Nav() {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
-                className={`inline-flex min-h-9 items-center px-2 font-mono text-[11px] uppercase tracking-[0.12em] ${
-                  active ? 'text-accent' : 'text-text-dim'
-                }`}
+                className={`inline-flex min-h-9 items-center px-2 font-mono text-[11px] uppercase tracking-[0.12em] ${active ? 'text-accent' : 'text-text-dim'
+                  }`}
               >
                 {item.label}
               </Link>
