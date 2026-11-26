@@ -98,7 +98,7 @@ export const blackHoleSkyGlsl = /* glsl */ `
     projectCubeFace(dir, faceId, cubeUv);
     mediump vec3 dust = unresolvedDustLayer(cubeUv, faceId, m87VoidMask) * step(0.0, basePsfRad);
 
-    mediump vec3 leftNeb = sampleLeftNebulaAndPillars(dir, accentDim, accentAbyss, amber);
+    mediump vec3 leftNeb = sampleLeftNebulaAndPillars(dir, accent, accentDim, accentAbyss, amber);
     mediump vec3 wisps = sampleSubtleSkyWisps(dir, accentDim, accentAbyss, m87VoidMask);
     mediump vec3 m104 = sampleSombreroM104(dir, amber, accentAbyss);
     mediump vec3 hoag = sampleHoagsObject(dir, amber);

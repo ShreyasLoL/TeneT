@@ -1,42 +1,72 @@
 export const blackHoleLandmarksGlsl = /* glsl */ `
-  // Subtle left-side blue-indigo-violet-green emission nebula + nested Pillars of Creation (Eagle Nebula, M16)
+  // Localized luminous top-left star-forming nebula (violet-blue-purple-pink-amber-cold blue-white) + Pillars of Creation (M16)
   mediump vec3 sampleLeftNebulaAndPillars(
     vec3 dir,
+    mediump vec3 accent,
     mediump vec3 accentDim,
     mediump vec3 accentAbyss,
     mediump vec3 amber
   ) {
-    vec3 anchorLeft = normalize(vec3(-0.370, -0.055, -0.927));
+    vec3 anchorLeft = normalize(vec3(-0.342, -0.028, -0.939));
     float dLeft = acos(clamp(dot(dir, anchorLeft), -1.0, 1.0));
-    if (dLeft > 0.34) return vec3(0.0);
+    if (dLeft > 0.19) return vec3(0.0);
 
     vec3 gx = normalize(cross(vec3(0.0, 1.0, 0.0), anchorLeft));
     vec3 gy = cross(anchorLeft, gx);
-    vec2 uv = vec2(-dot(dir, gx), dot(dir, gy)) * 9.5;
+    vec2 localP = vec2(-dot(dir, gx), dot(dir, gy));
+    // Slight diagonal elongation matching natural interstellar filament geometry
+    vec2 rotP = vec2(localP.x * 0.88 - localP.y * 0.47, (localP.x * 0.47 + localP.y * 0.88) * 1.28);
+    float dShape = length(rotP);
+    vec2 uv = rotP * 16.5;
 
-    // Two-stage domain warp creates billowing ionized gas filaments
-    vec2 q = vec2(fbm2(uv + vec2(1.2, -0.8)), fbm2(uv + vec2(4.2, -1.9)));
-    float gasA = fbm2(uv * 1.45 + q * 1.4);
-    float gasB = fbm2(uv * 2.65 - q * 1.1);
-    float env = exp(-dLeft * dLeft / (2.0 * 0.132 * 0.132));
-    float density = env * smoothstep(0.30, 0.86, gasA * 0.62 + gasB * 0.38);
+    // Two-stage domain warp for crisp telescopic gas curtains and ionization cavities
+    vec2 q = vec2(fbm2(uv + vec2(1.4, -0.9)), fbm2(uv + vec2(4.6, -2.1)));
+    float gasA = fbm2(uv * 1.55 + q * 1.35);
+    float gasB = fbm2(uv * 3.10 - q * 1.10);
 
-    mediump vec3 deepIndigo = vec3(0.028, 0.042, 0.22);
-    mediump vec3 ceruleanBlue = vec3(0.036, 0.155, 0.33);
-    mediump vec3 oiiiGreen = vec3(0.030, 0.275, 0.195);
-    mediump vec3 veilCol = mix(deepIndigo, ceruleanBlue, smoothstep(0.28, 0.68, gasA));
-    veilCol = mix(veilCol, oiiiGreen, smoothstep(0.40, 0.78, gasB));
-    veilCol = mix(veilCol, mix(accentAbyss * 1.15, accentDim * 0.42, 0.35), smoothstep(0.55, 0.88, q.x) * 0.48);
+    float envOuter = exp(-dShape * dShape / (2.0 * 0.056 * 0.056)) * smoothstep(0.185, 0.095, dLeft);
+    float envMid = exp(-dShape * dShape / (2.0 * 0.038 * 0.038));
+    float envCore = exp(-dShape * dShape / (2.0 * 0.024 * 0.024));
+    float density = envOuter * smoothstep(0.32, 0.82, gasA * 0.56 + gasB * 0.44);
 
-    mediump vec3 nebulaCol = veilCol * (density * 0.072);
+    mediump vec3 cobaltBlue = vec3(0.06, 0.26, 0.72);
+    mediump vec3 royalViolet = mix(vec3(0.24, 0.10, 0.56), accentAbyss * 1.45, 0.35);
+    mediump vec3 deepPurple = mix(vec3(0.42, 0.11, 0.52), accentDim * 0.75, 0.40);
+    mediump vec3 nebulaPink = mix(vec3(0.86, 0.28, 0.58), accent * 0.85, 0.40);
+    mediump vec3 warmAmber = mix(amber, vec3(1.00, 0.68, 0.28), 0.45);
+    mediump vec3 coldBlueWhite = vec3(0.76, 0.91, 1.00);
 
-    // Sculpted miniature Pillars of Creation dark dust trunks with organic wispy erosion
-    vec3 anchorPillars = normalize(vec3(-0.352, -0.025, -0.935));
+    // Distinct layered strata: outer cobalt blue -> royal violet -> purple veil
+    mediump vec3 veilCol = mix(cobaltBlue, royalViolet, smoothstep(0.28, 0.62, gasA));
+    veilCol = mix(veilCol, deepPurple, smoothstep(0.46, 0.80, gasB) * 0.78);
+
+    // Sculpted H-alpha pink curtains, warm amber photo-dissociation ridges, and bright cold blue-white core
+    float ridgeBlue = envOuter * smoothstep(0.42, 0.78, gasA) * smoothstep(0.20, 0.65, 1.0 - gasB);
+    float ridgePink = envMid * smoothstep(0.48, 0.82, gasB) * smoothstep(0.34, 0.74, q.x);
+    float ridgeAmber = envMid * exp(-pow((gasA - 0.54) / 0.10, 2.0)) * smoothstep(0.32, 0.76, gasB);
+    float coreIon = envCore * smoothstep(0.42, 0.84, gasA * 0.55 + gasB * 0.45);
+
+    mediump vec3 nebulaCol =
+      veilCol * (density * 0.18) +
+      cobaltBlue * (ridgeBlue * 0.14) +
+      nebulaPink * (ridgePink * 0.17) +
+      warmAmber * (ridgeAmber * 0.24) +
+      coldBlueWhite * (coreIon * 0.25);
+
+    // Tight embedded cold blue-white OB nursery star cluster inside the bright ionization cavity
+    float s1 = exp(-dot(localP - vec2(-0.008, 0.010), localP - vec2(-0.008, 0.010)) * 380000.0);
+    float s2 = exp(-dot(localP - vec2(0.012, 0.003), localP - vec2(0.012, 0.003)) * 460000.0);
+    float s3 = exp(-dot(localP - vec2(-0.018, -0.007), localP - vec2(-0.018, -0.007)) * 420000.0);
+    float s4 = exp(-dot(localP - vec2(0.004, -0.014), localP - vec2(0.004, -0.014)) * 500000.0);
+    nebulaCol += vec3(0.86, 0.95, 1.00) * ((s1 * 0.62 + s2 * 0.52 + s3 * 0.48 + s4 * 0.42) * envOuter);
+
+    // Sculpted miniature Pillars of Creation dark dust trunks silhouetted inside the nebula heart
+    vec3 anchorPillars = normalize(vec3(-0.338, -0.026, -0.941));
     float cosSep = dot(dir, anchorPillars);
-    if (cosSep > 0.996) {
+    if (cosSep > 0.997) {
       vec3 px = normalize(cross(vec3(0.0, 1.0, 0.0), anchorPillars));
       vec3 py = cross(anchorPillars, px);
-      vec2 rawP = vec2(-dot(dir, px), dot(dir, py)) / 0.042;
+      vec2 rawP = vec2(-dot(dir, px), dot(dir, py)) / 0.032;
       vec2 p = vec2(rawP.x * 0.92 + rawP.y * 0.39, -rawP.x * 0.39 + rawP.y * 0.92);
       float wisp = (fbm2(p * 4.6 + vec2(2.3, -1.7)) - 0.5) * 0.28 + (fbm2(p * 9.5 - 1.1) - 0.5) * 0.12;
 
@@ -52,9 +82,9 @@ export const blackHoleLandmarksGlsl = /* glsl */ `
       float pillarBody = (1.0 - smoothstep(-0.04, 0.09, pillarSdf)) * baseFade;
       float rimLight = exp(-pow(pillarSdf / 0.055, 2.0)) * smoothstep(-0.35, 0.45, p.y) * baseFade;
 
-      nebulaCol *= 1.0 - pillarBody * 0.62;
-      mediump vec3 rimCol = mix(vec3(0.16, 0.62, 0.68), amber * 0.85, 0.35);
-      nebulaCol += rimCol * (rimLight * 0.032);
+      nebulaCol *= 1.0 - pillarBody * 0.75;
+      mediump vec3 rimCol = mix(warmAmber, coldBlueWhite, 0.45);
+      nebulaCol += rimCol * (rimLight * 0.095);
     }
     return nebulaCol;
   }
