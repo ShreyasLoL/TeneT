@@ -82,6 +82,7 @@ export const blackHoleDiskGlsl = /* glsl */ `
     base = mix(base, uAmber * 1.12, smoothstep(0.40, 0.76, tHeat));
     base = mix(base, innerWhiteGold, smoothstep(0.74, 1.0, tHeat));
     base = mix(base, outerEnvelope, smoothstep(0.36, 0.92, rNorm) * 0.76);
+    base = mix(base, uAccentAbyss * 0.42, smoothstep(0.62, 1.0, rNorm) * 0.58);
 
     mediump vec3 blueShiftCol = mix(innerWhiteGold, mix(uColdBlue, vec3(0.90, 0.92, 1.0), 0.72), 0.28);
     mediump vec3 redShiftCol = mix(warmUmber, uAccentAbyss * 1.25, 0.58);
@@ -105,10 +106,13 @@ export const blackHoleDiskGlsl = /* glsl */ `
     out mediump vec3 emission,
     out float opacity
   ) {
-    float outerBound = isTopFace ? 18.5 : 10.8;
+    float outerBound = isTopFace ? 17.6 : 10.8;
     float innerFade = smoothstep(2.84, 3.35, rCross);
-    float outerFade = 1.0 - smoothstep(isTopFace ? 6.4 : 4.8, outerBound, rCross);
-    float veilBoost = isTopFace ? smoothstep(8.0, 14.5, rCross) * (1.0 - smoothstep(14.5, 18.5, rCross)) * 0.22 : 0.0;
+    float outerRaw = 1.0 - smoothstep(isTopFace ? 5.6 : 4.8, outerBound, rCross);
+    float outerFade = isTopFace ? outerRaw * outerRaw : outerRaw;
+    float veilBoost = isTopFace
+      ? smoothstep(7.2, 12.2, rCross) * pow(1.0 - smoothstep(11.8, outerBound, rCross), 2.0) * 0.095
+      : 0.0;
     float radialMask = innerFade * max(outerFade, veilBoost);
     if (radialMask <= 0.002) {
       emission = vec3(0.0);
@@ -131,7 +135,9 @@ export const blackHoleDiskGlsl = /* glsl */ `
     float incSoft = smoothstep(0.010, 0.085, abs(rdCross.y));
     float imageWeight = isTopFace ? 1.0 : 0.60;
 
-    float density = clamp(radialMask * structure * mix(0.68, 1.0, incSoft), 0.0, 1.0);
+    float rimZone = isTopFace ? smoothstep(9.0, outerBound, rCross) : 0.0;
+    float rimBreakup = mix(1.0, smoothstep(0.32, 1.05, structure), rimZone * 0.82);
+    float density = clamp(radialMask * structure * rimBreakup * mix(0.68, 1.0, incSoft), 0.0, 1.0);
     mediump vec3 albedo = evalDiskPalette(rCross, gEff, uMode, uHue);
 
     float frontOcc = smoothstep(2.9, 4.0, rCross) * (1.0 - smoothstep(6.5, 12.5, rCross));

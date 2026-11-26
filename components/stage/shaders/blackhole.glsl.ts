@@ -120,7 +120,7 @@ export const blackHoleFragmentShader = /* glsl */ `
         float tCross = clamp(abs(pPrev.y) / max(abs(pPrev.y) + abs(pNext.y), 1e-6), 0.0, 1.0);
         float uCross = mix(u, uNext, tCross);
         float rCross = 1.0 / max(uCross, 1e-4);
-        if (rCross >= 2.75 && rCross <= 18.8) {
+        if (rCross >= 2.75 && rCross <= 17.8) {
           float phiCross = phi + h * tCross;
           vec3 pCross = normalize(cos(phiCross) * e1 + sin(phiCross) * e2);
           vec3 rdCross = normalize(pNext / max(uNext, 1e-4) - pPrev / max(u, 1e-4));
@@ -228,7 +228,7 @@ export const blackHoleFragmentShader = /* glsl */ `
     float posPx = max(dPx, 0.0);
     float breathe = 0.72 + 0.28 * sin(uTime * 0.34);
     float ringCore = outsideShadow * exp(-posPx * 1.15);
-    float ringFringe = outsideShadow * exp(-max(posPx - 0.35, 0.0) * 0.40);
+    float ringFringe = outsideShadow * exp(-max(posPx - 0.35, 0.0) * 0.22);
     float thetaScreen = atan(ndc.y, ndc.x);
     float glintTheta = mod(uTime * 0.19, 6.2831853) - PI;
     float dAng = abs(atan(sin(thetaScreen - glintTheta), cos(thetaScreen - glintTheta)));
@@ -240,8 +240,8 @@ export const blackHoleFragmentShader = /* glsl */ `
     mediump vec3 coreCol = mix(vec3(1.00, 0.95, 0.90), vec3(0.84, 0.92, 1.00), max(0.0, dopplerScreen) * 0.32);
     mediump vec3 lensRimCol = mix(uAccentDim * 0.65, vec3(0.72, 0.84, 1.00), 0.35);
     mediump vec3 photonRing =
-      (coreCol * (ringCore * 1.38 * breathe + glint) +
-        fringeCol * (ringFringe * 0.36) +
+      (coreCol * (ringCore * 1.60 * breathe + glint) +
+        fringeCol * (ringFringe * 0.55) +
         lensRimCol * (einsteinFocus * 0.055)) *
       fgBeltMask;
 

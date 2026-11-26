@@ -71,11 +71,11 @@ export const blackHoleSkyGlsl = /* glsl */ `
     // Localized mid-top [O III] emerald-green gas pocket (and its natural gravitationally-lensed counter-arc)
     vec3 anchorMidTopGas = normalize(vec3(0.028, 0.133, -0.991));
     float dG = acos(clamp(dot(dir, anchorMidTopGas), -1.0, 1.0));
-    float gPatch = exp(-dG * dG / (2.0 * 0.086 * 0.086));
-    float greenCloud = gPatch * smoothstep(0.34, 0.86, n1 * 0.6 + n2 * 0.4);
+    float gPatch = exp(-dG * dG / (2.0 * 0.112 * 0.112));
+    float greenCloud = gPatch * smoothstep(0.38, 0.88, n1 * 0.55 + n2 * 0.45) * mix(0.65, 1.15, n2);
 
     mediump vec3 oiiiEmerald = mix(vec3(0.035, 0.42, 0.25), vec3(0.06, 0.30, 0.38), smoothstep(0.35, 0.78, n2));
-    mediump vec3 midTopGas = oiiiEmerald * greenCloud * 0.175;
+    mediump vec3 midTopGas = oiiiEmerald * greenCloud * 0.145;
     mediump vec3 faintAbyss = mix(accentAbyss, accentDim * 0.4, n2) * smoothstep(0.58, 0.92, n1 * 0.65 + n2 * 0.35) * darkPocket * 0.032;
     return (midTopGas + faintAbyss) * m87VoidMask;
   }

@@ -91,7 +91,7 @@ export const galaxyVertexShader = /* glsl */ `
     gl_PointSize = clamp(ptBase * depthScale * uDpr, 0.85 * uDpr, 9.5 * uDpr);
     gl_Position = projectionMatrix * mvPos;
 
-    float outerFade = 1.0 - smoothstep(0.74, 1.0, rNorm);
+    float outerFade = 1.0 - smoothstep(0.55, 1.0, rNorm);
     float introFade = smoothstep(0.04, 0.48 + rNorm * 0.38, uIntro);
 
     vKind = kind;
@@ -146,12 +146,12 @@ export const galaxyFragmentShader = /* glsl */ `
       smoothstep(0.0, 0.15, vRadiusNorm)
     );
 
-    vec3 youngArm = mix(vec3(0.78, 0.90, 1.0), mix(uColdBlue, vec3(0.78, 0.42, 0.68), 0.24), smoothstep(0.14, 0.56, vRadiusNorm));
-    vec3 deepVioletEdge = mix(uViolet * 0.34, vec3(0.32, 0.07, 0.04), 0.35);
+    vec3 youngArm = mix(vec3(0.80, 0.90, 1.0), mix(uColdBlue, vec3(0.78, 0.84, 0.96), 0.35), smoothstep(0.14, 0.56, vRadiusNorm));
+    vec3 outerCoolEdge = mix(mix(uColdBlue * 0.52, vec3(0.68, 0.76, 0.90), 0.45), uViolet * 0.22, 0.18);
 
     vec3 baseCol = mix(warmCore, youngArm, smoothstep(0.08, 0.22, vRadiusNorm));
-    baseCol = mix(baseCol, mix(uColdBlue * 0.65, deepVioletEdge, 0.58), isSecArm * 0.42);
-    baseCol = mix(baseCol, deepVioletEdge, smoothstep(0.72, 0.98, vRadiusNorm));
+    baseCol = mix(baseCol, mix(uColdBlue * 0.65, outerCoolEdge, 0.50), isSecArm * 0.38);
+    baseCol = mix(baseCol, outerCoolEdge, smoothstep(0.62, 0.98, vRadiusNorm) * 0.78);
 
     baseCol = mix(baseCol, warmCore, isBulge * 0.88);
     vec3 hiiKnotCol = mix(uOrchid * 0.62, vec3(0.96, 0.72, 0.92), smoothstep(0.7, 1.0, vLum) * 0.42);

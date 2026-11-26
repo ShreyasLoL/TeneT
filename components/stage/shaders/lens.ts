@@ -55,7 +55,8 @@ export const tenetPostFragmentShader = /* glsl */ `
     float dither = (hash12(gl_FragCoord.xy) + hash12(gl_FragCoord.xy + 19.19) - 1.0) / 255.0;
     float grainGate = step(0.5, uGrainEnabled) * step(0.008, lum);
     float n = (hash12(vUv * 800.0 + fract(uTime) * 173.0) - 0.5) * grainGate;
-    col = clamp(col + vec3(n * uGrain + dither * 0.5 * grainGate), vec3(0.0), vec3(1.0));
+    float ditherGate = step(0.002, lum);
+    col = clamp(col + vec3(n * uGrain + dither * 0.5 * ditherGate), vec3(0.0), vec3(1.0));
 
     outputColor = vec4(col, 1.0);
   }

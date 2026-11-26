@@ -58,18 +58,18 @@ export function buildGalaxyBuffers(capacity: number = MAX_GALAXY_PARTICLES): Gal
   for (let i = 0; i < count; i++) {
     const bucket = i % 25;
     // Interleaved populations:
-    // 0..12 (52%): 2 main spiral arms (cold-blue young O/B stars)
-    // 13..15 (12%): 2 faint secondary spiral arms
-    // 16..20 (20%): dense central bulge
-    // 21    (4%): HII pink/orchid knots along main arms (scarce accent <= 10%)
-    // 22..24 (12%): scattered star field + bright foreground stars
+    // 0..13 (56%): 2 main spiral arms (cold-blue young O/B stars)
+    // 14..16 (12%): 2 faint secondary spiral arms
+    // 17..21 (20%): dense central bulge
+    // 22    (4%): HII pink/orchid knots along main arms (scarce accent <= 10%)
+    // 23..24 (8%): scattered star field + bright foreground stars
     let kind = 0;
     let r = 6.0;
     let theta = 0;
     let yOff = 0;
     let lum = rng();
 
-    if (bucket <= 12) {
+    if (bucket <= 13) {
       kind = 0;
       const arm = i % 2;
       r = R_ARM_MIN + Math.pow(rng(), 1.15) * (R_ARM_MAX - R_ARM_MIN);
@@ -77,7 +77,7 @@ export function buildGalaxyBuffers(capacity: number = MAX_GALAXY_PARTICLES): Gal
       const spread = 0.13 + 0.11 * ((r - R_ARM_MIN) / (R_ARM_MAX - R_ARM_MIN));
       theta = baseTheta + gaussianRand(rng) * spread;
       yOff = gaussianRand(rng) * (0.08 + 0.014 * r);
-    } else if (bucket <= 15) {
+    } else if (bucket <= 16) {
       kind = 1;
       const arm = i % 2;
       r = R_ARM_MIN + 0.45 + Math.pow(rng(), 1.25) * (R_ARM_MAX - R_ARM_MIN - 1.2);
@@ -85,14 +85,14 @@ export function buildGalaxyBuffers(capacity: number = MAX_GALAXY_PARTICLES): Gal
       theta = baseTheta + gaussianRand(rng) * 0.21;
       yOff = gaussianRand(rng) * (0.11 + 0.016 * r);
       lum *= 0.65;
-    } else if (bucket <= 20) {
+    } else if (bucket <= 21) {
       kind = 2;
       r = R_BULGE_MIN + Math.pow(rng(), 1.85) * (R_BULGE_MAX - R_BULGE_MIN);
       theta = rng() * Math.PI * 2;
       const bulgeThickness = 0.34 * Math.exp(-(r - R_BULGE_MIN) * 0.55) + 0.06;
       yOff = gaussianRand(rng) * bulgeThickness;
       lum = 0.38 + 0.62 * lum;
-    } else if (bucket === 21) {
+    } else if (bucket === 22) {
       kind = 3;
       const knot = knots[i % knots.length];
       r = Math.max(2.8, knot.r + gaussianRand(rng) * 0.14);
@@ -106,7 +106,7 @@ export function buildGalaxyBuffers(capacity: number = MAX_GALAXY_PARTICLES): Gal
         ? 1.9 + rng() * 11.2
         : 2.0 + Math.pow(rng(), 0.92) * (R_ARM_MAX + 1.2);
       theta = rng() * Math.PI * 2;
-      yOff = gaussianRand(rng) * (isForegroundHero ? 1.45 : 0.62 + 0.04 * r);
+      yOff = gaussianRand(rng) * (isForegroundHero ? 0.95 : 0.36 + 0.022 * r);
       lum = isForegroundHero ? 0.94 + 0.06 * rng() : 0.24 + 0.56 * lum;
     }
 
