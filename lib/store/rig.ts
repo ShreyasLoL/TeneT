@@ -67,6 +67,12 @@ export const rig = {
   rendererName: 'unknown',
   isSoftwareRenderer: false,
   injectedFrameMs: 0,
+  bhTier: 0 as 0 | 1 | 2 | 3,
+  bhCheatsEnabled: true,
+  bhCamMotion: 0,
+  bhRenderScale: 1,
+  bhExposureScale: 1,
+  canvasCovered: false,
 };
 
 export function setRigScrub(velocity: number, dir: number, pulse?: number) {
