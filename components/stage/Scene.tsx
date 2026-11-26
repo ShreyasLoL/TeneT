@@ -15,6 +15,7 @@ import { BlackHolePass } from './BlackHolePass';
 import { CameraRig } from './CameraRig';
 import { DeepStars } from './DeepStars';
 import { Galaxy } from './Galaxy';
+import { Intro } from './Intro';
 import { Particles } from './Particles';
 import { Postfx } from './Postfx';
 import { Recap } from './Recap';
@@ -90,7 +91,7 @@ export function Scene() {
     rig.drawCalls = gl.info.render.calls;
     rig.triangles = gl.info.render.triangles;
 
-    if ((mode !== 'fork' || rig.recapBeat > 0 || rig.forkActive) && !reducedMotion && !document.hidden) {
+    if ((mode !== 'fork' || rig.recapBeat > 0 || rig.forkActive || rig.introActive) && !reducedMotion && !document.hidden) {
       invalidate();
     }
 
@@ -131,6 +132,7 @@ export function Scene() {
         </group>
       </group>
       <Rings />
+      <Intro />
       <Recap />
       <Postfx />
     </>
