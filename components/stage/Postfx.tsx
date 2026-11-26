@@ -132,7 +132,7 @@ export function Postfx() {
       const progradeFlare =
         profile.bloom && rig.forkMode > 0 ? rig.forkMode * rig.forkWarp * 0.75 : 0;
       if (profile.bloom) {
-        composerRig.bloom.intensity = 0.52 + progradeFlare;
+        composerRig.bloom.intensity = 0.68 + progradeFlare;
       }
 
       const u = composerRig.tenet.uniforms;

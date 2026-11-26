@@ -47,8 +47,9 @@ export const tenetPostFragmentShader = /* glsl */ `
     );
 
     // Keep shadow void pure black and sky background faithful to --bg (#0B0910) while ACES maps highlights cleanly
-    vec3 col = acesFilm(hdr * 0.98);
-    float vig = pow(clamp(1.0 - edgeR2 * 0.78, 0.0, 1.0), 1.32);
+    vec3 col = acesFilm(hdr * 1.06);
+    col = mix(col, col * col * (3.0 - 2.0 * col), 0.25);
+    float vig = pow(clamp(1.0 - edgeR2 * 0.90, 0.0, 1.0), 1.50);
     col *= vig;
 
     float lum = max(col.r, max(col.g, col.b));
