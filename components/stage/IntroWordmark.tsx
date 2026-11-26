@@ -8,6 +8,7 @@ import { rig, subscribeCanvasReady } from '@/lib/store/rig';
 import { readMotionTokens } from '@/lib/viz/motion';
 import {
   CAMERA_DISTANCE_DEFAULT,
+  CAMERA_FOV_DEG,
   CAMERA_INCLINATION_RAD,
   CAMERA_ROLL_RAD,
 } from './blackhole/constants';
@@ -50,20 +51,27 @@ export function IntroWordmark() {
       rig.cameraOverride.fov = 45;
 
       rig.bhCam.distance = CAMERA_DISTANCE_DEFAULT;
+      rig.bhCam.fov = CAMERA_FOV_DEG;
       rig.bhCam.inclination = CAMERA_INCLINATION_RAD;
       rig.bhCam.azimuth = 0;
       rig.bhCam.roll = CAMERA_ROLL_RAD;
     };
 
-    if (introDone) {
+    const setSettledIntro = () => {
       rig.introSky = 1;
+      rig.introShadow = 1;
       rig.introLens = 1;
       rig.introDisk = 1;
       rig.introRing = 1;
+      rig.introTremor = 0;
       rig.introProgress = 1;
       rig.introSpin = 0;
       rig.introTick = 0;
       rig.introActive = false;
+    };
+
+    if (introDone) {
+      setSettledIntro();
       rig.cameraOverride.active = false;
       return;
     }
@@ -76,25 +84,20 @@ export function IntroWordmark() {
       new URLSearchParams(window.location.search).get('ui') === '1';
 
     if (mode !== 'fork' || lowPower || reducedMotion || mediaReduced || webgl !== 'ok' || uiShortcut) {
-      rig.introSky = 1;
-      rig.introLens = 1;
-      rig.introDisk = 1;
-      rig.introRing = 1;
-      rig.introProgress = 1;
-      rig.introSpin = 0;
-      rig.introTick = 0;
-      rig.introActive = false;
+      setSettledIntro();
       rig.cameraOverride.active = false;
       setIntroDone(true);
       return;
     }
 
     rig.introSky = 0;
+    rig.introShadow = 0;
     rig.introLens = 0;
     rig.introDisk = 0;
     rig.introRing = 0;
+    rig.introTremor = 0;
     rig.introProgress = 0;
-    rig.introSpin = 4.8;
+    rig.introSpin = -8.5;
     rig.introTick = 1;
     rig.introActive = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -125,14 +128,7 @@ export function IntroWordmark() {
     const finish = () => {
       if (finished) return;
       finished = true;
-      rig.introSky = 1;
-      rig.introLens = 1;
-      rig.introDisk = 1;
-      rig.introRing = 1;
-      rig.introProgress = 1;
-      rig.introSpin = 0;
-      rig.introTick = 0;
-      rig.introActive = false;
+      setSettledIntro();
       resetRestingCameras();
       clearWillChange();
       setVisible(false);
@@ -211,13 +207,7 @@ export function IntroWordmark() {
       tl?.kill();
       clearWillChange();
       resetRestingCameras();
-      rig.introSky = 1;
-      rig.introLens = 1;
-      rig.introDisk = 1;
-      rig.introRing = 1;
-      rig.introSpin = 0;
-      rig.introTick = 0;
-      rig.introActive = false;
+      setSettledIntro();
     };
   }, [introDone, lowPower, mode, reducedMotion, setIntroDone, webgl]);
 

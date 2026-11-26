@@ -2,6 +2,7 @@ import { gsap } from 'gsap';
 import { rig } from '@/lib/store/rig';
 import {
   CAMERA_DISTANCE_DEFAULT,
+  CAMERA_FOV_DEG,
   CAMERA_INCLINATION_RAD,
   CAMERA_ROLL_RAD,
 } from './blackhole/constants';
@@ -39,8 +40,8 @@ export function buildIntroTimeline(
     statusEl,
   } = nodes;
 
-  // Fluid 5.2s continuous activation scaled proportionally to --duration-hero
-  const s = Math.max(0.32, (heroMs / 3500) * 5.2) / 5.2;
+  // Fluid 7.4s Cold-Start Singularity arc scaled proportionally to --duration-hero
+  const s = Math.max(0.32, (heroMs / 3500) * 7.4) / 7.4;
   const targetIstSec = readCurrentIstSeconds();
   const clockState = { sec: 0 };
 
@@ -52,26 +53,29 @@ export function buildIntroTimeline(
   if (statusEl) statusEl.style.willChange = 'transform, opacity';
 
   rig.introSky = 0;
+  rig.introShadow = 0;
   rig.introLens = 0;
   rig.introDisk = 0;
   rig.introRing = 0;
+  rig.introTremor = 0;
   rig.introProgress = 0;
-  rig.introSpin = 4.8;
+  rig.introSpin = -8.5;
   rig.introTick = 1;
 
   rig.cameraOverride.active = true;
   rig.cameraOverride.px = 0;
   rig.cameraOverride.py = 0;
-  rig.cameraOverride.pz = 7.4;
+  rig.cameraOverride.pz = 7.8;
   rig.cameraOverride.tx = 0;
   rig.cameraOverride.ty = 0;
   rig.cameraOverride.tz = 0;
-  rig.cameraOverride.fov = 47;
+  rig.cameraOverride.fov = 44;
 
-  rig.bhCam.distance = 34.5;
-  rig.bhCam.inclination = CAMERA_INCLINATION_RAD + 0.04;
-  rig.bhCam.azimuth = -0.025;
-  rig.bhCam.roll = CAMERA_ROLL_RAD - 0.075;
+  rig.bhCam.distance = 45.0;
+  rig.bhCam.fov = 32.0;
+  rig.bhCam.inclination = CAMERA_INCLINATION_RAD + 0.08;
+  rig.bhCam.azimuth = -0.04;
+  rig.bhCam.roll = CAMERA_ROLL_RAD - 0.12;
 
   gsap.set(assemblyEl, { scale: 1, opacity: 1 });
   gsap.set(wordEl, { scale: 1, opacity: 1 });
@@ -110,10 +114,10 @@ export function buildIntroTimeline(
     );
   };
 
-  // Beat 1 (0.0-0.85s): Pure void -> sweeping hairline + symmetrical palindrome radial ticks
+  // Act I (0.00-1.05s): Minimal pure void -> sweeping hairline + symmetrical palindrome radial ticks
   if (hairlineEl) {
     tl.to(hairlineEl, { scaleX: 1, duration: 0.44 * s, ease: expoBezierEase }, 0);
-    tl.to(hairlineEl, { rotation: 0, duration: 0.8 * s, ease: expoBezierEase }, 0.04 * s);
+    tl.to(hairlineEl, { rotation: 0, duration: 0.82 * s, ease: expoBezierEase }, 0.04 * s);
   }
   if (ticks.length > 0) {
     for (let k = 0; k <= 15; k++) {
@@ -133,55 +137,77 @@ export function buildIntroTimeline(
     }
   }
 
-  // Beat 2-3 (0.75-3.95s): Overlapping continuous physical activation
-  setStatusCue('STARFIELD // ONLINE', 0.75 * s);
-  tl.to(rig, { introSky: 1, duration: 1.45 * s, ease: expoBezierEase }, 0.75 * s);
+  // Act II (0.95-2.55s): Dead black ball emerges inside wide-open iris starfield; tight close-up push-in
   if (hairlineEl) {
-    tl.to(hairlineEl, { opacity: 0, scaleX: 0.35, duration: 0.45 * s, ease: expoBezierEase }, 0.8 * s);
+    tl.to(hairlineEl, { opacity: 0, scaleX: 0.35, duration: 0.45 * s, ease: expoBezierEase }, 0.95 * s);
   }
   if (dialGroupEl) {
-    tl.to(dialGroupEl, { opacity: 0, scale: 0.72, duration: 0.58 * s, ease: expoBezierEase }, 0.82 * s);
+    tl.to(dialGroupEl, { opacity: 0, scale: 0.72, duration: 0.56 * s, ease: expoBezierEase }, 0.96 * s);
   }
-  tl.to(rig, { introTick: 0, duration: 1.05 * s, ease: expoBezierEase }, 0.8 * s);
+  tl.to(rig, { introTick: 0, duration: 0.90 * s, ease: expoBezierEase }, 0.95 * s);
 
-  setStatusCue('GRAVITY // BENDING', 1.25 * s);
-  tl.to(rig, { introLens: 1, duration: 1.95 * s, ease: expoBezierEase }, 1.25 * s);
-  tl.to(rig, { introProgress: 0.88, duration: 1.85 * s, ease: expoBezierEase }, 1.25 * s);
-  tl.to(rig, { introSpin: 0, duration: 2.15 * s, ease: expoBezierEase }, 1.25 * s);
-  tl.to(rig.cameraOverride, { py: 0, pz: 8.8, duration: 1.75 * s, ease: expoBezierEase }, 1.25 * s);
+  setStatusCue('SINGULARITY // DORMANT', 1.05 * s);
+  tl.to(rig, { introSky: 1.45, duration: 1.25 * s, ease: expoBezierEase }, 1.00 * s);
+  tl.to(rig, { introShadow: 1.0, duration: 0.85 * s, ease: expoBezierEase }, 1.00 * s);
+  tl.to(rig, { introLens: 0.08, duration: 1.10 * s, ease: expoBezierEase }, 1.05 * s);
+  tl.to(rig, { introProgress: 0.18, duration: 1.20 * s, ease: expoBezierEase }, 1.05 * s);
+  tl.to(rig.bhCam, { distance: 28.5, duration: 1.45 * s, ease: 'power2.inOut' }, 1.00 * s);
+  tl.to(rig.cameraOverride, { pz: 6.8, duration: 1.45 * s, ease: 'power2.inOut' }, 1.00 * s);
+
+  // Act III (2.55-3.40s): Starter crank tremor + first ember/photon sputter
+  setStatusCue('GRAVITY // ENGAGING', 2.55 * s);
+  tl.to(rig, { introTremor: 0.52, duration: 0.18 * s, ease: 'power2.out' }, 2.55 * s);
+  tl.to(rig, { introTremor: 0.16, duration: 0.48 * s, ease: 'power2.out' }, 2.73 * s);
+  tl.to(rig, { introDisk: 0.14, duration: 0.22 * s, ease: 'power2.out' }, 2.58 * s);
+  tl.to(rig, { introDisk: 0.06, duration: 0.42 * s, ease: 'power2.inOut' }, 2.80 * s);
+  tl.to(rig, { introRing: 0.34, duration: 0.20 * s, ease: 'power2.out' }, 2.60 * s);
+  tl.to(rig, { introRing: 0.12, duration: 0.44 * s, ease: 'power2.inOut' }, 2.80 * s);
+  tl.to(rig, { introLens: 0.38, duration: 0.65 * s, ease: expoBezierEase }, 2.58 * s);
+  tl.to(rig, { introSpin: -7.6, duration: 0.65 * s, ease: 'power1.inOut' }, 2.58 * s);
+
+  // Act IV (3.35-5.45s): Full ignition roar, HDR surge, auto-exposure sky dim, stardust whip, recoil pull-back
+  setStatusCue('ACCRETION // IGNITION', 3.35 * s);
+  tl.to(rig, { introTremor: 1.0, duration: 0.16 * s, ease: 'power3.out' }, 3.35 * s);
+  tl.to(rig, { introTremor: 0, duration: 0.95 * s, ease: 'power2.out' }, 3.51 * s);
+  tl.to(rig, { introDisk: 1.32, duration: 0.58 * s, ease: 'power3.out' }, 3.35 * s);
+  tl.to(rig, { introDisk: 1.0, duration: 1.15 * s, ease: expoBezierEase }, 3.93 * s);
+  tl.to(rig, { introRing: 1.38, duration: 0.52 * s, ease: 'power3.out' }, 3.38 * s);
+  tl.to(rig, { introRing: 1.0, duration: 1.10 * s, ease: expoBezierEase }, 3.90 * s);
+  tl.to(rig, { introLens: 1.0, duration: 1.25 * s, ease: expoBezierEase }, 3.35 * s);
+  tl.to(rig, { introSky: 0.74, duration: 0.65 * s, ease: 'power2.out' }, 3.38 * s);
+  tl.to(rig, { introSky: 1.0, duration: 1.45 * s, ease: expoBezierEase }, 4.25 * s);
+  tl.to(rig, { introProgress: 0.94, duration: 1.55 * s, ease: expoBezierEase }, 3.35 * s);
+  tl.to(rig, { introSpin: 0, duration: 2.10 * s, ease: expoBezierEase }, 3.35 * s);
   tl.to(
     rig.bhCam,
     {
-      distance: 40.6,
-      inclination: CAMERA_INCLINATION_RAD + 0.01,
+      distance: 40.8,
+      fov: 34.0,
+      inclination: CAMERA_INCLINATION_RAD + 0.012,
       azimuth: -0.006,
       roll: CAMERA_ROLL_RAD - 0.015,
-      duration: 1.95 * s,
+      duration: 1.85 * s,
       ease: expoBezierEase,
     },
-    1.25 * s,
+    3.40 * s,
   );
+  tl.to(rig.cameraOverride, { pz: 9.6, duration: 1.85 * s, ease: expoBezierEase }, 3.40 * s);
 
-  setStatusCue('ACCRETION // ACTIVE', 1.85 * s);
-  tl.set(rig, { introDisk: 0.02 }, 1.8 * s);
-  tl.to(rig, { introDisk: 1, duration: 1.85 * s, ease: expoBezierEase }, 1.85 * s);
-
-  setStatusCue('HORIZON // STABLE', 2.65 * s);
-  tl.to(rig, { introRing: 1, duration: 1.15 * s, ease: expoBezierEase }, 2.65 * s);
-
+  // Act V (4.65-7.40s): TENET wordmark + timer ring + IST clock + Horizon Active -> seamless settle
+  setStatusCue('HORIZON // ACTIVE', 4.65 * s);
   spans.forEach((sp, idx) => {
     tl.to(
       sp,
       { y: 0, scale: 1, opacity: 1, duration: 0.56 * s, ease: expoBezierEase },
-      (2.65 + idx * 0.068) * s,
+      (4.65 + idx * 0.068) * s,
     );
   });
   if (timerRingEl) {
-    tl.to(timerRingEl, { opacity: 0.85, duration: 0.22 * s, ease: expoBezierEase }, 2.65 * s);
-    tl.to(timerRingEl, { strokeDashoffset: 0, duration: 1.08 * s, ease: expoBezierEase }, 2.67 * s);
+    tl.to(timerRingEl, { opacity: 0.85, duration: 0.22 * s, ease: expoBezierEase }, 4.65 * s);
+    tl.to(timerRingEl, { strokeDashoffset: 0, duration: 1.08 * s, ease: expoBezierEase }, 4.67 * s);
   }
   if (clockEl) {
-    tl.to(clockEl, { y: 0, opacity: 1, duration: 0.34 * s, ease: expoBezierEase }, 2.68 * s);
+    tl.to(clockEl, { y: 0, opacity: 1, duration: 0.34 * s, ease: expoBezierEase }, 4.68 * s);
     tl.to(
       clockState,
       {
@@ -192,37 +218,37 @@ export function buildIntroTimeline(
           clockEl.textContent = formatSecondsHms(clockState.sec);
         },
       },
-      2.68 * s,
+      4.68 * s,
     );
   }
   if (nightEl) {
-    tl.to(nightEl, { y: 0, opacity: 1, duration: 0.44 * s, ease: expoBezierEase }, 3.25 * s);
+    tl.to(nightEl, { y: 0, opacity: 1, duration: 0.44 * s, ease: expoBezierEase }, 5.25 * s);
   }
 
-  // Beat 4 (3.95-5.20s): Wordmark pulls into the horizon + brief pause -> live simulation continues
-  tl.to(rig, { introProgress: 1, duration: 0.9 * s, ease: expoBezierEase }, 3.95 * s);
-  tl.to(assemblyEl, { scale: 0.72, opacity: 0, duration: 0.62 * s, ease: expoBezierEase }, 3.95 * s);
+  tl.to(rig, { introProgress: 1.0, duration: 0.95 * s, ease: expoBezierEase }, 6.05 * s);
+  tl.to(assemblyEl, { scale: 0.72, opacity: 0, duration: 0.65 * s, ease: expoBezierEase }, 6.05 * s);
   if (statusEl) {
-    tl.to(statusEl, { opacity: 0, y: -2, duration: 0.42 * s, ease: expoBezierEase }, 3.95 * s);
+    tl.to(statusEl, { opacity: 0, y: -2, duration: 0.45 * s, ease: expoBezierEase }, 6.05 * s);
   }
   tl.to(
     rig.cameraOverride,
-    { py: 0, pz: 10.6, fov: 45, duration: 0.95 * s, ease: expoBezierEase },
-    3.95 * s,
+    { py: 0, pz: 10.6, fov: 45, duration: 1.00 * s, ease: expoBezierEase },
+    6.05 * s,
   );
   tl.to(
     rig.bhCam,
     {
       distance: CAMERA_DISTANCE_DEFAULT,
+      fov: CAMERA_FOV_DEG,
       inclination: CAMERA_INCLINATION_RAD,
       azimuth: 0,
       roll: CAMERA_ROLL_RAD,
-      duration: 0.95 * s,
+      duration: 1.00 * s,
       ease: expoBezierEase,
     },
-    3.95 * s,
+    6.05 * s,
   );
-  tl.to({}, { duration: 0.25 * s }, 4.95 * s);
+  tl.to({}, { duration: 0.30 * s }, 7.10 * s);
 
   return tl;
 }
