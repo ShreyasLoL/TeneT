@@ -13,6 +13,7 @@ export const deepStarsVertexShader = /* glsl */ `
   uniform float uRoll;
   uniform float uBrightness;
   uniform float uLensStrength;
+  uniform float uShadowReveal;
 
   out float vAlpha;
   out float vTemp;
@@ -65,8 +66,9 @@ export const deepStarsVertexShader = /* glsl */ `
     float rs = sin(-uRoll);
     vec2 pDisk = vec2(pScreen.x * rc - pScreen.y * rs, pScreen.x * rs + pScreen.y * rc);
     float diskBox = abs(pDisk.y) + max(0.0, abs(pDisk.x) - 0.92) * 0.58;
-    float bhClear = smoothstep(0.32, 0.46, length(pScreen)) * smoothstep(0.055, 0.145, diskBox);
-    bhClear = mix(1.0, bhClear, smoothstep(0.0, 0.45, uLensStrength));
+    float shadowCut = mix(1.0, smoothstep(0.32, 0.46, length(pScreen)), uShadowReveal);
+    float diskCut = mix(1.0, smoothstep(0.055, 0.145, diskBox), smoothstep(0.0, 0.45, uLensStrength));
+    float bhClear = shadowCut * diskCut;
 
     float twinkle = 0.88 + 0.12 * sin(uTime * 0.85 + aSeed.z * 6.2831853);
     float lum = aSeed.x * magBoost;

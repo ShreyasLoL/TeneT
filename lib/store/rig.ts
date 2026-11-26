@@ -52,6 +52,8 @@ export const rig = {
   introLens: 1,
   introDisk: 1,
   introRing: 1,
+  introShadow: 1,
+  introTremor: 0,
   canvasReady: false,
   forkMode: 0,
   forkWarp: 0,

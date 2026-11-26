@@ -34,6 +34,7 @@ export const blackHoleFragmentShader = /* glsl */ `
   uniform float uWarp;
   uniform float uHue;
   uniform float uSkyReveal;
+  uniform float uShadowReveal;
   uniform float uLensStrength;
   uniform float uDiskReveal;
   uniform float uRingReveal;
@@ -250,9 +251,9 @@ export const blackHoleFragmentShader = /* glsl */ `
         lensRimCol * (einsteinFocus * 0.055)) *
       fgBeltMask;
 
-    float shadowMask = mix(1.0, outsideShadow, smoothstep(0.0, 0.35, uLensStrength));
+    float shadowMask = mix(1.0, outsideShadow, uShadowReveal);
     float effTrans = mix(1.0, transmittance, smoothstep(0.0, 0.45, uDiskReveal));
-    mediump vec3 skyRevealed = mix(uBgColor, skyCol, uSkyReveal);
+    mediump vec3 skyRevealed = mix(uBgColor, skyCol * max(uSkyReveal, 0.0), clamp(uSkyReveal, 0.0, 1.0));
     mediump vec3 backCol = skyRevealed * shadowMask + photonRing * uRingReveal;
     mediump vec3 linearCol = diskCol * uDiskReveal + effTrans * backCol;
 
