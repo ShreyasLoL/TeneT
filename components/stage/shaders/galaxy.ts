@@ -15,6 +15,7 @@ export const galaxyVertexShader = /* glsl */ `
   uniform float uWarp;
   uniform float uHue;
   uniform float uBrightness;
+  uniform float uLensStrength;
 
   out float vKind;
   out float vRadiusNorm;
@@ -77,12 +78,13 @@ export const galaxyVertexShader = /* glsl */ `
       behindMask *
       smoothstep(0.85, 1.5, rXY) *
       (1.0 - smoothstep(4.5, 9.5, rXY));
-    mvPos.xy += normalize(mvPos.xy + vec2(1e-5)) * lensPush;
+    mvPos.xy += normalize(mvPos.xy + vec2(1e-5)) * (lensPush * uLensStrength);
 
     // Keep background/foreground bulge & field stars out of the black hole shadow AND bottom-right M87* void
     vec2 ndc = (projectionMatrix * mvPos).xy / max((projectionMatrix * mvPos).w, 1e-4);
     float m87Void = smoothstep(0.28, 0.56, length((ndc - vec2(0.52, -0.50)) * vec2(1.6, 1.0)));
-    float bhClear = smoothstep(1.08, 2.10, length(mvPos.xy)) * m87Void;
+    float bhHoleClear = mix(1.0, smoothstep(1.08, 2.10, length(mvPos.xy)), smoothstep(0.0, 0.45, uLensStrength));
+    float bhClear = bhHoleClear * m87Void;
 
     float isKnot = step(2.5, kind) * step(kind, 3.5);
     float isHeroStar = step(3.5, kind) * step(0.92, lum);

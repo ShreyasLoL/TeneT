@@ -12,6 +12,7 @@ export const deepStarsVertexShader = /* glsl */ `
   uniform float uDpr;
   uniform float uRoll;
   uniform float uBrightness;
+  uniform float uLensStrength;
 
   out float vAlpha;
   out float vTemp;
@@ -44,17 +45,17 @@ export const deepStarsVertexShader = /* glsl */ `
     vec3 radDir = rLen > 1e-6 ? (radPerp / rLen) : uCamRight;
     float beta = atan(rLen, zUnlensed);
 
-    float thetaE = 0.138;
-    float thetaPlus = 0.5 * (beta + sqrt(beta * beta + 4.0 * thetaE * thetaE));
+    float thetaE = 0.138 * max(uLensStrength, 0.0);
+    float thetaPlus = thetaE > 1e-4 ? 0.5 * (beta + sqrt(beta * beta + 4.0 * thetaE * thetaE)) : beta;
     vec3 lensedDir = cos(thetaPlus) * uCamForward + sin(thetaPlus) * radDir;
 
     float zCam = dot(lensedDir, uCamForward);
     float ndcX = dot(lensedDir, uCamRight) / (zCam * uAspect * uTanHalfFov);
     float ndcY = dot(lensedDir, uCamUp) / (zCam * uTanHalfFov);
 
-    float uRatio = beta / thetaE;
-    float tangentialStretch = clamp(thetaPlus / max(beta, 0.025), 1.0, 2.8);
-    float magBoost = clamp(1.0 + 0.55 * exp(-uRatio * uRatio * 0.9), 1.0, 1.65);
+    float uRatio = thetaE > 1e-4 ? beta / thetaE : 100.0;
+    float tangentialStretch = mix(1.0, clamp(thetaPlus / max(beta, 0.025), 1.0, 2.8), uLensStrength);
+    float magBoost = mix(1.0, clamp(1.0 + 0.55 * exp(-uRatio * uRatio * 0.9), 1.0, 1.65), uLensStrength);
 
     vec2 pScreen = vec2(ndcX * uAspect, ndcY);
     vec2 screenRad = length(pScreen) > 1e-5 ? normalize(pScreen) : vec2(1.0, 0.0);
@@ -65,6 +66,7 @@ export const deepStarsVertexShader = /* glsl */ `
     vec2 pDisk = vec2(pScreen.x * rc - pScreen.y * rs, pScreen.x * rs + pScreen.y * rc);
     float diskBox = abs(pDisk.y) + max(0.0, abs(pDisk.x) - 0.92) * 0.58;
     float bhClear = smoothstep(0.32, 0.46, length(pScreen)) * smoothstep(0.055, 0.145, diskBox);
+    bhClear = mix(1.0, bhClear, smoothstep(0.0, 0.45, uLensStrength));
 
     float twinkle = 0.88 + 0.12 * sin(uTime * 0.85 + aSeed.z * 6.2831853);
     float lum = aSeed.x * magBoost;

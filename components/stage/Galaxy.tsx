@@ -67,6 +67,7 @@ export function Galaxy() {
         uWarp: { value: 0 },
         uHue: { value: 0 },
         uBrightness: { value: 1 },
+        uLensStrength: { value: rig.introLens },
         uAmber: { value: new Vector3(amr, amg, amb) },
         uOrchid: { value: new Vector3(ar, ag, ab) },
         uViolet: { value: new Vector3(abr * 1.3 + 0.03, abg * 1.1 + 0.015, abb * 2.2 + 0.12) },
@@ -101,6 +102,7 @@ export function Galaxy() {
       sMat.uniforms.uMode.value = rig.forkMode;
       sMat.uniforms.uWarp.value = rig.forkWarp;
       sMat.uniforms.uHue.value = rig.forkHue;
+      sMat.uniforms.uLensStrength.value = rig.introLens;
       sMat.uniforms.uBrightness.value = MathUtils.damp(
         sMat.uniforms.uBrightness.value as number,
         mode === 'fork' ? 0.50 : mode === 'ritual' ? 0.28 : 0.40,

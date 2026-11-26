@@ -33,6 +33,10 @@ export const blackHoleFragmentShader = /* glsl */ `
   uniform float uMode;
   uniform float uWarp;
   uniform float uHue;
+  uniform float uSkyReveal;
+  uniform float uLensStrength;
+  uniform float uDiskReveal;
+  uniform float uRingReveal;
   uniform float uOutputSrgb;
 
   uniform mediump vec3 uBgColor;
@@ -210,7 +214,8 @@ export const blackHoleFragmentShader = /* glsl */ `
       fgBeltMask
     );
 
-    vec3 dStar = mix(dOut, rd, smoothstep(5.2, 17.5, b) * 0.46);
+    vec3 dLensed = normalize(mix(rd, dOut, uLensStrength));
+    vec3 dStar = mix(dLensed, rd, smoothstep(5.2, 17.5, b) * 0.46);
     float rot = sin(uTime * 0.035) * 0.022;
     float cr = cos(rot);
     float sr = sin(rot);
@@ -223,7 +228,7 @@ export const blackHoleFragmentShader = /* glsl */ `
 
     mediump vec3 skyCol = textureGrad(uSkyCube, rotStar, skyDx, skyDy).rgb;
     float einsteinFocus = outsideShadow * exp(-pow((b - 3.65) / 1.15, 2.0));
-    skyCol *= 1.0 + einsteinFocus * 0.65;
+    skyCol *= 1.0 + einsteinFocus * 0.65 * uLensStrength;
 
     float posPx = max(dPx, 0.0);
     float breathe = 0.72 + 0.28 * sin(uTime * 0.34);
@@ -245,8 +250,11 @@ export const blackHoleFragmentShader = /* glsl */ `
         lensRimCol * (einsteinFocus * 0.055)) *
       fgBeltMask;
 
-    mediump vec3 backCol = skyCol * outsideShadow + photonRing;
-    mediump vec3 linearCol = diskCol + transmittance * backCol;
+    float shadowMask = mix(1.0, outsideShadow, smoothstep(0.0, 0.35, uLensStrength));
+    float effTrans = mix(1.0, transmittance, smoothstep(0.0, 0.45, uDiskReveal));
+    mediump vec3 skyRevealed = mix(uBgColor, skyCol, uSkyReveal);
+    mediump vec3 backCol = skyRevealed * shadowMask + photonRing * uRingReveal;
+    mediump vec3 linearCol = diskCol * uDiskReveal + effTrans * backCol;
 
     if (uOutputSrgb > 0.5) {
       linearCol = linearCol / (vec3(1.0) + max(linearCol - vec3(0.85), vec3(0.0)) * 0.45);

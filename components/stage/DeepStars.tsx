@@ -105,7 +105,8 @@ export function DeepStars() {
       uTime: { value: 0 },
       uDpr: { value: 1 },
       uRoll: { value: CAMERA_ROLL_RAD },
-      uBrightness: { value: 1 },
+      uBrightness: { value: rig.introSky > 0.5 ? 1 : 0 },
+      uLensStrength: { value: rig.introLens },
     }),
     [],
   );
@@ -157,9 +158,11 @@ export function DeepStars() {
     u.uTime.value = smoothTimeRef.current;
     u.uDpr.value = gl.getPixelRatio();
     u.uRoll.value = cam.roll;
+    u.uLensStrength.value = rig.introLens;
+    const introFade = MathUtils.smoothstep(rig.introSky, 0.04, 0.85);
     u.uBrightness.value = MathUtils.damp(
       u.uBrightness.value as number,
-      mode === 'fork' ? 1.0 : mode === 'ritual' ? 0.45 : 0.72,
+      (mode === 'fork' ? 1.0 : mode === 'ritual' ? 0.45 : 0.72) * introFade,
       4.5,
       clampedDt,
     );

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import {
   CubeTexture,
   GLSL3,
+  MathUtils,
   ShaderMaterial,
   Vector2,
   Vector3,
@@ -84,6 +85,10 @@ export function BlackHolePass() {
       uMode: { value: 0 },
       uWarp: { value: 0 },
       uHue: { value: 0 },
+      uSkyReveal: { value: rig.introSky },
+      uLensStrength: { value: rig.introLens },
+      uDiskReveal: { value: rig.introDisk },
+      uRingReveal: { value: rig.introRing },
       uOutputSrgb: { value: 0 },
       uBgColor: { value: new Vector3(0.003, 0.002, 0.006) },
       uAccent: { value: new Vector3(0.75, 0.07, 0.82) },
@@ -140,11 +145,26 @@ export function BlackHolePass() {
         : level === 0 && !touch
           ? INTEGRATOR_STEPS_HIGH
           : INTEGRATOR_STEPS_FULL;
-    if (!rig.forkActive && !reducedMotion) {
-      cam.inclination = CAMERA_INCLINATION_RAD + Math.sin(t * 0.14) * 0.036;
-      cam.distance = CAMERA_DISTANCE_DEFAULT + Math.sin(t * 0.105 + 0.8) * 1.6;
-      cam.azimuth = Math.sin(t * 0.055) * 0.032;
-      cam.roll = CAMERA_ROLL_RAD + Math.sin(t * 0.095 + 1.4) * 0.016;
+    if (!rig.forkActive && !rig.introActive && !reducedMotion) {
+      cam.inclination = MathUtils.damp(
+        cam.inclination,
+        CAMERA_INCLINATION_RAD + Math.sin(t * 0.14) * 0.036,
+        3.2,
+        clampedDt,
+      );
+      cam.distance = MathUtils.damp(
+        cam.distance,
+        CAMERA_DISTANCE_DEFAULT + Math.sin(t * 0.105 + 0.8) * 1.6,
+        3.2,
+        clampedDt,
+      );
+      cam.azimuth = MathUtils.damp(cam.azimuth, Math.sin(t * 0.055) * 0.032, 3.2, clampedDt);
+      cam.roll = MathUtils.damp(
+        cam.roll,
+        CAMERA_ROLL_RAD + Math.sin(t * 0.095 + 1.4) * 0.016,
+        3.2,
+        clampedDt,
+      );
     }
 
     const u = mat.uniforms;
@@ -187,6 +207,10 @@ export function BlackHolePass() {
     u.uMode.value = rig.forkMode;
     u.uWarp.value = rig.forkWarp;
     u.uHue.value = rig.forkHue;
+    u.uSkyReveal.value = rig.introSky;
+    u.uLensStrength.value = rig.introLens;
+    u.uDiskReveal.value = rig.introDisk;
+    u.uRingReveal.value = rig.introRing;
     u.uOutputSrgb.value = composerActive ? 0.0 : 1.0;
   }, -10);
 
