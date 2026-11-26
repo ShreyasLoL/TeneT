@@ -41,10 +41,10 @@ function buildDeepStarBuffers() {
   const seeds = new Float32Array(MAX_DEEP_STARS * 4);
 
   // Normalized bottom-right Messier 87* void center matching blackholeSky.glsl.ts
-  const m87Len = Math.hypot(0.328, -0.128, -0.936);
-  const mx = 0.328 / m87Len;
-  const my = -0.128 / m87Len;
-  const mz = -0.936 / m87Len;
+  const m87Len = Math.hypot(0.282, -0.115, -0.952);
+  const mx = 0.282 / m87Len;
+  const my = -0.115 / m87Len;
+  const mz = -0.952 / m87Len;
   const m87VoidCos = Math.cos(0.215);
 
   let i = 0;

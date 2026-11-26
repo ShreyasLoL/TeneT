@@ -68,11 +68,11 @@ export const blackHoleSkyGlsl = /* glsl */ `
     float n2 = fbm2(sp * 5.6 + vec2(n1 * 1.4, -2.2));
     float darkPocket = smoothstep(0.35, 0.78, fbm2(sp * 1.8 + vec2(-2.1, 0.8)));
 
-    vec3 anchorRightWisp = normalize(vec3(0.030, 0.145, -0.989));
+    vec3 anchorRightWisp = normalize(vec3(0.020, 0.141, -0.990));
     float dR = acos(clamp(dot(dir, anchorRightWisp), -1.0, 1.0));
-    float rCloud = exp(-dR * dR / (2.0 * 0.105 * 0.105)) * smoothstep(0.36, 0.84, n2);
+    float rCloud = exp(-dR * dR / (2.0 * 0.115 * 0.115)) * smoothstep(0.36, 0.84, n2);
 
-    mediump vec3 faintIndigoGreen = vec3(0.025, 0.16, 0.15) * rCloud * 0.10;
+    mediump vec3 faintIndigoGreen = mix(vec3(0.030, 0.36, 0.22), vec3(0.05, 0.24, 0.32), smoothstep(0.35, 0.78, n2)) * rCloud * 0.155;
     mediump vec3 faintAbyss = mix(accentAbyss, accentDim * 0.4, n2) * smoothstep(0.58, 0.92, n1 * 0.65 + n2 * 0.35) * darkPocket * 0.032;
     return (faintIndigoGreen + faintAbyss) * m87VoidMask;
   }
@@ -86,7 +86,7 @@ export const blackHoleSkyGlsl = /* glsl */ `
     mediump vec3 accentAbyss,
     mediump vec3 amber
   ) {
-    vec3 anchorM87 = normalize(vec3(0.328, -0.128, -0.936));
+    vec3 anchorM87 = normalize(vec3(0.282, -0.115, -0.952));
     float dM87 = acos(clamp(dot(dir, anchorM87), -1.0, 1.0));
     float m87VoidMask = smoothstep(0.145, 0.265, dM87);
 

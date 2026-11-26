@@ -133,7 +133,7 @@ export function BlackHolePass() {
     if (!rig.forkActive && !reducedMotion) {
       cam.inclination = CAMERA_INCLINATION_RAD + Math.sin(t * 0.14) * 0.036;
       cam.distance = CAMERA_DISTANCE_DEFAULT + Math.sin(t * 0.105 + 0.8) * 1.6;
-      cam.azimuth = t * 0.0045;
+      cam.azimuth = Math.sin(t * 0.055) * 0.032;
       cam.roll = CAMERA_ROLL_RAD + Math.sin(t * 0.095 + 1.4) * 0.016;
     }
 

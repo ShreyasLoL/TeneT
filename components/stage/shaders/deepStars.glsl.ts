@@ -21,7 +21,7 @@ export const deepStarsVertexShader = /* glsl */ `
 
   void main() {
     vec3 dir = normalize(position);
-    float a = uTime * 0.0018;
+    float a = sin(uTime * 0.035) * 0.022;
     float ca = cos(a);
     float sa = sin(a);
     vec3 rotDir = vec3(dir.x * ca - dir.z * sa, dir.y, dir.x * sa + dir.z * ca);

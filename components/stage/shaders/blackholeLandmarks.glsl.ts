@@ -28,7 +28,7 @@ export const blackHoleLandmarksGlsl = /* glsl */ `
     veilCol = mix(veilCol, oiiiGreen, smoothstep(0.40, 0.78, gasB));
     veilCol = mix(veilCol, mix(accentAbyss * 1.15, accentDim * 0.42, 0.35), smoothstep(0.55, 0.88, q.x) * 0.48);
 
-    mediump vec3 nebulaCol = veilCol * (density * 0.145);
+    mediump vec3 nebulaCol = veilCol * (density * 0.072);
 
     // Sculpted miniature Pillars of Creation dark dust trunks with organic wispy erosion
     vec3 anchorPillars = normalize(vec3(-0.352, -0.025, -0.935));
@@ -54,7 +54,7 @@ export const blackHoleLandmarksGlsl = /* glsl */ `
 
       nebulaCol *= 1.0 - pillarBody * 0.62;
       mediump vec3 rimCol = mix(vec3(0.16, 0.62, 0.68), amber * 0.85, 0.35);
-      nebulaCol += rimCol * (rimLight * 0.052);
+      nebulaCol += rimCol * (rimLight * 0.032);
     }
     return nebulaCol;
   }
@@ -81,7 +81,7 @@ export const blackHoleLandmarksGlsl = /* glsl */ `
 
     mediump vec3 coreCol = mix(amber, vec3(1.00, 0.94, 0.86), 0.78);
     mediump vec3 haloCol = mix(vec3(0.76, 0.72, 0.88), accentAbyss * 1.35, 0.35);
-    return (coreCol * nucleus * 0.22 + mix(haloCol, coreCol, 0.45) * halo * 0.24) * dustLane * mask;
+    return (coreCol * nucleus * 0.17 + mix(haloCol, coreCol, 0.45) * halo * 0.18) * dustLane * mask;
   }
 
   // Hoag's Object (PGC 54559): upper-center-left golden elliptical core surrounded by a detached blue star ring
@@ -102,7 +102,7 @@ export const blackHoleLandmarksGlsl = /* glsl */ `
 
     mediump vec3 coreCol = mix(amber, vec3(1.00, 0.88, 0.70), 0.65);
     mediump vec3 ringBlue = vec3(0.44, 0.70, 1.00);
-    return (coreCol * core * 0.16 + ringBlue * gapRing * 0.11) * mask;
+    return (coreCol * core * 0.13 + ringBlue * gapRing * 0.085) * mask;
   }
 
   // Helix / Ring Nebula (NGC 7293): lower-left translucent blue-green core ringed by dusty violet-rose shell
@@ -124,7 +124,7 @@ export const blackHoleLandmarksGlsl = /* glsl */ `
 
     mediump vec3 cyanCore = vec3(0.18, 0.66, 0.62);
     mediump vec3 roseShell = mix(vec3(0.74, 0.22, 0.38), mix(accentAbyss, accent * 0.62, 0.45), 0.5);
-    return (vec3(0.75, 0.92, 1.0) * dwarf * 0.18 + cyanCore * innerIon * 0.085 + roseShell * outerShell * 0.12) * mask;
+    return (vec3(0.75, 0.92, 1.0) * dwarf * 0.14 + cyanCore * innerIon * 0.065 + roseShell * outerShell * 0.092) * mask;
   }
 
   // Messier 87*-style distant supermassive black hole & tapered synchrotron jet inside the big bottom-right void
@@ -146,7 +146,7 @@ export const blackHoleLandmarksGlsl = /* glsl */ `
     mediump vec3 ehtDarkRed = vec3(0.58, 0.12, 0.02);
     mediump vec3 ehtBright = mix(vec3(0.95, 0.38, 0.06), amber, 0.55);
     mediump vec3 ehtCol = mix(ehtDarkRed, ehtBright, clamp(asym * knots, 0.0, 1.0));
-    mediump vec3 m87Ring = ehtCol * (ringMain * asym * knots * 0.62 + outerHaze * asym * 0.58);
+    mediump vec3 m87Ring = ehtCol * (ringMain * asym * knots * 0.44 + outerHaze * asym * 0.40);
 
     vec2 jAxis = normalize(vec2(-0.82, 0.57));
     vec2 jPerpAxis = vec2(-jAxis.y, jAxis.x);
@@ -157,7 +157,7 @@ export const blackHoleLandmarksGlsl = /* glsl */ `
       smoothstep(0.006, 0.015, along) *
       exp(-max(0.0, along - 0.010) * 58.0) *
       exp(-pow(perp / (0.0009 + 0.036 * max(along, 0.0)), 2.0));
-    mediump vec3 jetCol = vec3(0.54, 0.74, 0.98) * (jet * jetKnots * 0.15);
+    mediump vec3 jetCol = vec3(0.54, 0.74, 0.98) * (jet * jetKnots * 0.11);
 
     return m87Ring + jetCol;
   }

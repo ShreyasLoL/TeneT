@@ -211,7 +211,7 @@ export const blackHoleFragmentShader = /* glsl */ `
     );
 
     vec3 dStar = mix(dOut, rd, smoothstep(5.2, 17.5, b) * 0.46);
-    float rot = uTime * 0.0018;
+    float rot = sin(uTime * 0.035) * 0.022;
     float cr = cos(rot);
     float sr = sin(rot);
     vec3 rotStar = vec3(dStar.x * cr + dStar.z * sr, dStar.y, -dStar.x * sr + dStar.z * cr);
