@@ -1,14 +1,13 @@
 import { DataTexture, FloatType, NearestFilter, RGBAFormat } from 'three';
+import { NORMAL_PARTICLES } from '@/lib/stage/tiers';
 import type { buildCohortMap } from '@/lib/viz/cohorts';
-import {
-  BH_DISK_H_OVER_R_MAX,
-  BH_DISK_H_OVER_R_MIN,
-  BH_DISK_R_IN,
-  BH_DISK_R_OUT,
-  BH_PARTICLE_COUNTS,
-} from '@/stage/blackhole/constants';
 
-export const MAX_PARTICLES = BH_PARTICLE_COUNTS.T2; // 262,144 GPGPU capacity
+export const MAX_PARTICLES = NORMAL_PARTICLES; // 45,000 max per perf budget
+const DISK_FRACTION = 0.9;
+const R_DISK_IN = 0.66;
+const R_DISK_OUT = 2.48;
+const R_SHELL_IN = 0.72;
+const R_SHELL_OUT = 1.65;
 
 type CohortMap = ReturnType<typeof buildCohortMap>;
 
@@ -39,57 +38,66 @@ export function createCohortTexture(): DataTexture {
 }
 
 /**
- * Builds instanced particle initial attributes up to `MAX_PARTICLES`:
- * `(r0, phi0, z0, packedSeed)` matching baked `particles_init.bin`.
+ * Builds static particle attributes up to `MAX_PARTICLES` (45,000):
+ * - `spawn` (`position` vec3): scattered outer 3D cloud for `uIntro = 0`, spiraling inward on GPU.
+ * - `seeds` (`aSeed` vec4): x = orbital semi-major axis `aBase`, y = eccRand, z = phase, w = inclRand.
  */
-export function buildParticleInitBuffer(
-  bakedInit: Float32Array | null,
-  capacity = MAX_PARTICLES,
-): Float32Array {
+export function buildStaticParticleBuffers(capacity: number): {
+  spawn: Float32Array;
+  seeds: Float32Array;
+} {
   const count = Math.min(MAX_PARTICLES, Math.max(1, capacity));
-  const out = new Float32Array(count * 4);
+  const rng = mulberry32(99173);
+  const spawn = new Float32Array(count * 3);
+  const seeds = new Float32Array(count * 4);
+  const diskLimit = Math.floor(count * DISK_FRACTION);
 
-  if (bakedInit && bakedInit.length >= 4) {
-    const baseCount = Math.floor(bakedInit.length / 4);
-    for (let i = 0; i < count; i++) {
-      const s = (i % baseCount) * 4;
-      const tile = i >>> 15;
-      out[i * 4] = bakedInit[s];
-      out[i * 4 + 1] = bakedInit[s + 1] + tile * 0.785398;
-      out[i * 4 + 2] = bakedInit[s + 2];
-      out[i * 4 + 3] = bakedInit[s + 3] + tile * 0.137;
-    }
-    return out;
-  }
-
-  const rng = mulberry32(9917342);
-  const logIn = Math.log(BH_DISK_R_IN);
-  const logOut = Math.log(BH_DISK_R_OUT);
   for (let i = 0; i < count; i++) {
-    const r = Math.exp(logIn + rng() * (logOut - logIn));
-    const phi = rng() * Math.PI * 2;
-    const rt = Math.min(1, Math.max(0, (r - BH_DISK_R_IN) / (BH_DISK_R_OUT - BH_DISK_R_IN)));
-    const hOverR = BH_DISK_H_OVER_R_MIN + (BH_DISK_H_OVER_R_MAX - BH_DISK_H_OVER_R_MIN) * Math.sqrt(rt);
-    const z = (rng() + rng() - 1) * r * hOverR;
-    out[i * 4] = r;
-    out[i * 4 + 1] = phi;
-    out[i * 4 + 2] = z;
-    out[i * 4 + 3] = rng();
+    // Interleave disk & dust-shell particles evenly so `setDrawRange(0, count/4)` in LOW POWER
+    // preserves the exact 82% Keplerian disk / 18% dust shell visual ratio!
+    const isShell = i % 10 === 9 || i >= diskLimit + Math.floor(count * 0.1);
+    const rRand = rng();
+    const aBase = isShell
+      ? R_SHELL_IN + (R_SHELL_OUT - R_SHELL_IN) * Math.pow(rRand, 1.35)
+      : R_DISK_IN + (R_DISK_OUT - R_DISK_IN) * Math.pow(rRand, 2.05);
+
+    seeds[i * 4] = aBase;
+    seeds[i * 4 + 1] = rng();
+    seeds[i * 4 + 2] = rng();
+    // Encode shell flag in sign of w (+2 offset for shell) or separate channel; keep w in [0,1] and encode shell in spawn/meta
+    seeds[i * 4 + 3] = rng();
+
+    // Scattered outer dark nebula coordinates for uIntro = 0
+    const theta0 = rng() * Math.PI * 2;
+    const cosPhi = rng() * 2 - 1;
+    const sinPhi = Math.sqrt(Math.max(0, 1 - cosPhi * cosPhi));
+    const spawnR = 8.5 + Math.pow(rng(), 0.85) * 14.5;
+    spawn[i * 3] = spawnR * sinPhi * Math.cos(theta0);
+    spawn[i * 3 + 1] = spawnR * cosPhi * 0.68;
+    spawn[i * 3 + 2] = spawnR * sinPhi * Math.sin(theta0);
   }
-  return out;
+
+  return { spawn, seeds };
 }
 
+/**
+ * Packs `(cohortSlot, encodedLayerAndArea)` into `aMeta` (`vec2`):
+ * `aMeta.x` = cohort slot `0..15`
+ * `aMeta.y` = `areaArchetype (0..2)` for disk particles, or `10.0 + areaArchetype` for outer dust-shell particles.
+ */
 export function buildCohortParticleBuffers(
   cohortMap: CohortMap | null,
-  capacity = MAX_PARTICLES,
+  capacity: number,
 ): Float32Array {
   const count = Math.min(MAX_PARTICLES, Math.max(1, capacity));
   const meta = new Float32Array(count * 2);
   const slotCount = cohortMap?.slots.length || 3;
   for (let i = 0; i < count; i++) {
     const slot = cohortMap?.slots[i % slotCount];
+    const areaIdx = slot ? slot.areaIndex % 3 : i % 3;
+    const isShell = i % 10 === 9; // 10% faint volumetric lensing dust, zero outer screen haze
     meta[i * 2] = slot ? slot.slotIndex : i % 3;
-    meta[i * 2 + 1] = slot ? slot.areaIndex % 3 : i % 3;
+    meta[i * 2 + 1] = isShell ? 10 + areaIdx : areaIdx;
   }
   return meta;
 }

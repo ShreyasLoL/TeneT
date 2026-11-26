@@ -55,9 +55,9 @@ export function TelemetryHud({
 
       <span suppressHydrationWarning className="hidden sm:inline">{`${formattedDate} // ist`}</span>
 
-      <span suppressHydrationWarning>{`streak // ${String(streak).padStart(2, '0')}d`}</span>
+      <span>{`streak // ${String(streak).padStart(2, '0')}d`}</span>
 
-      <span suppressHydrationWarning className={tonightSealed ? 'text-text-dim' : 'text-accent'}>
+      <span className={tonightSealed ? 'text-text-dim' : 'text-accent'}>
         {tonightSealed ? COPY.doors.telemetrySealed : COPY.doors.telemetryOpen}
       </span>
     </div>

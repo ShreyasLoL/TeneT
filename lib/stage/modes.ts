@@ -1,11 +1,4 @@
 import type { Mode } from '@/lib/store';
-import { sphericalPoseToCartesian } from '@/stage/blackhole/cameraSpline';
-import {
-  BH_CAMERA_INCLINATION_REST_RAD,
-  BH_CAMERA_ORBIT_R,
-  BH_CAMERA_REST_R,
-  BH_CAMERA_RITUAL_R,
-} from '@/stage/blackhole/constants';
 
 export type CameraPose = {
   position: [number, number, number];
@@ -13,39 +6,38 @@ export type CameraPose = {
   fov: number;
 };
 
-const DEG = Math.PI / 180;
-
 /**
- * Schwarzschild camera poses (G=c=1, rs=1) keeping origin black hole centered.
+ * Every route sits strictly on the x = 0 origin axis looking at [0, 0, 0]
+ * so the black hole + particle disk stay at exact viewport center across all widths.
  */
 export const MODE_CAMERA_POSES: Record<Mode, CameraPose> = {
   fork: {
-    position: sphericalPoseToCartesian(BH_CAMERA_REST_R, BH_CAMERA_INCLINATION_REST_RAD, 0),
+    position: [0, 0, 10.6],
     target: [0, 0, 0],
-    fov: 42,
+    fov: 45,
   },
   ritual: {
-    position: sphericalPoseToCartesian(BH_CAMERA_RITUAL_R, 80 * DEG, 0.12),
+    position: [0, 2.55, 12.2],
     target: [0, 0, 0],
-    fov: 42,
+    fov: 45,
   },
   orbit: {
-    position: sphericalPoseToCartesian(BH_CAMERA_ORBIT_R, 56 * DEG, 0),
+    position: [0, 5.2, 9.8],
     target: [0, 0, 0],
     fov: 44,
   },
   week: {
-    position: sphericalPoseToCartesian(30.0, 62 * DEG, -0.08),
+    position: [0, 3.8, 8.6],
     target: [0, 0, 0],
     fov: 42,
   },
   time: {
-    position: sphericalPoseToCartesian(33.0, 58 * DEG, 0.08),
+    position: [0, 5.0, 10.0],
     target: [0, 0, 0],
-    fov: 44,
+    fov: 45,
   },
   area: {
-    position: sphericalPoseToCartesian(31.0, 60 * DEG, 0),
+    position: [0, 4.4, 9.2],
     target: [0, 0, 0],
     fov: 43,
   },

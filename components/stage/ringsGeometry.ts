@@ -17,7 +17,6 @@ import {
 } from 'three';
 import { inscription } from '@/lib/viz/inscribe';
 import type { ringLayout } from '@/lib/viz/ringLayout';
-import { BH_RING_WORLD_SCALE } from '@/stage/blackhole/constants';
 
 export const MAX_RING_INSTANCES = 400;
 const TEX_WIDTH = 16;
@@ -64,7 +63,7 @@ export function createRingsInstancedGeometry(radialSegments = 128): BufferGeomet
 
   geom.setAttribute('position', new Float32BufferAttribute(positions, 3));
   geom.setIndex(indices);
-  geom.boundingSphere = new Sphere(new Vector3(0, 0, 0), 32);
+  geom.boundingSphere = new Sphere(new Vector3(0, 0, 0), 16);
 
   geom.setAttribute('aRadius', new InstancedBufferAttribute(new Float32Array(MAX_RING_INSTANCES), 1));
   geom.setAttribute('aThickness', new InstancedBufferAttribute(new Float32Array(MAX_RING_INSTANCES), 1));
@@ -158,7 +157,7 @@ export function intersectDiskPolar(
 
   if (!pickRay.intersectPlane(pickPlane, pickHit)) return null;
   return {
-    r: Math.hypot(pickHit.x, pickHit.z) / BH_RING_WORLD_SCALE,
+    r: Math.hypot(pickHit.x, pickHit.z),
     theta: Math.atan2(pickHit.z, pickHit.x),
   };
 }

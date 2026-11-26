@@ -43,8 +43,14 @@ export function buildIntroTimeline(
   if (hairlineEl) hairlineEl.style.willChange = 'transform, opacity';
   if (dialGroupEl) dialGroupEl.style.willChange = 'transform, opacity';
 
-  rig.cameraOverride.active = false;
-  rig.introCameraProgress = 0;
+  rig.cameraOverride.active = true;
+  rig.cameraOverride.px = 0;
+  rig.cameraOverride.py = 0;
+  rig.cameraOverride.pz = 7.4;
+  rig.cameraOverride.tx = 0;
+  rig.cameraOverride.ty = 0;
+  rig.cameraOverride.tz = 0;
+  rig.cameraOverride.fov = 47;
 
   gsap.set(assemblyEl, { scale: 1, opacity: 1 });
   gsap.set(wordEl, { scale: 1, opacity: 1 });
@@ -61,11 +67,7 @@ export function buildIntroTimeline(
 
   const tl = gsap.timeline({ onComplete });
 
-  // Continuous relativistic camera spline across all 5 phases (--ease-out = expoBezierEase)
-  tl.to(rig, { introCameraProgress: 1, duration: 4.0 * s, ease: expoBezierEase }, 0);
-  tl.to(rig, { introProgress: 0.28, duration: 0.8 * s, ease: expoBezierEase }, 0);
-
-  // 1. 0.0-0.8s: Pure void + stars fade -> 1px hairline sweeps + 60 radial ticks bloom from 12 o'clock
+  // 1. 0.0-0.8s: Pure void -> 1px hairline sweeps + 60 radial ticks bloom from 12 o'clock
   if (hairlineEl) {
     tl.to(hairlineEl, { scaleX: 1, duration: 0.44 * s, ease: expoBezierEase }, 0);
     tl.to(hairlineEl, { rotation: 0, duration: 0.8 * s, ease: expoBezierEase }, 0.04 * s);
@@ -86,8 +88,9 @@ export function buildIntroTimeline(
     tl.to(dialGroupEl, { opacity: 0, scale: 0.72, duration: 0.56 * s, ease: expoBezierEase }, 0.82 * s);
   }
   tl.to(rig, { introTick: 0, duration: 0.95 * s, ease: expoBezierEase }, 0.8 * s);
-  tl.to(rig, { introProgress: 0.92, duration: 1.45 * s, ease: expoBezierEase }, 0.8 * s);
+  tl.to(rig, { introProgress: 0.92, duration: 1.35 * s, ease: expoBezierEase }, 0.8 * s);
   tl.to(rig, { introSpin: 0, duration: 1.75 * s, ease: expoBezierEase }, 0.8 * s);
+  tl.to(rig.cameraOverride, { py: 0, pz: 8.4, duration: 1.2 * s, ease: expoBezierEase }, 0.8 * s);
 
   // 3. 2.0-3.2s: TENET letter reveal + timer ring fill + HH:MM:SS IST count-up + NIGHT BEGINS
   spans.forEach((sp, idx) => {
@@ -120,9 +123,14 @@ export function buildIntroTimeline(
     tl.to(nightEl, { y: 0, opacity: 1, duration: 0.44 * s, ease: expoBezierEase }, 2.62 * s);
   }
 
-  // 4. 3.2-4.0s: Wordmark scales/fades into the hole + camera settles to resting view
+  // 4. 3.2-4.0s: Wordmark scales/fades into the hole + camera pulls back to resting view
   tl.to(rig, { introProgress: 1, duration: 0.8 * s, ease: expoBezierEase }, 3.2 * s);
   tl.to(assemblyEl, { scale: 0.72, opacity: 0, duration: 0.56 * s, ease: expoBezierEase }, 3.2 * s);
+  tl.to(
+    rig.cameraOverride,
+    { py: 0, pz: 10.6, fov: 45, duration: 0.8 * s, ease: expoBezierEase },
+    3.2 * s,
+  );
 
   return tl;
 }

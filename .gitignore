@@ -56,9 +56,3 @@ skills-lock.json
 !/README.md
 !/TODO.md
 /Tasks/
-
-# C++ offline baker binaries
-/tools/bh-bake/bin/
-/tools/bh-bake/build/
-/tools/bh-bake/*.raw
-

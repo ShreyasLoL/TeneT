@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import { acquireFrames } from '@/lib/stage/activity';
 import { stageClock } from '@/lib/stage/clock';
-import { MODE_CAMERA_POSES } from '@/lib/stage/modes';
 import type { QualityState } from '@/lib/store';
 import { notifyForkTransition, rig, triggerArrivalHud } from '@/lib/store/rig';
 import { expoBezierEase } from './expoBezier';
@@ -73,15 +72,14 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
       duration: 0.35,
       ease: expoBezierEase,
     });
-    const forkPose = MODE_CAMERA_POSES.fork;
     gsapInstance.to(rig.cameraOverride, {
-      px: forkPose.position[0],
-      py: forkPose.position[1],
-      pz: forkPose.position[2],
+      px: 0,
+      py: 0,
+      pz: 10.6,
       tx: 0,
       ty: 0,
       tz: 0,
-      fov: forkPose.fov,
+      fov: 45,
       duration: 0.35,
       ease: expoBezierEase,
       onComplete: () => {
@@ -156,17 +154,16 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
       const totalSec = quality.lowPower ? 0.95 : isRetro ? 2.4 : 1.8;
       const peakSec = totalSec * 0.74;
 
-      const forkPose = MODE_CAMERA_POSES.fork;
-      const startZ = forkPose.position[2] + Math.sin(rig.elapsedTime * 0.22) * 0.42;
+      const startZ = 10.6 + Math.sin(rig.elapsedTime * 0.28) * 0.28;
       rig.forkActive = true;
       rig.cameraOverride.active = true;
-      rig.cameraOverride.px = forkPose.position[0] + Math.cos(rig.elapsedTime * 0.16) * 0.28;
-      rig.cameraOverride.py = forkPose.position[1];
+      rig.cameraOverride.px = 0;
+      rig.cameraOverride.py = 0;
       rig.cameraOverride.pz = startZ;
       rig.cameraOverride.tx = 0;
       rig.cameraOverride.ty = 0;
       rig.cameraOverride.tz = 0;
-      rig.cameraOverride.fov = forkPose.fov;
+      rig.cameraOverride.fov = 45;
       notifyForkTransition();
 
       let routed = false;
@@ -200,7 +197,7 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
         tl.to(rig, { forkWarp: 1, duration: peakSec, ease: expoBezierEase }, 0);
         tl.to(
           rig.cameraOverride,
-          { px: -1.2, py: 0.9, pz: 6.4, fov: 50, duration: peakSec, ease: expoBezierEase },
+          { py: 0.28, pz: 2.15, fov: 50, duration: peakSec, ease: expoBezierEase },
           0,
         );
       } else {
@@ -219,7 +216,7 @@ export function useDoorDive(quality: QualityState, setDensity: (d: number) => vo
         tl.to(rig, { forkWarp: 1, duration: peakSec, ease: expoBezierEase }, totalSec * 0.08);
         tl.to(
           rig.cameraOverride,
-          { px: 0.9, py: 0.45, pz: 4.8, fov: 62, duration: peakSec * 0.92, ease: expoBezierEase },
+          { py: 0.14, pz: 1.55, fov: 62, duration: peakSec * 0.92, ease: expoBezierEase },
           totalSec * 0.08,
         );
       }

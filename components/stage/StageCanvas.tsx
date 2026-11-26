@@ -2,8 +2,6 @@
 
 import { Canvas } from '@react-three/fiber';
 import { useEffect, useState } from 'react';
-import { stageClock } from '@/lib/stage/clock';
-import { MODE_CAMERA_POSES } from '@/lib/stage/modes';
 import { isTouchDevice, profileForLevel, type QualityLevel } from '@/lib/stage/tiers';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
@@ -12,19 +10,20 @@ import { Scene } from './Scene';
 export default function StageCanvas() {
   const level = useTenetStore((s) => s.quality.level) as QualityLevel;
   const lowPower = useTenetStore((s) => s.quality.lowPower);
+  const reducedMotion = useTenetStore((s) => s.quality.reducedMotion);
   const setQuality = useTenetStore((s) => s.setQuality);
-  const [, setHidden] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const mediaReduced =
+    typeof window !== 'undefined' &&
+    (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
+  const isReduced = reducedMotion || mediaReduced;
 
   const profile = profileForLevel(level, isTouchDevice(), lowPower);
-  const forkPose = MODE_CAMERA_POSES.fork;
+  const frameloop = isReduced || hidden ? 'demand' : 'always';
 
   useEffect(() => {
     rig.mountCount += 1;
-    const onVis = () => {
-      const h = document.hidden;
-      setHidden(h);
-      stageClock.setHidden(h);
-    };
+    const onVis = () => setHidden(document.hidden);
     onVis();
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
@@ -33,8 +32,8 @@ export default function StageCanvas() {
   return (
     <Canvas
       dpr={[1, profile.dprMax]}
-      frameloop="demand"
-      camera={{ position: forkPose.position, fov: forkPose.fov, near: 0.1, far: 400 }}
+      frameloop={frameloop}
+      camera={{ position: [0, 0, 10.6], fov: 45, near: 0.1, far: 160 }}
       gl={{ alpha: true, antialias: false, powerPreference: 'high-performance', stencil: false }}
       onCreated={({ gl, invalidate }) => {
         gl.setClearColor(0x000000, 0);

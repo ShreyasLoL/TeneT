@@ -7,7 +7,6 @@ import { useTenetState } from '@/lib/api/hooks';
 import { type QualityLevel } from '@/lib/stage/tiers';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
-import { BH_RING_WORLD_SCALE } from '@/stage/blackhole/constants';
 import { hexToRgbNormalized, readPalette } from '@/lib/viz/palette';
 import { pickRingPolar } from '@/lib/viz/pickRing';
 import { ringLayout } from '@/lib/viz/ringLayout';
@@ -143,24 +142,22 @@ export function Rings() {
   });
 
   return (
-    <group scale={BH_RING_WORLD_SCALE}>
-      <instancedMesh
-        ref={meshRef}
-        args={[geometry, undefined, MAX_RING_INSTANCES]}
-        frustumCulled={false}
-        visible={false}
-      >
-        <shaderMaterial
-          ref={matRef}
-          glslVersion={GLSL3}
-          transparent
-          depthWrite={false}
-          side={DoubleSide}
-          uniforms={uniforms}
-          vertexShader={ringsVertexShader}
-          fragmentShader={ringsFragmentShader}
-        />
-      </instancedMesh>
-    </group>
+    <instancedMesh
+      ref={meshRef}
+      args={[geometry, undefined, MAX_RING_INSTANCES]}
+      frustumCulled={false}
+      visible={false}
+    >
+      <shaderMaterial
+        ref={matRef}
+        glslVersion={GLSL3}
+        transparent
+        depthWrite={false}
+        side={DoubleSide}
+        uniforms={uniforms}
+        vertexShader={ringsVertexShader}
+        fragmentShader={ringsFragmentShader}
+      />
+    </instancedMesh>
   );
 }

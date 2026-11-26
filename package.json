@@ -10,9 +10,7 @@
     "test": "vitest run",
     "test:db": "vitest run lib/db/repository.integration.test.ts",
     "db:migrate": "tsx lib/db/migrate.ts",
-    "seed": "tsx seed/seed.ts",
-    "bh:bake": "node tools/bh-bake/build.mjs && node tools/bh-bake/pack-ktx2.mjs",
-    "bh:test": "node -e \"require('node:child_process').execFileSync('tools/bh-bake/bin/bh_test.exe', { stdio: 'inherit' })\""
+    "seed": "tsx seed/seed.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -30,7 +28,6 @@
     "motion": "^14.14.0",
     "next": "16.4.6",
     "pg": "^8.23.1",
-    "postprocessing": "6.39.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "three": "^0.187.0",
