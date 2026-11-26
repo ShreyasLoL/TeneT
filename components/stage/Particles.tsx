@@ -10,7 +10,7 @@ import {
   MathUtils,
   Matrix4,
   PlaneGeometry,
-  ShaderMaterial,
+  type ShaderMaterial,
   Sphere,
   Vector2,
   Vector3,
@@ -48,7 +48,13 @@ export function Particles() {
   const cursor = useTenetStore((s) => s.cursor);
   const mode = useTenetStore((s) => s.mode);
   const meshRef = useRef<InstancedMesh | null>(null);
+  const matRef = useRef<ShaderMaterial | null>(null);
   const cohortTex = useMemo(() => createCohortTexture(), []);
+  const cohortTexRef = useRef(cohortTex);
+  const attrsRef = useRef<{
+    part: InstancedBufferAttribute;
+    cohort: InstancedBufferAttribute;
+  } | null>(null);
   const targetDirRef = useRef(new Float32Array(16).fill(1));
   const simRef = useRef<GpgpuParticleSim | null>(null);
 
@@ -80,70 +86,62 @@ export function Particles() {
     }
   }, [cohortMap, cursor, live.results, sealedDays]);
 
-  const { geometry, material, partAttr, cohortAttr } = useMemo(() => {
+  const geometry = useMemo(() => {
     const geom = new PlaneGeometry(1, 1);
+    geom.boundingSphere = new Sphere(new Vector3(0, 0, 0), 32);
+    return geom;
+  }, []);
+
+  const uniforms = useMemo(() => {
+    const pal = readPalette();
+    const [or, og, ob] = hexToLinearRgb(pal.accent);
+    return {
+      uStatePos: { value: null },
+      uCohortTex: { value: cohortTex },
+      uDeflectionLut: { value: null },
+      uBlackbodyLut: { value: null },
+      uUseGpgpu: { value: 0 },
+      uTime: { value: 0 },
+      uSpinSense: { value: 1 },
+      uKerrMode: { value: 0 },
+      uHold: { value: 0 },
+      uIntro: { value: 1 },
+      uExposureScale: { value: 1 },
+      uFocusArea: { value: -1 },
+      uRecapJudge: { value: -1 },
+      uRecapSpike: { value: 0 },
+      uParticleScale: { value: 1 },
+      uCamPos: { value: new Vector3() },
+      uViewProj: { value: new Matrix4() },
+      uViewport: { value: new Vector2(1280, 720) },
+      uOrchid: { value: new Vector3(or, og, ob) },
+    };
+  }, [cohortTex]);
+
+  useEffect(() => {
     const pInit = buildParticleInitBuffer(null, MAX_PARTICLES);
     const cMeta = buildCohortParticleBuffers(null, MAX_PARTICLES);
     const pAttr = new InstancedBufferAttribute(pInit, 4);
     const cAttr = new InstancedBufferAttribute(cMeta, 2);
-    geom.setAttribute('aPartInit', pAttr);
-    geom.setAttribute('aCohortMeta', cAttr);
-    geom.boundingSphere = new Sphere(new Vector3(0, 0, 0), 32);
+    geometry.setAttribute('aPartInit', pAttr);
+    geometry.setAttribute('aCohortMeta', cAttr);
+    attrsRef.current = { part: pAttr, cohort: cAttr };
 
-    const pal = readPalette();
-    const [or, og, ob] = hexToLinearRgb(pal.accent);
-    const mat = new ShaderMaterial({
-      glslVersion: GLSL3,
-      vertexShader: bhParticlesRenderVertexShader,
-      fragmentShader: bhParticlesRenderFragmentShader,
-      transparent: true,
-      depthWrite: false,
-      depthTest: false,
-      blending: AdditiveBlending,
-      uniforms: {
-        uStatePos: { value: null },
-        uCohortTex: { value: cohortTex },
-        uDeflectionLut: { value: null },
-        uBlackbodyLut: { value: null },
-        uUseGpgpu: { value: 0 },
-        uTime: { value: 0 },
-        uSpinSense: { value: 1 },
-        uKerrMode: { value: 0 },
-        uHold: { value: 0 },
-        uIntro: { value: 1 },
-        uExposureScale: { value: 1 },
-        uFocusArea: { value: -1 },
-        uRecapJudge: { value: -1 },
-        uRecapSpike: { value: 0 },
-        uParticleScale: { value: 1 },
-        uCamPos: { value: new Vector3() },
-        uViewProj: { value: new Matrix4() },
-        uViewport: { value: new Vector2(1280, 720) },
-        uOrchid: { value: new Vector3(or, og, ob) },
-      },
-    });
-    return { geometry: geom, material: mat, partAttr: pAttr, cohortAttr: cAttr };
-  }, [cohortTex]);
-
-  useEffect(() => {
-    const cMeta = buildCohortParticleBuffers(cohortMap, MAX_PARTICLES);
-    (cohortAttr.array as Float32Array).set(cMeta);
-    cohortAttr.needsUpdate = true;
-  }, [cohortAttr, cohortMap]);
-
-  useEffect(() => {
+    const tex = cohortTexRef.current;
     const caps = detectGpuCaps(gl.getContext() as WebGL2RenderingContext);
     const sim = new GpgpuParticleSim(caps.colorBufferFloat);
     simRef.current = sim;
 
     const unsub = subscribeBhAssets((assets) => {
       if (!assets) return;
-      material.uniforms.uDeflectionLut.value = assets.deflectionLut;
-      material.uniforms.uBlackbodyLut.value = assets.blackbodyLut;
-      if (assets.particlesInit.length >= 4) {
+      if (matRef.current) {
+        matRef.current.uniforms.uDeflectionLut.value = assets.deflectionLut;
+        matRef.current.uniforms.uBlackbodyLut.value = assets.blackbodyLut;
+      }
+      if (assets.particlesInit.length >= 4 && attrsRef.current) {
         const baked = buildParticleInitBuffer(assets.particlesInit, MAX_PARTICLES);
-        (partAttr.array as Float32Array).set(baked);
-        partAttr.needsUpdate = true;
+        (attrsRef.current.part.array as Float32Array).set(baked);
+        attrsRef.current.part.needsUpdate = true;
         if (!sim.isSeeded) sim.seed(gl, assets.particlesInit);
       }
     });
@@ -152,16 +150,25 @@ export function Particles() {
       unsub();
       sim.dispose();
       simRef.current = null;
-      cohortTex.dispose();
+      attrsRef.current = null;
+      tex.dispose();
       geometry.dispose();
-      material.dispose();
     };
-  }, [cohortTex, geometry, gl, material, partAttr]);
+  }, [geometry, gl]);
+
+  useEffect(() => {
+    const attrs = attrsRef.current;
+    if (!attrs) return;
+    const cMeta = buildCohortParticleBuffers(cohortMap, MAX_PARTICLES);
+    (attrs.cohort.array as Float32Array).set(cMeta);
+    attrs.cohort.needsUpdate = true;
+  }, [cohortMap]);
 
   useFrame((stateCtx, delta) => {
     const mesh = meshRef.current;
+    const mat = matRef.current;
     const assets = getBhAssets();
-    if (!mesh || !assets) {
+    if (!mesh || !mat || !assets) {
       if (mesh) mesh.visible = false;
       return;
     }
@@ -173,9 +180,9 @@ export function Particles() {
     const tier = rig.bhTier;
     const kerrMode = tier === 3 ? 1 : 0;
 
-    // Update cohort direction & phase texture in place
     const targets = targetDirRef.current;
-    const cData = cohortTex.image.data as Float32Array;
+    const tex = cohortTexRef.current;
+    const cData = tex.image.data as Float32Array;
     let dirty = false;
     for (let i = 0; i < 16; i++) {
       rig.cohortDirSmooth[i] = MathUtils.damp(rig.cohortDirSmooth[i], targets[i], 4.5, dt);
@@ -186,7 +193,7 @@ export function Particles() {
         dirty = true;
       }
     }
-    if (dirty) cohortTex.needsUpdate = true;
+    if (dirty) tex.needsUpdate = true;
 
     const sim = simRef.current;
     const useGpgpu = tier >= 2 && sim !== null && sim.isSeeded;
@@ -206,7 +213,7 @@ export function Particles() {
     );
     viewportScratch.set(size.width, size.height);
 
-    const u = material.uniforms;
+    const u = mat.uniforms;
     u.uStatePos.value = useGpgpu ? sim.posTexture : null;
     u.uUseGpgpu.value = useGpgpu ? 1 : 0;
     u.uDeflectionLut.value = assets.deflectionLut;
@@ -229,9 +236,21 @@ export function Particles() {
   return (
     <instancedMesh
       ref={meshRef}
-      args={[geometry, material, MAX_PARTICLES]}
+      args={[geometry, undefined, MAX_PARTICLES]}
       frustumCulled={false}
       renderOrder={2}
-    />
+    >
+      <shaderMaterial
+        ref={matRef}
+        glslVersion={GLSL3}
+        vertexShader={bhParticlesRenderVertexShader}
+        fragmentShader={bhParticlesRenderFragmentShader}
+        transparent
+        depthWrite={false}
+        depthTest={false}
+        blending={AdditiveBlending}
+        uniforms={uniforms}
+      />
+    </instancedMesh>
   );
 }

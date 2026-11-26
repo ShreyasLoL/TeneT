@@ -124,6 +124,7 @@ export function PerfOverlay() {
           type="button"
           onClick={() => {
             rig.injectedFrameMs = 0;
+            rig.manualTierOverride = false;
             setQuality({ level: 0 });
           }}
           className="rounded border border-line px-2 py-1 text-[10px] uppercase tracking-[0.1em] hover:text-text"
@@ -136,7 +137,11 @@ export function PerfOverlay() {
           <button
             key={t}
             type="button"
-            onClick={() => setQuality({ bhTier: t, ultraKerr: t === 3, lowPower: false })}
+            onClick={() => {
+              rig.manualTierOverride = true;
+              rig.bhTier = t;
+              setQuality({ bhTier: t, ultraKerr: t === 3, lowPower: false });
+            }}
             className="flex-1 rounded border border-line px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] hover:border-accent hover:text-text"
           >
             T{t}{t === 3 ? 'K' : ''}

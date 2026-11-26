@@ -3,7 +3,6 @@ import {
   CubeTexture,
   Data3DTexture,
   DataTexture,
-  FloatType,
   HalfFloatType,
   LinearFilter,
   LinearMipmapLinearFilter,

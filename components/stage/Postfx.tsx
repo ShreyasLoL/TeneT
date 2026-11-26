@@ -9,6 +9,7 @@ import { BhPipelineRenderer, type BhTier } from '@/stage/blackhole/bhRenderer';
 import { createBootstrapAssets } from '@/stage/blackhole/bootstrapAssets';
 import { detectGpuCaps } from '@/stage/blackhole/gpuCaps';
 import { loadCoreBhAssets, loadKerrLut, loadSkyTier } from '@/stage/blackhole/lutLoader';
+import { GpuTimerRing } from '@/stage/blackhole/qualityController';
 
 declare global {
   interface Window {
@@ -18,6 +19,7 @@ declare global {
       setCheatsEnabled: (enabled: boolean) => void;
       setSimTime: (t: number | null) => void;
       setCameraPose: (px: number, py: number, pz: number, tx?: number, ty?: number, tz?: number, fov?: number) => void;
+      renderDeterministicFrames: (count?: number, dtSec?: number) => void;
       getVramMb: () => number;
       getInfo: () => Record<string, unknown>;
     };
@@ -25,13 +27,14 @@ declare global {
 }
 
 export function Postfx() {
-  const { gl, scene, camera, size, invalidate } = useThree();
+  const { gl, scene, camera, size, invalidate, advance } = useThree();
   const mode = useTenetStore((s) => s.mode);
   const storeTier = useTenetStore((s) => s.quality.bhTier);
   const lowPower = useTenetStore((s) => s.quality.lowPower);
   const ultraKerr = useTenetStore((s) => s.quality.ultraKerr);
 
   const rendererRef = useRef<BhPipelineRenderer | null>(null);
+  const gpuTimerRef = useRef<GpuTimerRing | null>(null);
   const simOverrideRef = useRef<number | null>(null);
   const loadedSkyRef = useRef<'bootstrap' | 'low' | 'mid' | 'high'>('bootstrap');
   const kerrRequestedRef = useRef(false);
@@ -46,6 +49,8 @@ export function Postfx() {
 
     const pipe = new BhPipelineRenderer(size.width, size.height, caps);
     rendererRef.current = pipe;
+    const gpuTimer = new GpuTimerRing(gl.getContext() as WebGL2RenderingContext, caps.disjointTimerQuery);
+    gpuTimerRef.current = gpuTimer;
     void pipe.compileAsync(gl);
 
     let cancelled = false;
@@ -64,6 +69,7 @@ export function Postfx() {
       window.__TENET_BH__ = {
         getTier: () => rig.bhTier,
         setTier: (t: BhTier) => {
+          rig.manualTierOverride = true;
           rig.bhTier = t;
           useTenetStore.getState().setQuality({ bhTier: t, ultraKerr: t === 3 });
           invalidate();
@@ -89,6 +95,13 @@ export function Postfx() {
           camera.lookAt(tx, ty, tz);
           invalidate();
         },
+        renderDeterministicFrames: (count = 8, dtSec = 1 / 60) => {
+          const base = simOverrideRef.current ?? rig.elapsedTime;
+          for (let i = 0; i < count; i++) {
+            const t = base + i * dtSec;
+            advance(t * 1000);
+          }
+        },
         getVramMb: () => (pipe.getEstimatedVramBytes() / (1024 * 1024)) + 12,
         getInfo: () => ({
           tier: rig.bhTier,
@@ -105,6 +118,8 @@ export function Postfx() {
     return () => {
       cancelled = true;
       rendererRef.current = null;
+      gpuTimerRef.current?.dispose();
+      gpuTimerRef.current = null;
       pipe.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -161,6 +176,7 @@ export function Postfx() {
     const exposure = (mode === 'ritual' && rig.sealHold < 0.02 ? 0.45 : 1.0) * rig.bhExposureScale;
     const isIdleReduced = rig.activityLevel === 'still' && !rig.introActive && !rig.forkActive;
 
+    gpuTimerRef.current?.beginFrame();
     pipe.render(gl, scene, camera, assets, {
       dt,
       simTime,
@@ -178,6 +194,10 @@ export function Postfx() {
       viewportH: size.height,
       dpr: gl.getPixelRatio(),
     });
+    gpuTimerRef.current?.endFrame();
+    if (gpuTimerRef.current && gpuTimerRef.current.latestMs > 0) {
+      rig.gpuFrameMs = gpuTimerRef.current.latestMs;
+    }
   }, 1);
 
   return null;

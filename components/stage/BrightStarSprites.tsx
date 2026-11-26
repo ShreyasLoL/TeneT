@@ -9,7 +9,7 @@ import {
   type InstancedMesh,
   Matrix4,
   PlaneGeometry,
-  ShaderMaterial,
+  type ShaderMaterial,
   Vector2,
   Vector3,
 } from 'three';
@@ -27,82 +27,77 @@ const viewportScratch = new Vector2();
 
 export function BrightStarSprites() {
   const meshRef = useRef<InstancedMesh | null>(null);
+  const matRef = useRef<ShaderMaterial | null>(null);
+  const attrsRef = useRef<{
+    dirFlux: InstancedBufferAttribute;
+    temp: InstancedBufferAttribute;
+  } | null>(null);
   const { size } = useThree();
 
-  const { geometry, material, dirFluxAttr, tempAttr } = useMemo(() => {
-    const geom = new PlaneGeometry(1, 1);
-    const dirFluxData = new Float32Array(MAX_INSTANCES * 4);
-    const tempData = new Float32Array(MAX_INSTANCES);
-    const dfAttr = new InstancedBufferAttribute(dirFluxData, 4);
-    const tAttr = new InstancedBufferAttribute(tempData, 1);
-    geom.setAttribute('aStarDirFlux', dfAttr);
-    geom.setAttribute('aStarTemp', tAttr);
-
-    const mat = new ShaderMaterial({
-      glslVersion: GLSL3,
-      vertexShader: bhStarSpritesVertexShader,
-      fragmentShader: bhStarSpritesFragmentShader,
-      transparent: true,
-      depthWrite: false,
-      depthTest: false,
-      blending: AdditiveBlending,
-      uniforms: {
-        uDeflectionLut: { value: null },
-        uBlackbodyLut: { value: null },
-        uCamPos: { value: new Vector3() },
-        uViewProj: { value: new Matrix4() },
-        uViewport: { value: new Vector2(1280, 720) },
-        uExposureScale: { value: 1 },
-      },
-    });
-
-    return { geometry: geom, material: mat, dirFluxAttr: dfAttr, tempAttr: tAttr };
-  }, []);
+  const geometry = useMemo(() => new PlaneGeometry(1, 1), []);
+  const uniforms = useMemo(
+    () => ({
+      uDeflectionLut: { value: null },
+      uBlackbodyLut: { value: null },
+      uCamPos: { value: new Vector3() },
+      uViewProj: { value: new Matrix4() },
+      uViewport: { value: new Vector2(1280, 720) },
+      uExposureScale: { value: 1 },
+    }),
+    [],
+  );
 
   useEffect(() => {
+    const dfAttr = new InstancedBufferAttribute(new Float32Array(MAX_INSTANCES * 4), 4);
+    const tAttr = new InstancedBufferAttribute(new Float32Array(MAX_INSTANCES), 1);
+    geometry.setAttribute('aStarDirFlux', dfAttr);
+    geometry.setAttribute('aStarTemp', tAttr);
+    attrsRef.current = { dirFlux: dfAttr, temp: tAttr };
+
     const unsub = subscribeBhAssets((assets) => {
-      if (!assets || !assets.brightStars || assets.brightStars.length < 5) return;
+      if (!assets || !assets.brightStars || assets.brightStars.length < 5 || !attrsRef.current) {
+        return;
+      }
       const src = assets.brightStars;
       const starCount = Math.min(BH_BRIGHT_STAR_COUNT, Math.floor(src.length / 5));
-      const dfArr = dirFluxAttr.array as Float32Array;
-      const tArr = tempAttr.array as Float32Array;
+      const dfArr = attrsRef.current.dirFlux.array as Float32Array;
+      const tArr = attrsRef.current.temp.array as Float32Array;
 
       for (let i = 0; i < starCount; i++) {
         const s = i * 5;
-        const x = src[s];
-        const y = src[s + 1];
-        const z = src[s + 2];
-        const flux = src[s + 3];
-        const temp = src[s + 4];
         for (let k = 0; k < 2; k++) {
           const inst = i * 2 + k;
-          dfArr[inst * 4] = x;
-          dfArr[inst * 4 + 1] = y;
-          dfArr[inst * 4 + 2] = z;
-          dfArr[inst * 4 + 3] = flux;
-          tArr[inst] = temp;
+          dfArr[inst * 4] = src[s];
+          dfArr[inst * 4 + 1] = src[s + 1];
+          dfArr[inst * 4 + 2] = src[s + 2];
+          dfArr[inst * 4 + 3] = src[s + 3];
+          tArr[inst] = src[s + 4];
         }
       }
 
-      dirFluxAttr.needsUpdate = true;
-      tempAttr.needsUpdate = true;
-      material.uniforms.uDeflectionLut.value = assets.deflectionLut;
-      material.uniforms.uBlackbodyLut.value = assets.blackbodyLut;
+      attrsRef.current.dirFlux.needsUpdate = true;
+      attrsRef.current.temp.needsUpdate = true;
+      if (matRef.current) {
+        matRef.current.uniforms.uDeflectionLut.value = assets.deflectionLut;
+        matRef.current.uniforms.uBlackbodyLut.value = assets.blackbodyLut;
+      }
       if (meshRef.current) {
         meshRef.current.count = starCount * 2;
       }
     });
+
     return () => {
       unsub();
+      attrsRef.current = null;
       geometry.dispose();
-      material.dispose();
     };
-  }, [dirFluxAttr, geometry, material, tempAttr]);
+  }, [geometry]);
 
   useFrame((state) => {
     const mesh = meshRef.current;
+    const mat = matRef.current;
     const assets = getBhAssets();
-    if (!mesh || !assets || !assets.deflectionLut || !assets.blackbodyLut) {
+    if (!mesh || !mat || !assets || !assets.deflectionLut || !assets.blackbodyLut) {
       if (mesh) mesh.visible = false;
       return;
     }
@@ -112,14 +107,13 @@ export function BrightStarSprites() {
     if (!isVisible) return;
 
     const starLimit = tier >= 2 ? BH_BRIGHT_STAR_COUNT * 2 : 1024;
-    const count = Math.min(starLimit, Math.floor(assets.brightStars.length / 5) * 2);
-    mesh.count = count;
+    mesh.count = Math.min(starLimit, Math.floor(assets.brightStars.length / 5) * 2);
 
     state.camera.updateMatrixWorld();
     viewProjScratch.multiplyMatrices(state.camera.projectionMatrix, state.camera.matrixWorldInverse);
     viewportScratch.set(size.width, size.height);
 
-    const u = material.uniforms;
+    const u = mat.uniforms;
     u.uDeflectionLut.value = assets.deflectionLut;
     u.uBlackbodyLut.value = assets.blackbodyLut;
     (u.uCamPos.value as Vector3).copy(state.camera.position);
@@ -131,9 +125,21 @@ export function BrightStarSprites() {
   return (
     <instancedMesh
       ref={meshRef}
-      args={[geometry, material, MAX_INSTANCES]}
+      args={[geometry, undefined, MAX_INSTANCES]}
       frustumCulled={false}
       renderOrder={1}
-    />
+    >
+      <shaderMaterial
+        ref={matRef}
+        glslVersion={GLSL3}
+        vertexShader={bhStarSpritesVertexShader}
+        fragmentShader={bhStarSpritesFragmentShader}
+        transparent
+        depthWrite={false}
+        depthTest={false}
+        blending={AdditiveBlending}
+        uniforms={uniforms}
+      />
+    </instancedMesh>
   );
 }

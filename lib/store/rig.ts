@@ -25,9 +25,11 @@ export const rig = {
   cohortPhases: new Float32Array(16),
   cohortDirSmooth: new Float32Array(16).fill(1),
   introProgress: 1,
+  introCameraProgress: 1,
   introSpin: 0,
   introTick: 0,
   introActive: false,
+  warmupFrames: 0,
   canvasReady: false,
   forkMode: 0,      // -1 retrograde (cold), 0 neutral landing, +1 prograde (hot)
   forkWarp: 0,      // 0..1 dive through hole into destination star system
@@ -50,12 +52,12 @@ export const rig = {
   cameraOverride: {
     active: false,
     px: 0,
-    py: 0,
-    pz: 10.6,
+    py: 3.897,
+    pz: 27.728,
     tx: 0,
     ty: 0,
     tz: 0,
-    fov: 45,
+    fov: 42,
   } as CameraOverride,
   mountCount: 0,
   drawCalls: 0,
@@ -68,10 +70,12 @@ export const rig = {
   isSoftwareRenderer: false,
   injectedFrameMs: 0,
   bhTier: 0 as 0 | 1 | 2 | 3,
+  manualTierOverride: false,
   bhCheatsEnabled: true,
   bhCamMotion: 0,
   bhRenderScale: 1,
   bhExposureScale: 1,
+  gpuFrameMs: 0,
   canvasCovered: false,
 };
 

@@ -2,6 +2,7 @@
 
 import { gsap } from 'gsap';
 import { useEffect, useRef, useState } from 'react';
+import { MODE_CAMERA_POSES } from '@/lib/stage/modes';
 import { stageClock } from '@/lib/stage/clock';
 import { useTenetStore } from '@/lib/store';
 import { rig, subscribeCanvasReady } from '@/lib/store/rig';
@@ -34,6 +35,7 @@ export function IntroWordmark() {
   useEffect(() => {
     if (introDone) {
       rig.introProgress = 1;
+      rig.introCameraProgress = 1;
       rig.introSpin = 0;
       rig.introTick = 0;
       rig.introActive = false;
@@ -55,6 +57,7 @@ export function IntroWordmark() {
 
     if (mode !== 'fork' || reducedMotion || mediaReduced || alreadyPlayed) {
       rig.introProgress = 1;
+      rig.introCameraProgress = 1;
       rig.introSpin = 0;
       rig.introTick = 0;
       rig.introActive = false;
@@ -71,6 +74,7 @@ export function IntroWordmark() {
     }
 
     rig.introProgress = 0;
+    rig.introCameraProgress = 0;
     rig.introSpin = 5.2;
     rig.introTick = 1;
     rig.introActive = true;
@@ -99,20 +103,22 @@ export function IntroWordmark() {
     };
 
     const resetRigCamera = () => {
+      const forkPose = MODE_CAMERA_POSES.fork;
       rig.cameraOverride.active = false;
-      rig.cameraOverride.px = 0;
-      rig.cameraOverride.py = 0;
-      rig.cameraOverride.pz = 10.6;
+      rig.cameraOverride.px = forkPose.position[0];
+      rig.cameraOverride.py = forkPose.position[1];
+      rig.cameraOverride.pz = forkPose.position[2];
       rig.cameraOverride.tx = 0;
       rig.cameraOverride.ty = 0;
       rig.cameraOverride.tz = 0;
-      rig.cameraOverride.fov = 45;
+      rig.cameraOverride.fov = forkPose.fov;
     };
 
     const finish = () => {
       if (finished) return;
       finished = true;
       rig.introProgress = 1;
+      rig.introCameraProgress = 1;
       rig.introSpin = 0;
       rig.introTick = 0;
       rig.introActive = false;
