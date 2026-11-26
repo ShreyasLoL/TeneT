@@ -43,20 +43,17 @@ export const galaxyVertexShader = /* glsl */ `
     // True r^-1.5 Keplerian shear near hole, decaying gently into ultra-subtle cosmic drift at large r
     float diffOmega = 0.064 * pow(rSafe / 2.2, -1.5) * mix(1.0, 0.16, isField);
     float modeSpin = mix(1.0, -1.8, retro) + prog * 3.2;
-    float theta = theta0 + uTime * diffOmega * modeSpin + uSpin * pow(rSafe / 2.4, -0.78) * 0.85;
+    float theta = theta0 + uTime * diffOmega * modeSpin + uSpin * pow(rSafe / 2.4, -1.5) * 0.85;
 
     float rNorm = clamp((rBase - 1.05) / 12.75, 0.0, 1.0);
-    float sweepProgress = smoothstep(rNorm * 0.34, 0.58 + rNorm * 0.42, uIntro);
+    float r = rBase * (1.0 - retro * 0.24 + prog * 0.36);
 
-    float r = rBase * mix(0.32, 1.0, sweepProgress);
-    r = r * (1.0 - retro * 0.24 + prog * 0.36);
-
-    vec3 galPos = vec3(r * cos(theta), yOff * sweepProgress, r * sin(theta));
+    vec3 galPos = vec3(r * cos(theta), yOff, r * sin(theta));
     // Vertex-shader curl clumping along spiral arms & HII regions
-    float clumpMask = (1.0 - step(3.5, kind)) * smoothstep(2.0, 4.5, r) * sweepProgress;
+    float clumpMask = (1.0 - step(3.5, kind)) * smoothstep(2.0, 4.5, r);
     galPos += sampleCurl3(galPos * 0.34, uTime * 0.04, 0.25, 0.28) * clumpMask;
 
-    vec3 finalPos = mix(position, galPos, smoothstep(0.0, 0.75, 1.0 - uTick * 0.85) * sweepProgress);
+    vec3 finalPos = galPos;
 
     float spiralRef = SPIRAL_WINDING * log(max(1.4, r) / 2.2);
     float armPhase = sin(2.0 * (theta - spiralRef) + 0.58);
@@ -94,7 +91,7 @@ export const galaxyVertexShader = /* glsl */ `
     gl_Position = projectionMatrix * mvPos;
 
     float outerFade = 1.0 - smoothstep(0.55, 1.0, rNorm);
-    float introFade = smoothstep(0.04, 0.48 + rNorm * 0.38, uIntro);
+    float introFade = smoothstep(0.02, 0.38, uIntro);
 
     vKind = kind;
     vRadiusNorm = rNorm;

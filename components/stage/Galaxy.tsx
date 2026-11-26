@@ -103,9 +103,13 @@ export function Galaxy() {
       sMat.uniforms.uWarp.value = rig.forkWarp;
       sMat.uniforms.uHue.value = rig.forkHue;
       sMat.uniforms.uLensStrength.value = rig.introLens;
+      const skyIris =
+        rig.introSky > 1.0
+          ? 1.0 + (rig.introSky - 1.0) * 0.22
+          : MathUtils.clamp(rig.introSky, 0.0, 1.0);
       sMat.uniforms.uBrightness.value = MathUtils.damp(
         sMat.uniforms.uBrightness.value as number,
-        mode === 'fork' ? 0.50 : mode === 'ritual' ? 0.28 : 0.40,
+        (mode === 'fork' ? 0.50 : mode === 'ritual' ? 0.28 : 0.40) * skyIris,
         4.5,
         dt,
       );
