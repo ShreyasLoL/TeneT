@@ -63,7 +63,7 @@ export const blackHoleDiskGlsl = /* glsl */ `
 
     float rings = 0.68 + 0.32 * sin(logR * 25.0 + density * 4.4);
     float filaments = smoothstep(0.14, 0.88, density * 1.18) * rings;
-    return mix(0.24, 1.48, filaments);
+    return mix(0.16, 1.70, filaments);
   }
 
   // Hybrid Novikov-Thorne thermal gradient + umber, rose-pink, orchid, and abyssal violet matter envelope
@@ -130,7 +130,7 @@ export const blackHoleDiskGlsl = /* glsl */ `
     float grav = sqrt(max(1.0 - 1.0 / max(rCross, 1.05), 0.06));
     float gPhys = grav / clamp(1.0 - vOrb * cosEmit, 0.44, 1.85);
     float gEff = mix(1.0, gPhys, uDopplerStrength);
-    float beaming = clamp(pow(gEff, 3.8), 0.14, 2.75);
+    float beaming = clamp(pow(gEff, 3.8), 0.14, 3.20);
 
     float incSoft = smoothstep(0.010, 0.085, abs(rdCross.y));
     float imageWeight = isTopFace ? 1.0 : 0.60;
