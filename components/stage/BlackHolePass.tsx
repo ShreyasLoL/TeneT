@@ -22,6 +22,9 @@ import {
   CAMERA_INCLINATION_RAD,
   CAMERA_ROLL_RAD,
   DOPPLER_STRENGTH_DEFAULT,
+  INTEGRATOR_STEPS_FULL,
+  INTEGRATOR_STEPS_HIGH,
+  INTEGRATOR_STEPS_MID,
   SHADOW_RADIUS_BC,
 } from './blackhole/constants';
 import { blackHoleFragmentShader, blackHoleVertexShader } from './shaders/blackhole.glsl';
@@ -50,7 +53,8 @@ export function BlackHolePass() {
   const level = useTenetStore((s) => s.quality.level) as QualityLevel;
   const lowPower = useTenetStore((s) => s.quality.lowPower);
   const reducedMotion = useTenetStore((s) => s.quality.reducedMotion);
-  const profile = profileForLevel(level, isTouchDevice(), lowPower);
+  const touch = isTouchDevice();
+  const profile = profileForLevel(level, touch, lowPower);
   const composerActive = profile.lensMode === 'full';
   const cubeFaceSize = lowPower || level >= 2 ? 512 : 1024;
 
@@ -130,6 +134,12 @@ export function BlackHolePass() {
     const t = smoothTimeRef.current;
 
     const cam = rig.bhCam;
+    cam.steps =
+      lowPower || level >= 3
+        ? INTEGRATOR_STEPS_MID
+        : level === 0 && !touch
+          ? INTEGRATOR_STEPS_HIGH
+          : INTEGRATOR_STEPS_FULL;
     if (!rig.forkActive && !reducedMotion) {
       cam.inclination = CAMERA_INCLINATION_RAD + Math.sin(t * 0.14) * 0.036;
       cam.distance = CAMERA_DISTANCE_DEFAULT + Math.sin(t * 0.105 + 0.8) * 1.6;
