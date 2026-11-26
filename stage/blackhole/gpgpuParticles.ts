@@ -18,7 +18,6 @@ import {
 } from 'three';
 import { bhFullscreenVertexShader } from '@/components/stage/shaders/bhCommon.glsl';
 import { bhParticlesSimFragmentShader } from '@/components/stage/shaders/bhParticlesSim.glsl';
-import { BH_PARTICLE_COUNTS } from './constants';
 
 const FBO_SIZE = 512; // 512 * 512 = 262,144 particles
 const TAU = Math.PI * 2;
@@ -94,7 +93,7 @@ export class GpgpuParticleSim {
   }
 
   seed(renderer: WebGLRenderer, particlesInit: Float32Array): void {
-    const total = BH_PARTICLE_COUNTS.T2; // 262144
+    const total = FBO_SIZE * FBO_SIZE; // 262144 texels in 512x512 FBO
     const baseCount = Math.max(1, Math.floor(particlesInit.length / 4));
     const posBuf = new Float32Array(total * 4);
     const velBuf = new Float32Array(total * 4);

@@ -64,6 +64,7 @@ export type BhFrameParams = {
 
 export class BhPipelineRenderer {
   private readonly caps: GpuCaps;
+  private readonly useHalf: boolean;
   private readonly quadScene = new Scene();
   private readonly quadCamera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private readonly quad: Mesh;
@@ -74,10 +75,10 @@ export class BhPipelineRenderer {
 
   private readonly rayTarget: WebGLRenderTarget;
   private readonly sceneHdrTarget: WebGLRenderTarget;
-  private readonly crossfadeTarget: WebGLRenderTarget;
-  private readonly diskCache: DiskCache30Hz;
-  private readonly temporal: TemporalReprojector;
-  private readonly bloom: KawaseBloom;
+  private crossfadeTarget: WebGLRenderTarget | null = null;
+  private diskCache: DiskCache30Hz | null = null;
+  private temporal: TemporalReprojector | null = null;
+  private bloom: KawaseBloom | null = null;
 
   private readonly curProjView = new Matrix4();
   private readonly invProjView = new Matrix4();
@@ -87,12 +88,13 @@ export class BhPipelineRenderer {
   private crossfadeRemaining = 0;
   private crossfadeCaptured = false;
   private frameIndex = 0;
-  private compiled = false;
+  private t0Compiled = false;
+  private heroCompiled = false;
 
   constructor(width: number, height: number, caps: GpuCaps) {
     this.caps = caps;
-    const useHalf = caps.colorBufferHalfFloat && caps.textureHalfFloatLinear;
-    const type = useHalf ? HalfFloatType : UnsignedByteType;
+    this.useHalf = caps.colorBufferHalfFloat && caps.textureHalfFloatLinear;
+    const type = this.useHalf ? HalfFloatType : UnsignedByteType;
     const rtOpts = {
       format: RGBAFormat,
       type,
@@ -106,13 +108,10 @@ export class BhPipelineRenderer {
 
     const w = Math.max(4, Math.floor(width));
     const h = Math.max(4, Math.floor(height));
-    this.rayTarget = new WebGLRenderTarget(w, h, rtOpts);
+    const initRayW = Math.max(4, Math.floor(w * 0.55));
+    const initRayH = Math.max(4, Math.floor(h * 0.55));
+    this.rayTarget = new WebGLRenderTarget(initRayW, initRayH, rtOpts);
     this.sceneHdrTarget = new WebGLRenderTarget(w, h, { ...rtOpts, depthBuffer: true });
-    this.crossfadeTarget = new WebGLRenderTarget(w, h, rtOpts);
-
-    this.diskCache = new DiskCache30Hz(caps.textureHalfFloatLinear, caps.colorBufferHalfFloat);
-    this.temporal = new TemporalReprojector(w, h, useHalf);
-    this.bloom = new KawaseBloom(w, h, useHalf);
 
     const pal = readPalette();
     const [or, og, ob] = hexToLinearRgb(pal.accent);
@@ -154,20 +153,20 @@ export class BhPipelineRenderer {
         uKerrLut: { value: null },
         uBlackbodyLut: { value: null },
         uDiskTurbulence: { value: null },
-        uDiskCache30Hz: { value: this.diskCache.texture },
+        uDiskCache30Hz: { value: null },
         uSkyCube: { value: null },
         uCamPos: { value: new Vector3() },
         uInvProjView: { value: new Matrix4() },
         uJitterNdc: { value: new Vector2() },
         uTime: { value: 0 },
         uTierMode: { value: 1 },
-        uMarchSteps: { value: 20 },
+        uMarchSteps: { value: 16 },
         uSpinSense: { value: 1 },
         uHold: { value: 0 },
         uHeat: { value: 0 },
         uUseCache30Hz: { value: 1 },
         uCacheSubDt: { value: 0 },
-        uBlurTaps: { value: 3 },
+        uBlurTaps: { value: 2 },
         uCheatsEnabled: { value: 1 },
         uExposureScale: { value: 1 },
         uOrchid: { value: new Vector3(or, og, ob) },
@@ -194,7 +193,7 @@ export class BhPipelineRenderer {
       uniforms: {
         uHdrTex: { value: null },
         uBloomTex: { value: null },
-        uCrossfadeTex: { value: this.crossfadeTarget.texture },
+        uCrossfadeTex: { value: this.sceneHdrTarget.texture },
         uBlueNoiseTex: { value: null },
         uBloomIntensity: { value: 0.55 },
         uChroma: { value: 0.0022 },
@@ -211,22 +210,74 @@ export class BhPipelineRenderer {
     this.quadScene.add(this.quad);
   }
 
-  async compileAsync(renderer: WebGLRenderer): Promise<void> {
-    if (this.compiled) return;
-    this.compiled = true;
-    if (typeof renderer.compileAsync === 'function') {
-      const mats = [this.t0Mat, this.heroMat, this.blitMat, this.postMat];
-      for (const m of mats) {
-        this.quad.material = m;
-        await renderer.compileAsync(this.quadScene, this.quadCamera);
+  async compileAsync(renderer: WebGLRenderer, includeHero = false): Promise<void> {
+    if (!this.t0Compiled) {
+      this.t0Compiled = true;
+      if (typeof renderer.compileAsync === 'function') {
+        for (const m of [this.t0Mat, this.blitMat, this.postMat]) {
+          this.quad.material = m;
+          await renderer.compileAsync(this.quadScene, this.quadCamera);
+        }
+        this.quad.material = this.t0Mat;
       }
+    }
+    if (includeHero) await this.compileHeroAsync(renderer);
+  }
+
+  async compileHeroAsync(renderer: WebGLRenderer): Promise<void> {
+    if (this.heroCompiled) return;
+    this.heroCompiled = true;
+    if (typeof renderer.compileAsync === 'function') {
+      this.quad.material = this.heroMat;
+      await renderer.compileAsync(this.quadScene, this.quadCamera);
       this.quad.material = this.t0Mat;
     }
   }
 
+  private ensureTier1PlusResources(rayW: number, rayH: number, targetW: number, targetH: number): void {
+    if (!this.diskCache) {
+      this.diskCache = new DiskCache30Hz(
+        this.caps.textureHalfFloatLinear,
+        this.caps.colorBufferHalfFloat,
+      );
+    }
+    if (!this.temporal) {
+      this.temporal = new TemporalReprojector(rayW, rayH, this.useHalf);
+    }
+    if (!this.bloom) {
+      this.bloom = new KawaseBloom(targetW, targetH, this.useHalf);
+    }
+  }
+
+  private ensureCrossfadeTarget(targetW: number, targetH: number): WebGLRenderTarget {
+    const cw = Math.max(2, targetW >> 1);
+    const ch = Math.max(2, targetH >> 1);
+    if (!this.crossfadeTarget) {
+      this.crossfadeTarget = new WebGLRenderTarget(cw, ch, {
+        format: RGBAFormat,
+        type: this.useHalf ? HalfFloatType : UnsignedByteType,
+        minFilter: LinearFilter,
+        magFilter: LinearFilter,
+        wrapS: ClampToEdgeWrapping,
+        wrapT: ClampToEdgeWrapping,
+        depthBuffer: false,
+        stencilBuffer: false,
+      });
+    } else if (this.crossfadeTarget.width !== cw || this.crossfadeTarget.height !== ch) {
+      this.crossfadeTarget.setSize(cw, ch);
+    }
+    return this.crossfadeTarget;
+  }
+
   getEstimatedVramBytes(): number {
-    const rtBytes = (rt: WebGLRenderTarget) => rt.width * rt.height * 8;
-    return rtBytes(this.rayTarget) + rtBytes(this.sceneHdrTarget) + rtBytes(this.crossfadeTarget) + 512 * 128 * 8;
+    const bpp = this.useHalf ? 8 : 4;
+    const rtBytes = (rt: WebGLRenderTarget) => rt.width * rt.height * bpp;
+    let total = rtBytes(this.rayTarget) + rtBytes(this.sceneHdrTarget) + this.sceneHdrTarget.width * this.sceneHdrTarget.height * 3;
+    if (this.crossfadeTarget) total += rtBytes(this.crossfadeTarget);
+    if (this.diskCache) total += 512 * 128 * bpp;
+    if (this.temporal) total += this.rayTarget.width * this.rayTarget.height * bpp * 2;
+    if (this.bloom) total += Math.floor((this.sceneHdrTarget.width * this.sceneHdrTarget.height * bpp) / 2);
+    return total;
   }
 
   render(
@@ -241,9 +292,8 @@ export class BhPipelineRenderer {
 
     if (this.sceneHdrTarget.width !== targetW || this.sceneHdrTarget.height !== targetH) {
       this.sceneHdrTarget.setSize(targetW, targetH);
-      this.crossfadeTarget.setSize(targetW, targetH);
-      this.bloom.resize(targetW, targetH);
-      this.temporal.reset();
+      this.bloom?.resize(targetW, targetH);
+      this.temporal?.reset();
     }
 
     // Trigger 400ms blue-noise dithered tier crossfade on tier transition
@@ -251,22 +301,20 @@ export class BhPipelineRenderer {
       this.activeTier = p.tier;
       this.crossfadeRemaining = 0.4;
       this.crossfadeCaptured = false;
-      this.temporal.reset();
+      this.temporal?.reset();
     }
 
-    // If full transfer LUT isn't ready yet, hold rendering at T0 look safely
     const effectiveTier: BhTier =
       p.tier >= 1 && (assets.isBootstrap || !assets.transferLut) ? 0 : p.tier;
 
     // 1. Compute ray scale & motion-adaptive throttling (only when cheats enabled)
-    let tierBaseScale = 1.0;
-    if (effectiveTier === 0) tierBaseScale = 0.55;
-    else if (effectiveTier === 1) tierBaseScale = 0.68;
-    else if (effectiveTier === 2) tierBaseScale = 0.88;
-    else tierBaseScale = 0.90;
+    let tierBaseScale = 0.55;
+    if (effectiveTier === 1) tierBaseScale = 0.66;
+    else if (effectiveTier === 2) tierBaseScale = 0.72;
+    else if (effectiveTier === 3) tierBaseScale = 0.74;
 
     if (p.idleReducedRes && effectiveTier >= 2 && p.cheatsEnabled) {
-      tierBaseScale = Math.min(tierBaseScale, 0.65);
+      tierBaseScale = Math.min(tierBaseScale, 0.60);
     }
 
     const motionFactor = p.cheatsEnabled ? 1 - Math.min(0.42, p.camMotion * 0.42) : 1.0;
@@ -278,7 +326,7 @@ export class BhPipelineRenderer {
     const rayH = Math.max(4, Math.floor(targetH * totalRayScale));
     if (this.rayTarget.width !== rayW || this.rayTarget.height !== rayH) {
       this.rayTarget.setSize(rayW, rayH);
-      this.temporal.resize(rayW, rayH);
+      this.temporal?.resize(rayW, rayH);
     }
 
     mainCamera.updateMatrixWorld();
@@ -288,12 +336,13 @@ export class BhPipelineRenderer {
     const prevAutoClear = renderer.autoClear;
     renderer.autoClear = false;
 
-    // Capture previous HDR buffer at start of 400ms crossfade
+    // Capture previous HDR buffer lazily into half-res crossfadeTarget during transitions
     if (this.crossfadeRemaining > 0 && !this.crossfadeCaptured) {
       this.crossfadeCaptured = true;
+      const cfTarget = this.ensureCrossfadeTarget(targetW, targetH);
       this.blitMat.uniforms.uSrcTex.value = this.sceneHdrTarget.texture;
       this.quad.material = this.blitMat;
-      renderer.setRenderTarget(this.crossfadeTarget);
+      renderer.setRenderTarget(cfTarget);
       renderer.render(this.quadScene, this.quadCamera);
     }
 
@@ -317,9 +366,12 @@ export class BhPipelineRenderer {
       renderer.setRenderTarget(this.rayTarget);
       renderer.render(this.quadScene, this.quadCamera);
     } else {
+      this.ensureTier1PlusResources(rayW, rayH, targetW, targetH);
+      const cache = this.diskCache!;
+      const temporal = this.temporal!;
       const useKerr = effectiveTier === 3 && assets.kerrLut !== null ? 1 : 0;
       const useCache = p.cheatsEnabled ? 1 : 0;
-      const snappedTime = this.diskCache.update(
+      const snappedTime = cache.update(
         renderer,
         assets.diskTurbulence,
         p.simTime,
@@ -329,14 +381,14 @@ export class BhPipelineRenderer {
       );
 
       const useTemporal = p.cheatsEnabled && totalRayScale < 0.96;
-      this.temporal.getJitterNdc(rayW, rayH, useTemporal, this.jitterNdc);
+      temporal.getJitterNdc(rayW, rayH, useTemporal, this.jitterNdc);
 
       const marchSteps =
         effectiveTier >= 2
-          ? Math.max(12, Math.round((effectiveTier === 3 ? 26 : 22) * motionFactor))
+          ? Math.max(12, Math.round((effectiveTier === 3 ? 20 : 16) * motionFactor))
           : 16;
       const blurTaps =
-        effectiveTier >= 2 ? (p.cheatsEnabled && p.camMotion > 0.35 ? 2 : 4) : 2;
+        effectiveTier >= 2 ? (p.cheatsEnabled ? 2 : 3) : 2;
 
       const u = this.heroMat.uniforms;
       u.uDeflectionLut.value = assets.deflectionLut;
@@ -344,7 +396,7 @@ export class BhPipelineRenderer {
       u.uKerrLut.value = assets.kerrLut;
       u.uBlackbodyLut.value = assets.blackbodyLut;
       u.uDiskTurbulence.value = assets.diskTurbulence;
-      u.uDiskCache30Hz.value = this.diskCache.texture;
+      u.uDiskCache30Hz.value = cache.texture;
       u.uSkyCube.value = assets.skyCube;
       (u.uCamPos.value as Vector3).copy(mainCamera.position);
       (u.uInvProjView.value as Matrix4).copy(this.invProjView);
@@ -366,7 +418,7 @@ export class BhPipelineRenderer {
       renderer.render(this.quadScene, this.quadCamera);
 
       const histWeight = useTemporal ? Math.max(0.55, 0.84 - p.camMotion * 0.28) : 0;
-      hdrInputTex = this.temporal.render(
+      hdrInputTex = temporal.render(
         renderer,
         this.rayTarget.texture,
         rayW,
@@ -391,7 +443,7 @@ export class BhPipelineRenderer {
     // 4. Kawase mip bloom (skipped on T0 which uses baked halo glow)
     let bloomTex = assets.blackbodyLut as Texture;
     let bloomIntensity = 0;
-    if (effectiveTier >= 1) {
+    if (effectiveTier >= 1 && this.bloom) {
       const mips = effectiveTier >= 2 && (!p.cheatsEnabled || p.camMotion < 0.5) ? 4 : 3;
       bloomTex = this.bloom.render(renderer, this.sceneHdrTarget.texture, mips, 0.72);
       bloomIntensity = effectiveTier >= 2 ? 0.56 : 0.44;
@@ -402,12 +454,16 @@ export class BhPipelineRenderer {
     if (this.crossfadeRemaining > 0) {
       this.crossfadeRemaining = Math.max(0, this.crossfadeRemaining - p.dt);
       fadeMix = 1 - this.crossfadeRemaining / 0.4;
+      if (this.crossfadeRemaining === 0 && this.crossfadeTarget) {
+        this.crossfadeTarget.dispose();
+        this.crossfadeTarget = null;
+      }
     }
 
     const pu = this.postMat.uniforms;
     pu.uHdrTex.value = this.sceneHdrTarget.texture;
     pu.uBloomTex.value = bloomTex;
-    pu.uCrossfadeTex.value = this.crossfadeTarget.texture;
+    pu.uCrossfadeTex.value = this.crossfadeTarget ? this.crossfadeTarget.texture : this.sceneHdrTarget.texture;
     pu.uBlueNoiseTex.value = assets.blueNoise;
     pu.uBloomIntensity.value = bloomIntensity;
     pu.uChroma.value = effectiveTier === 0 ? 0.0008 : 0.0022;
@@ -429,10 +485,10 @@ export class BhPipelineRenderer {
   dispose(): void {
     this.rayTarget.dispose();
     this.sceneHdrTarget.dispose();
-    this.crossfadeTarget.dispose();
-    this.diskCache.dispose();
-    this.temporal.dispose();
-    this.bloom.dispose();
+    this.crossfadeTarget?.dispose();
+    this.diskCache?.dispose();
+    this.temporal?.dispose();
+    this.bloom?.dispose();
     this.quad.geometry.dispose();
     this.t0Mat.dispose();
     this.heroMat.dispose();

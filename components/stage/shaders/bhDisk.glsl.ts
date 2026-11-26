@@ -47,7 +47,7 @@ vec3 bhSampleDiskNoise(
 
   vec3 accum = vec3(0.0);
   float wSum = 0.0;
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < 3; ++i) {
     if (i >= blurTaps) break;
     float fTap = blurTaps > 1 ? (float(i) / float(blurTaps - 1) - 0.5) * 2.0 : 0.0;
     float phiTap = phi + fTap * dPhiBlur;
@@ -130,7 +130,7 @@ vec4 bhShadeDiskCrossing(
   float slabAlpha = clamp(1.0 - exp(-tau0 / absCos), 0.0, 0.98) * radialMask;
 
   mediump float emissive = (0.35 + 1.45 * tNorm) * filament * dustExt * (0.72 + 0.42 * uHeat + 0.55 * uHold);
-  mediump vec3 rad = bbCol * emissive * mix(g3, g4, 0.45) * 0.92;
+  mediump vec3 rad = bbCol * emissive * g4 * 1.18;
   return vec4(rad, slabAlpha);
 }
 `;

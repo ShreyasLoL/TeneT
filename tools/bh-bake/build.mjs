@@ -4,7 +4,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..', '..');
 const BIN_DIR = path.join(__dirname, 'bin');
 fs.mkdirSync(BIN_DIR, { recursive: true });
 

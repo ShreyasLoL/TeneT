@@ -55,9 +55,9 @@ float bhInPlaneRK4(
   rCross = vec4(0.0);
   escaped = false;
   phiInfOut = 0.0;
-  float hBase = 2.65 / float(max(maxSteps, 12));
+  float hBase = 2.55 / float(max(maxSteps, 12));
 
-  for (int s = 0; s < 32; ++s) {
+  for (int s = 0; s < 22; ++s) {
     if (s >= maxSteps) break;
     float h = clamp(hBase / (1.0 + 1.8 * u), 0.035, 0.24);
     float k1u = du, k1v = 3.0 * BH_M * u * u - u;
@@ -199,7 +199,7 @@ void main() {
     vec4 dCol = bhShadeDiskCrossing(
       rk, hitPos, rayDir, b, sinTheta0, sinPsi, rObs, uTime, uSpinSense, isKerr,
       uHold, uHeat, uOrchid, uBlackbodyLut, uDiskTurbulence, uDiskCache30Hz,
-      uUseCache30Hz, uCacheSubDt, taps, dPhi
+      uUseCache30Hz, uCacheSubDt, k == 0 ? taps : 1, dPhi
     );
     // T2 volumetric Gaussian slab boost near grazing angles
     if (uTierMode >= 1.5 && dCol.a > 0.01) {

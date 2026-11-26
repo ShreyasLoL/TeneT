@@ -292,6 +292,7 @@ export class QualityController {
 
   step(params: {
     cpuFrameMs: number;
+    gpuFrameMs?: number;
     dtSec: number;
     camX: number;
     camY: number;
@@ -321,7 +322,7 @@ export class QualityController {
     if (this.warmupFrames > 0) this.warmupFrames -= 1;
 
     this.totalTimeMs += rawCpu;
-    const gpuMs = this.gpuTimer.latestMs;
+    const gpuMs = params.gpuFrameMs && params.gpuFrameMs > 0 ? params.gpuFrameMs : this.gpuTimer.latestMs;
     const measuredMs = gpuMs > 0 ? Math.max(gpuMs, rawCpu) : rawCpu;
 
     this.emaMs = this.emaMs * 0.78 + measuredMs * 0.22;
@@ -398,7 +399,7 @@ export class QualityController {
   }
 
   private computeDpr(): number {
-    return this.renderScale < 0.72 ? 1.0 : this.baseDprMax;
+    return this.tier === 0 || this.renderScale < 0.78 ? 1.0 : this.baseDprMax;
   }
 
   private recordStats(ms: number): void {

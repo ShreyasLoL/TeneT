@@ -140,9 +140,9 @@ void main() {
   // Subtle ceremony pulse on seal hold / recap spike
   hdrTotal *= (1.0 + uHold * 0.16 + uSpike * 0.12);
 
-  // Soft radial vignette preserving --bg #0B0910 black room continuity
+  // Soft radial vignette preserving --bg #0B0910 corners without lifting dark shadow contrast
   float vig = pow(clamp(1.0 - edgeR2 * 0.72, 0.0, 1.0), 1.35);
-  hdrTotal = hdrTotal * vig + uBg * 0.55;
+  hdrTotal = hdrTotal * vig + uBg * (1.0 - vig) * 0.38;
 
   mediump vec3 mapped = agxToneMap(hdrTotal);
   mediump vec3 srgb = linearToSrgb(mapped);

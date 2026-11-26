@@ -13,7 +13,7 @@ import {
   type WebGLRenderer,
 } from 'three';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
-import type { BhAssetBundle } from './bootstrapAssets';
+import { createBootstrapAssets, type BhAssetBundle } from './bootstrapAssets';
 
 const BHL1_MAGIC = 0x314c4842; // 'BHL1'
 
@@ -103,7 +103,7 @@ function getKtx2Loader(renderer: WebGLRenderer): KTX2Loader {
   if (!sharedKtx2Loader) {
     sharedKtx2Loader = new KTX2Loader();
     sharedKtx2Loader.setTranscoderPath('/bh/basis/');
-    sharedKtx2Loader.setWorkerLimit(2);
+    sharedKtx2Loader.setWorkerLimit(1);
   }
   sharedKtx2Loader.detectSupport(renderer);
   return sharedKtx2Loader;
@@ -113,6 +113,30 @@ function initTex(renderer: WebGLRenderer, tex: Texture) {
   if (typeof renderer.initTexture === 'function') {
     renderer.initTexture(tex);
   }
+}
+
+const yieldFrame = () => new Promise<void>((r) => setTimeout(r, 0));
+
+/** Lightweight T0 upgrade (<30 KB total, zero KTX2 WASM) for low-power / throttled sessions. */
+export async function loadLightweightT0Assets(renderer: WebGLRenderer): Promise<BhAssetBundle> {
+  const bundle = createBootstrapAssets();
+  const [defRaw, bbRaw, bnRaw] = await Promise.all([
+    fetchBhl1('/bh/deflection_lut.bin'),
+    fetchBhl1('/bh/blackbody_lut.bin'),
+    fetchBhl1('/bh/blue_noise_64.bin'),
+  ]);
+  bundle.deflectionLut.dispose();
+  bundle.blackbodyLut.dispose();
+  bundle.blueNoise.dispose();
+  bundle.deflectionLut = makeHalfDataTexture(defRaw);
+  bundle.blackbodyLut = makeHalfDataTexture(bbRaw);
+  bundle.blueNoise = makeBlueNoiseTexture(bnRaw);
+  initTex(renderer, bundle.deflectionLut);
+  initTex(renderer, bundle.blackbodyLut);
+  initTex(renderer, bundle.blueNoise);
+  bundle.skyTier = 'bootstrap';
+  bundle.isBootstrap = true;
+  return bundle;
 }
 
 export async function loadCoreBhAssets(renderer: WebGLRenderer): Promise<BhAssetBundle> {
@@ -151,9 +175,11 @@ export async function loadCoreBhAssets(renderer: WebGLRenderer): Promise<BhAsset
   skyLow.needsUpdate = true;
 
   initTex(renderer, deflectionLut);
-  initTex(renderer, transferLut);
   initTex(renderer, blackbodyLut);
   initTex(renderer, blueNoise);
+  await yieldFrame();
+  initTex(renderer, transferLut);
+  await yieldFrame();
   initTex(renderer, turbTex);
   initTex(renderer, skyLow);
 

@@ -12,7 +12,7 @@
     "db:migrate": "tsx lib/db/migrate.ts",
     "seed": "tsx seed/seed.ts",
     "bh:bake": "node tools/bh-bake/build.mjs && node tools/bh-bake/pack-ktx2.mjs",
-    "bh:test": "tools/bh-bake/bin/bh_test.exe"
+    "bh:test": "node -e \"require('node:child_process').execFileSync('tools/bh-bake/bin/bh_test.exe', { stdio: 'inherit' })\""
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

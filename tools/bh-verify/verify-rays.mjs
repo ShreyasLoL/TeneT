@@ -1,10 +1,21 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import { registerHooks } from 'node:module';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..', '..');
+
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if ((specifier.startsWith('./') || specifier.startsWith('../')) && context.parentURL?.startsWith('file:')) {
+      const candidate = `${path.resolve(path.dirname(fileURLToPath(context.parentURL)), specifier)}.ts`;
+      if (fs.existsSync(candidate)) return { url: pathToFileURL(candidate).href, shortCircuit: true };
+    }
+    return nextResolve(specifier, context);
+  },
+});
 
 const {
   BH_LUT_DIMS,
@@ -135,9 +146,8 @@ let maxDeflErr = 0;
 const diskErrs = [];
 
 for (let i = 0; i < rays.length; i++) {
-  const [escStr, , deflRefStr, u0RefStr, u1RefStr] = outLines[i].trim().split(/\s+/);
+  const [escStr, , , u0RefStr, u1RefStr] = outLines[i].trim().split(/\s+/);
   const escRef = Number(escStr) === 1;
-  const deflRef = Number(deflRefStr);
   const u0Ref = Number(u0RefStr);
   const u1Ref = Number(u1RefStr);
 

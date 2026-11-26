@@ -105,7 +105,7 @@ void main() {
 
   // Compute radial spaghettification stretch along projected BH->particle axis
   float tidal = (2.0 * BH_M) / max(1.1, r * r * r);
-  float stretch = clamp(1.0 + 16.0 * tidal, 1.0, 8.5);
+  float stretch = clamp(1.0 + 12.0 * tidal, 1.0, 5.5);
   float squeeze = inversesqrt(stretch);
 
   vec4 clipBh = uViewProj * vec4(0.0, 0.0, 0.0, 1.0);
@@ -114,7 +114,7 @@ void main() {
   vec2 radScreen = normalize((ndcC - ndcBh) * uViewport + vec2(1e-4, 0.0));
   vec2 tangScreen = vec2(-radScreen.y, radScreen.x);
 
-  float basePx = clamp((18.0 / max(4.0, distCam)) * (0.9 + 1.4 * seed) * uParticleScale, 1.0, 6.5);
+  float basePx = clamp((11.0 / max(4.5, distCam)) * (0.85 + 1.1 * seed) * uParticleScale, 0.8, 3.2);
   vec2 offsetPx = position.x * radScreen * (basePx * stretch) + position.y * tangScreen * (basePx * squeeze);
   vec2 ndcPos = ndcC + (offsetPx * 2.0) / max(uViewport, vec2(1.0));
   gl_Position = vec4(ndcPos * clip.w, clip.z, clip.w);

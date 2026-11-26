@@ -8,14 +8,14 @@ import { getBhAssets, setBhAssets } from '@/stage/blackhole/assetStore';
 import { BhPipelineRenderer, type BhTier } from '@/stage/blackhole/bhRenderer';
 import { createBootstrapAssets } from '@/stage/blackhole/bootstrapAssets';
 import { detectGpuCaps } from '@/stage/blackhole/gpuCaps';
-import { loadCoreBhAssets, loadKerrLut, loadSkyTier } from '@/stage/blackhole/lutLoader';
+import { loadCoreBhAssets, loadKerrLut, loadLightweightT0Assets, loadSkyTier } from '@/stage/blackhole/lutLoader';
 import { GpuTimerRing } from '@/stage/blackhole/qualityController';
 
 declare global {
   interface Window {
     __TENET_BH__?: {
       getTier: () => BhTier;
-      setTier: (tier: BhTier) => void;
+      setTier: (tier: BhTier) => Promise<void> | void;
       setCheatsEnabled: (enabled: boolean) => void;
       setSimTime: (t: number | null) => void;
       setCameraPose: (px: number, py: number, pz: number, tx?: number, ty?: number, tz?: number, fov?: number) => void;
@@ -51,26 +51,51 @@ export function Postfx() {
     rendererRef.current = pipe;
     const gpuTimer = new GpuTimerRing(gl.getContext() as WebGL2RenderingContext, caps.disjointTimerQuery);
     gpuTimerRef.current = gpuTimer;
-    void pipe.compileAsync(gl);
+    void pipe.compileAsync(gl, false);
 
     let cancelled = false;
-    void loadCoreBhAssets(gl)
-      .then((core) => {
-        if (cancelled) return;
-        loadedSkyRef.current = 'low';
-        setBhAssets(core);
-        invalidate();
-      })
-      .catch(() => {
-        // Keep bootstrap assets alive if offline/fetch fails
-      });
+    let corePromise: Promise<void> | null = null;
+    const ensureFullCoreAssets = () => {
+      if (!corePromise) {
+        corePromise = (async () => {
+          const core = await loadCoreBhAssets(gl);
+          if (cancelled) return;
+          await pipe.compileHeroAsync(gl);
+          if (cancelled) return;
+          loadedSkyRef.current = 'low';
+          setBhAssets(core);
+          invalidate();
+        })().catch(() => {});
+      }
+      return corePromise;
+    };
+
+    const bootTimer = window.setTimeout(() => {
+      if (cancelled) return;
+      const isSlowOrLow =
+        useTenetStore.getState().quality.lowPower ||
+        (rig.p95FrameMs > 32 && !rig.manualTierOverride);
+      if (isSlowOrLow) {
+        void loadLightweightT0Assets(gl)
+          .then((lite) => {
+            if (!cancelled) {
+              setBhAssets(lite);
+              invalidate();
+            }
+          })
+          .catch(() => {});
+      } else {
+        void ensureFullCoreAssets();
+      }
+    }, 360);
 
     if (typeof window !== 'undefined') {
       window.__TENET_BH__ = {
         getTier: () => rig.bhTier,
-        setTier: (t: BhTier) => {
+        setTier: async (t: BhTier) => {
           rig.manualTierOverride = true;
           rig.bhTier = t;
+          if (t >= 1) await ensureFullCoreAssets();
           useTenetStore.getState().setQuality({ bhTier: t, ultraKerr: t === 3 });
           invalidate();
         },
@@ -102,7 +127,7 @@ export function Postfx() {
             advance(t * 1000);
           }
         },
-        getVramMb: () => (pipe.getEstimatedVramBytes() / (1024 * 1024)) + 12,
+        getVramMb: () => (pipe.getEstimatedVramBytes() / (1024 * 1024)) + (rig.bhTier >= 2 ? 20 : 6),
         getInfo: () => ({
           tier: rig.bhTier,
           cheats: rig.bhCheatsEnabled,
@@ -117,6 +142,7 @@ export function Postfx() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(bootTimer);
       rendererRef.current = null;
       gpuTimerRef.current?.dispose();
       gpuTimerRef.current = null;

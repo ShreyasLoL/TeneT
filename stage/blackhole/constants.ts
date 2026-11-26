@@ -48,8 +48,8 @@ export const BH_BRIGHT_STAR_COUNT = 2048;
 export const BH_PARTICLE_COUNTS = {
   T0: 8192,
   T1: 40960,
-  T2: 262144, // 512 x 512 GPGPU FBO
-  T3: 262144,
+  T2: 204800, // 512 x 512 GPGPU FBO (200k+ active splats)
+  T3: 204800,
 } as const;
 
 export const BH_LUT_DIMS = {

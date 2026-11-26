@@ -47,6 +47,7 @@ export function Particles() {
 
   const cursor = useTenetStore((s) => s.cursor);
   const mode = useTenetStore((s) => s.mode);
+  const bhTier = useTenetStore((s) => s.quality.bhTier);
   const meshRef = useRef<InstancedMesh | null>(null);
   const matRef = useRef<ShaderMaterial | null>(null);
   const cohortTex = useMemo(() => createCohortTexture(), []);
@@ -128,9 +129,6 @@ export function Particles() {
     attrsRef.current = { part: pAttr, cohort: cAttr };
 
     const tex = cohortTexRef.current;
-    const caps = detectGpuCaps(gl.getContext() as WebGL2RenderingContext);
-    const sim = new GpgpuParticleSim(caps.colorBufferFloat);
-    simRef.current = sim;
 
     const unsub = subscribeBhAssets((assets) => {
       if (!assets) return;
@@ -142,19 +140,38 @@ export function Particles() {
         const baked = buildParticleInitBuffer(assets.particlesInit, MAX_PARTICLES);
         (attrsRef.current.part.array as Float32Array).set(baked);
         attrsRef.current.part.needsUpdate = true;
-        if (!sim.isSeeded) sim.seed(gl, assets.particlesInit);
+        if (simRef.current && !simRef.current.isSeeded) simRef.current.seed(gl, assets.particlesInit);
       }
     });
 
     return () => {
       unsub();
-      sim.dispose();
+      simRef.current?.dispose();
       simRef.current = null;
       attrsRef.current = null;
       tex.dispose();
       geometry.dispose();
     };
   }, [geometry, gl]);
+
+  // Lazy-allocate 512x512 GPGPU ping-pong FBOs ONLY when Tier >= 2 (zero VRAM on T0/T1)
+  useEffect(() => {
+    if (bhTier < 2) {
+      if (simRef.current) {
+        simRef.current.dispose();
+        simRef.current = null;
+      }
+      return;
+    }
+    if (!simRef.current) {
+      const caps = detectGpuCaps(gl.getContext() as WebGL2RenderingContext);
+      simRef.current = new GpgpuParticleSim(caps.colorBufferFloat);
+    }
+    const assets = getBhAssets();
+    if (assets && assets.particlesInit.length >= 4 && !simRef.current.isSeeded) {
+      simRef.current.seed(gl, assets.particlesInit);
+    }
+  }, [bhTier, gl]);
 
   useEffect(() => {
     const attrs = attrsRef.current;
