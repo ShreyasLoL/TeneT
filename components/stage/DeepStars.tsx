@@ -107,6 +107,7 @@ export function DeepStars() {
       uRoll: { value: CAMERA_ROLL_RAD },
       uBrightness: { value: rig.introSky > 0.5 ? 1 : 0 },
       uLensStrength: { value: rig.introLens },
+      uShadowReveal: { value: rig.introShadow },
     }),
     [],
   );
@@ -132,10 +133,23 @@ export function DeepStars() {
 
     const cam = rig.bhCam;
     const dist = cam.distance || CAMERA_DISTANCE_DEFAULT;
-    const sinInc = Math.sin(cam.inclination);
-    const cosInc = Math.cos(cam.inclination);
-    const sinAz = Math.sin(cam.azimuth);
-    const cosAz = Math.cos(cam.azimuth);
+    const tremor = rig.introTremor;
+    const tremAz =
+      tremor > 1e-4
+        ? (Math.sin(rig.elapsedTime * 53.0) * 0.6 + Math.sin(rig.elapsedTime * 89.0 + 1.1) * 0.4) *
+          tremor *
+          0.0042
+        : 0;
+    const tremInc =
+      tremor > 1e-4
+        ? (Math.cos(rig.elapsedTime * 61.0 + 0.4) * 0.6 + Math.sin(rig.elapsedTime * 97.0) * 0.4) *
+          tremor *
+          0.0032
+        : 0;
+    const sinInc = Math.sin(cam.inclination + tremInc);
+    const cosInc = Math.cos(cam.inclination + tremInc);
+    const sinAz = Math.sin(cam.azimuth + tremAz);
+    const cosAz = Math.cos(cam.azimuth + tremAz);
 
     scratchCamPos.set(dist * sinInc * sinAz, dist * cosInc, dist * sinInc * cosAz);
     scratchForward.copy(scratchCamPos).negate().normalize();
@@ -159,11 +173,12 @@ export function DeepStars() {
     u.uDpr.value = gl.getPixelRatio();
     u.uRoll.value = cam.roll;
     u.uLensStrength.value = rig.introLens;
-    const introFade = MathUtils.smoothstep(rig.introSky, 0.04, 0.85);
+    u.uShadowReveal.value = rig.introShadow;
+    const skyScale = MathUtils.clamp(rig.introSky, 0, 1.45);
     u.uBrightness.value = MathUtils.damp(
       u.uBrightness.value as number,
-      (mode === 'fork' ? 1.0 : mode === 'ritual' ? 0.45 : 0.72) * introFade,
-      4.5,
+      (mode === 'fork' ? 1.0 : mode === 'ritual' ? 0.45 : 0.72) * skyScale,
+      6.5,
       clampedDt,
     );
   });

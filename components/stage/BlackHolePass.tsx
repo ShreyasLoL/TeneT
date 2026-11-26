@@ -20,6 +20,7 @@ import {
   ANALYTIC_B_END,
   ANALYTIC_B_START,
   CAMERA_DISTANCE_DEFAULT,
+  CAMERA_FOV_DEG,
   CAMERA_INCLINATION_RAD,
   CAMERA_ROLL_RAD,
   DOPPLER_STRENGTH_DEFAULT,
@@ -86,6 +87,7 @@ export function BlackHolePass() {
       uWarp: { value: 0 },
       uHue: { value: 0 },
       uSkyReveal: { value: rig.introSky },
+      uShadowReveal: { value: rig.introShadow },
       uLensStrength: { value: rig.introLens },
       uDiskReveal: { value: rig.introDisk },
       uRingReveal: { value: rig.introRing },
@@ -165,13 +167,27 @@ export function BlackHolePass() {
         3.2,
         clampedDt,
       );
+      cam.fov = MathUtils.damp(cam.fov, CAMERA_FOV_DEG, 3.2, clampedDt);
     }
 
     const u = mat.uniforms;
-    const sinInc = Math.sin(cam.inclination);
-    const cosInc = Math.cos(cam.inclination);
-    const sinAz = Math.sin(cam.azimuth);
-    const cosAz = Math.cos(cam.azimuth);
+    const tremor = rig.introTremor;
+    const tremAz =
+      tremor > 1e-4
+        ? (Math.sin(rig.elapsedTime * 53.0) * 0.6 + Math.sin(rig.elapsedTime * 89.0 + 1.1) * 0.4) *
+          tremor *
+          0.0042
+        : 0;
+    const tremInc =
+      tremor > 1e-4
+        ? (Math.cos(rig.elapsedTime * 61.0 + 0.4) * 0.6 + Math.sin(rig.elapsedTime * 97.0) * 0.4) *
+          tremor *
+          0.0032
+        : 0;
+    const sinInc = Math.sin(cam.inclination + tremInc);
+    const cosInc = Math.cos(cam.inclination + tremInc);
+    const sinAz = Math.sin(cam.azimuth + tremAz);
+    const cosAz = Math.cos(cam.azimuth + tremAz);
 
     scratchCamPos.set(
       cam.distance * sinInc * sinAz,
@@ -208,6 +224,7 @@ export function BlackHolePass() {
     u.uWarp.value = rig.forkWarp;
     u.uHue.value = rig.forkHue;
     u.uSkyReveal.value = rig.introSky;
+    u.uShadowReveal.value = rig.introShadow;
     u.uLensStrength.value = rig.introLens;
     u.uDiskReveal.value = rig.introDisk;
     u.uRingReveal.value = rig.introRing;

@@ -30,6 +30,20 @@ export function CameraRig() {
       targetLook.set(pose.target[0], pose.target[1], pose.target[2]);
     }
 
+    if (rig.introTremor > 1e-4 && !reducedMotion) {
+      const trem = rig.introTremor;
+      const tAz =
+        (Math.sin(rig.elapsedTime * 53.0) * 0.6 + Math.sin(rig.elapsedTime * 89.0 + 1.1) * 0.4) *
+        trem *
+        0.012;
+      const tInc =
+        (Math.cos(rig.elapsedTime * 61.0 + 0.4) * 0.6 + Math.sin(rig.elapsedTime * 97.0) * 0.4) *
+        trem *
+        0.009;
+      targetLook.x += tAz;
+      targetLook.y -= tInc;
+    }
+
     const directFollow =
       reducedMotion || ((rig.introActive || rig.forkActive) && rig.cameraOverride.active);
     if (directFollow) {
