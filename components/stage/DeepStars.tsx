@@ -17,7 +17,7 @@ import { rig } from '@/lib/store/rig';
 import { CAMERA_DISTANCE_DEFAULT, CAMERA_ROLL_RAD } from './blackhole/constants';
 import { deepStarsFragmentShader, deepStarsVertexShader } from './shaders/deepStars.glsl';
 
-const MAX_DEEP_STARS = 4400;
+const MAX_DEEP_STARS = 6800;
 const scratchCamPos = new Vector3();
 const scratchForward = new Vector3();
 const scratchRight = new Vector3();
@@ -61,15 +61,15 @@ function buildDeepStarBuffers() {
     // Carve out the BIG bottom-right M87* void + two natural negative-space pockets
     if (dx * mx + dy * my + dz * mz > m87VoidCos) continue;
     const pocket = Math.sin(dx * 5.2 + dy * 4.1) * Math.cos(dy * 6.0 - dz * 3.8);
-    if (pocket > 0.56 && rng() < 0.76) continue;
+    if (pocket > 0.56 && rng() < 0.72) continue;
 
     dirs[i * 3] = dx;
     dirs[i * 3 + 1] = dy;
     dirs[i * 3 + 2] = dz;
 
     const u = rng();
-    // High-contrast distribution: ~72% distant dim, ~22% crisp clear, ~6% bright hero pinpoints
-    const lum = u > 0.94 ? 0.95 + rng() * 0.72 : u > 0.72 ? 0.36 + rng() * 0.36 : 0.06 + rng() * 0.20;
+    // High-contrast distribution: ~74% distant dim, ~20% crisp clear, ~6% bright hero pinpoints
+    const lum = u > 0.94 ? 0.95 + rng() * 0.72 : u > 0.74 ? 0.36 + rng() * 0.36 : 0.06 + rng() * 0.20;
     seeds[i * 4] = lum;
     seeds[i * 4 + 1] = rng();
     seeds[i * 4 + 2] = rng();
@@ -93,7 +93,7 @@ export function DeepStars() {
   const emaDtRef = useRef(1 / 60);
 
   const buffers = useMemo(() => buildDeepStarBuffers(), []);
-  const drawCount = lowPower || level >= 3 ? 1400 : level === 2 || isTouchDevice() ? 2800 : buffers.count;
+  const drawCount = lowPower || level >= 3 ? 2100 : level === 2 || isTouchDevice() ? 4200 : buffers.count;
 
   const initialUniforms = useMemo(
     () => ({
