@@ -75,8 +75,8 @@ export function buildIntroTimeline(
   if (ticks.length > 0) {
     tl.to(
       ticks,
-      { opacity: 0.92, duration: 0.24 * s, stagger: (0.58 * s) / 60, ease: expoBezierEase },
-      0.08 * s,
+      { opacity: 0.96, duration: 0.22 * s, stagger: (0.56 * s) / 60, ease: expoBezierEase },
+      0.06 * s,
     );
   }
 

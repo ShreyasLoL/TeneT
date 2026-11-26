@@ -2,7 +2,7 @@
 
 import type { MutableRefObject, RefObject } from 'react';
 
-export const TIMER_RING_R = 126;
+export const TIMER_RING_R = 136;
 export const TIMER_RING_CIRC = 2 * Math.PI * TIMER_RING_R;
 
 type TickSpec = {
@@ -17,8 +17,8 @@ const TICKS: ReadonlyArray<TickSpec> = Array.from({ length: 60 }, (_, i) => {
   // Start at 12 o'clock (-PI/2) and step clockwise
   const theta = -Math.PI * 0.5 + (i / 60) * Math.PI * 2;
   const major = i % 5 === 0;
-  const rInner = major ? 108 : 114;
-  const rOuter = 122;
+  const rInner = major ? 116 : 124;
+  const rOuter = 134;
   const c = Math.cos(theta);
   const s = Math.sin(theta);
   return {
@@ -74,10 +74,10 @@ export function IntroDial({
 }) {
   return (
     <>
-      {/* 0.0-0.8s: single 1px --line hairline sweeping across the void */}
+      {/* 0.0-0.8s: single 1px hairline sweeping across the void */}
       <div
         ref={hairlineRef}
-        className="pointer-events-none absolute h-px w-[min(78vw,560px)] origin-center bg-[var(--line)] opacity-0"
+        className="pointer-events-none absolute h-px w-[min(78vw,560px)] origin-center bg-text-dim/55 opacity-0"
       />
 
       {/* 60 radial clock ticks + thin timer ring around TENET */}
@@ -96,8 +96,8 @@ export function IntroDial({
               y1={t.y1}
               x2={t.x2}
               y2={t.y2}
-              stroke={t.major ? 'var(--text-dim)' : 'var(--line)'}
-              strokeWidth={t.major ? 1.25 : 1}
+              stroke={t.major ? 'rgba(245, 243, 247, 0.86)' : 'rgba(245, 243, 247, 0.34)'}
+              strokeWidth={t.major ? 1.35 : 1}
               opacity={0}
             />
           ))}
@@ -110,7 +110,7 @@ export function IntroDial({
           r={TIMER_RING_R}
           fill="none"
           stroke="var(--accent)"
-          strokeOpacity={0.72}
+          strokeOpacity={0.78}
           strokeWidth={1}
           strokeDasharray={TIMER_RING_CIRC}
           strokeDashoffset={TIMER_RING_CIRC}
@@ -120,16 +120,16 @@ export function IntroDial({
       </svg>
 
       {/* 2.0-3.2s: IST HH:MM:SS count-up + NIGHT BEGINS */}
-      <div className="pointer-events-none absolute translate-y-[4.6rem] flex flex-col items-center gap-1.5 text-center sm:translate-y-[5.4rem]">
+      <div className="pointer-events-none absolute flex translate-y-[3.95rem] flex-col items-center gap-1 text-center sm:translate-y-[4.55rem]">
         <span
           ref={clockReadoutRef}
-          className="font-mono text-[11px] tracking-[0.22em] text-text-dim opacity-0 tabular-nums sm:text-xs"
+          className="rounded-sm bg-[var(--bg)]/85 px-2.5 py-0.5 font-mono text-[11px] tracking-[0.22em] text-text opacity-0 tabular-nums sm:text-xs"
         >
           00:00:00 IST
         </span>
         <span
           ref={nightBeginsRef}
-          className="font-mono text-[10px] uppercase tracking-[0.28em] text-accent opacity-0"
+          className="rounded-sm bg-[var(--bg)]/85 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.28em] text-accent opacity-0"
         >
           night begins
         </span>
