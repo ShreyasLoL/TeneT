@@ -64,17 +64,20 @@ export const blackHoleSkyGlsl = /* glsl */ `
 
   mediump vec3 sampleSubtleSkyWisps(vec3 dir, mediump vec3 accentDim, mediump vec3 accentAbyss, float m87VoidMask) {
     vec2 sp = vec2(atan(dir.x, -dir.z), asin(clamp(dir.y, -1.0, 1.0)));
-    float n1 = fbm2(sp * 2.8 + vec2(1.4, -0.7));
-    float n2 = fbm2(sp * 5.6 + vec2(n1 * 1.4, -2.2));
+    float n1 = fbm2(sp * 3.1 + vec2(1.4, -0.7));
+    float n2 = fbm2(sp * 6.4 + vec2(n1 * 1.6, -2.2));
     float darkPocket = smoothstep(0.35, 0.78, fbm2(sp * 1.8 + vec2(-2.1, 0.8)));
 
-    vec3 anchorRightWisp = normalize(vec3(0.020, 0.141, -0.990));
-    float dR = acos(clamp(dot(dir, anchorRightWisp), -1.0, 1.0));
-    float rCloud = exp(-dR * dR / (2.0 * 0.115 * 0.115)) * smoothstep(0.36, 0.84, n2);
+    // Localized mid-top [O III] emerald-green gas pocket (and its natural gravitationally-lensed counter-arc)
+    vec3 anchorMidTopGas = normalize(vec3(0.028, 0.133, -0.991));
+    float dG = acos(clamp(dot(dir, anchorMidTopGas), -1.0, 1.0));
+    float gPatch = exp(-dG * dG / (2.0 * 0.086 * 0.086));
+    float greenCloud = gPatch * smoothstep(0.34, 0.86, n1 * 0.6 + n2 * 0.4);
 
-    mediump vec3 faintIndigoGreen = mix(vec3(0.030, 0.36, 0.22), vec3(0.05, 0.24, 0.32), smoothstep(0.35, 0.78, n2)) * rCloud * 0.155;
+    mediump vec3 oiiiEmerald = mix(vec3(0.035, 0.42, 0.25), vec3(0.06, 0.30, 0.38), smoothstep(0.35, 0.78, n2));
+    mediump vec3 midTopGas = oiiiEmerald * greenCloud * 0.175;
     mediump vec3 faintAbyss = mix(accentAbyss, accentDim * 0.4, n2) * smoothstep(0.58, 0.92, n1 * 0.65 + n2 * 0.35) * darkPocket * 0.032;
-    return (faintIndigoGreen + faintAbyss) * m87VoidMask;
+    return (midTopGas + faintAbyss) * m87VoidMask;
   }
 
   mediump vec3 sampleDeepSpaceStatic(
