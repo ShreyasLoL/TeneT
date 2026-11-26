@@ -27,13 +27,13 @@ export const tenetPostFragmentShader = /* glsl */ `
     float r = length(d);
     float s = max(0.004, uRadiusS * (1.0 + uHold * 0.08));
 
-    // Monotonic 1/r Einstein + 1/r^2 strong-field deflection strictly outside the photon ring
-    float x = max(0.0, (r - s * 1.035) / s);
-    float outerGate = smoothstep(s * 1.035, s * 1.16, r);
-    float einstein = 0.24 / (x + 0.42);
-    float strongField = 0.12 / ((x + 0.42) * (x + 0.42));
-    float rawDefl = s * (einstein + strongField) * outerGate * uStrength * (1.0 + uSpike * 0.45);
-    float defl = min(rawDefl, max(0.0, r - s * 1.045));
+    // Monotonic 1/r Einstein + 1/r^2 strong-field deflection strictly outside the photon ring (no UV folding)
+    float edgeR = max(0.0, (r - s * 1.04) / s);
+    float gate = smoothstep(s * 1.04, s * 1.46, r);
+    float denom = edgeR + 0.58;
+    float einstein = 0.13 / denom;
+    float strongField = 0.055 / (denom * denom);
+    float defl = s * (einstein + strongField) * gate * uStrength * (1.0 + uSpike * 0.42);
 
     vec2 dir = d / max(r, 1e-4);
     return clamp(baseUv - (dir / vec2(uAspect, 1.0)) * defl, vec2(0.001), vec2(0.999));

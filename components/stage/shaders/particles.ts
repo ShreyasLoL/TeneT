@@ -1,3 +1,5 @@
+import { gradientCurlGlsl } from './noise';
+
 export const particlesVertexShader = /* glsl */ `
   precision highp float;
 
@@ -28,45 +30,11 @@ export const particlesVertexShader = /* glsl */ `
   out float vStarBright;
 
   const float TAU = 6.28318530718;
-  const float R_IN = 1.18;
-  const float R_SPAN = 4.1;
-  const float A0 = 2.4;
+  const float R_IN = 0.66;
+  const float R_SPAN = 1.82;
+  const float A0 = 1.45;
 
-  vec3 hash33(vec3 p) {
-    p = fract(p * vec3(0.1031, 0.1030, 0.0973));
-    p += dot(p, p.yxz + 33.33);
-    return fract((p.xxy + p.yxx) * p.zyx) * 2.0 - 1.0;
-  }
-
-  float gradNoise3(vec3 p) {
-    vec3 i = floor(p);
-    vec3 f = fract(p);
-    vec3 u = f * f * (3.0 - 2.0 * f);
-    return mix(
-      mix(
-        mix(dot(hash33(i + vec3(0.0, 0.0, 0.0)), f - vec3(0.0, 0.0, 0.0)),
-            dot(hash33(i + vec3(1.0, 0.0, 0.0)), f - vec3(1.0, 0.0, 0.0)), u.x),
-        mix(dot(hash33(i + vec3(0.0, 1.0, 0.0)), f - vec3(0.0, 1.0, 0.0)),
-            dot(hash33(i + vec3(1.0, 1.0, 0.0)), f - vec3(1.0, 1.0, 0.0)), u.x),
-        u.y
-      ),
-      mix(
-        mix(dot(hash33(i + vec3(0.0, 0.0, 1.0)), f - vec3(0.0, 0.0, 1.0)),
-            dot(hash33(i + vec3(1.0, 0.0, 1.0)), f - vec3(1.0, 0.0, 1.0)), u.x),
-        mix(dot(hash33(i + vec3(0.0, 1.0, 1.0)), f - vec3(0.0, 1.0, 1.0)),
-            dot(hash33(i + vec3(1.0, 1.0, 1.0)), f - vec3(1.0, 1.0, 1.0)), u.x),
-        u.y
-      ),
-      u.z
-    );
-  }
-
-  vec3 curlOffset(vec3 p, float t) {
-    float n1 = gradNoise3(p + vec3(0.0, t, 0.0));
-    float n2 = gradNoise3(p.yzx - vec3(t * 0.8, 0.0, 0.0));
-    float n3 = gradNoise3(p.zxy + vec3(0.0, 0.0, t * 0.6));
-    return vec3(n2 - n3, (n3 - n1) * 0.45, n1 - n2) * 0.28;
-  }
+  ${gradientCurlGlsl}
 
   void main() {
     float aCohort = aMeta.x;
@@ -88,12 +56,17 @@ export const particlesVertexShader = /* glsl */ `
 
     float area0 = 1.0 - step(0.5, aArea);
     float area1 = step(0.5, aArea) * (1.0 - step(1.5, aArea));
-    float baseEcc = mix(area0 * 0.04 + area1 * 0.14 + (1.0 - area0 - area1) * 0.28, 0.28, isShell);
-    float baseIncl = mix(area0 * 0.045 + area1 * 0.14 + (1.0 - area0 - area1) * 0.34, 1.25, isShell);
-    float ecc = mix(min(0.45, baseEcc + 0.12), baseEcc * 0.5, coherence) * (0.65 + 0.65 * aSeed.y);
+    float baseEcc = mix(area0 * 0.03 + area1 * 0.10 + (1.0 - area0 - area1) * 0.18, 0.24, isShell);
+    float flatInclScale = mix(0.22, 1.0, max(retroWarp, progWarp));
+    float baseIncl = mix(
+      (area0 * 0.03 + area1 * 0.09 + (1.0 - area0 - area1) * 0.18) * flatInclScale,
+      1.15,
+      isShell
+    );
+    float ecc = mix(min(0.32, baseEcc + 0.08), baseEcc * 0.5, coherence) * (0.65 + 0.65 * aSeed.y);
     float incl = mix(baseIncl, baseIncl * 0.22, coherence) * (aSeed.w * 2.0 - 1.0);
 
-    float shellRadius = mix(1.05, 2.75, aSeed.y);
+    float shellRadius = mix(0.72, 1.65, aSeed.y);
     float aTarget = mix(aSeed.x, shellRadius, isShell);
     float a = mix(aTarget, R_IN * 0.94, uHold * 0.48 * (1.0 - isShell * 0.6));
 
@@ -133,7 +106,7 @@ export const particlesVertexShader = /* glsl */ `
     );
     tilted.y = tilted.y * ci + orbitPos.z * si * 0.32;
 
-    vec3 diskPos = tilted + curlOffset(tilted * 0.52, phiC * 0.05 + uTime * 0.22) * (1.0 - coherence * 0.72) * (1.0 - isShell * 0.4);
+    vec3 diskPos = tilted + sampleCurl3(tilted * 0.52, phiC * 0.05 + uTime * 0.22, 0.45, 0.28) * (1.0 - coherence * 0.72) * (1.0 - isShell * 0.4);
     diskPos.z += progWarp * (aSeed.z - 0.35) * 4.2;
 
     // Branchless blend between 60-tick spoke origin and Keplerian disk
@@ -179,14 +152,18 @@ export const particlesVertexShader = /* glsl */ `
     gl_Position = projectionMatrix * mvPosition;
 
     float introGlow = smoothstep(0.02, 0.58, uIntro);
-    float radialFade = mix(pow(1.0 - clamp((a - R_IN) / 4.2, 0.0, 1.0), 1.45), 0.28, isShell);
+    float radialFade = mix(pow(1.0 - clamp((a - R_IN) / R_SPAN, 0.0, 1.0), 1.35), 0.24, isShell);
     radialFade = mix(radialFade, 0.78, max(retroWarp, progWarp) * 0.65);
+
+    // Keep dust-shell particles out of the inner obsidian event horizon silhouette
+    float viewSilhouette = smoothstep(0.58, 0.86, length(mvPosition.xy));
+    float shellMask = mix(1.0, viewSilhouette, isShell * (1.0 - max(retroWarp, progWarp)));
 
     vRadiusNorm = clamp((a - R_IN) / R_SPAN, 0.0, 1.0);
     vShell = isShell;
     vMemoryBody = isMemoryBody * retroWarp;
     vStarBright = aSeed.y * (1.0 - isShell);
-    vAlpha = clamp((0.24 + 0.58 * satisfied) * uBrightness * focusDim * recapBoost * introGlow * radialFade, 0.01, 0.98);
+    vAlpha = clamp((0.24 + 0.58 * satisfied) * uBrightness * focusDim * recapBoost * introGlow * radialFade * shellMask, 0.0, 0.98);
   }
 `;
 
@@ -211,17 +188,17 @@ export const particlesFragmentShader = /* glsl */ `
   out vec4 fragColor;
 
   vec3 blackbodyDiskRamp(float t, float doppler) {
-    vec3 whiteHot = vec3(1.0, 0.97, 0.92);
-    vec3 orangeDeep = vec3(0.68, 0.11, 0.015);
+    vec3 whiteHot = vec3(1.0, 0.94, 0.84);
+    vec3 orangeDeep = vec3(0.74, 0.13, 0.018);
     vec3 deepVioletRim = uViolet * 0.22;
 
-    vec3 col = mix(whiteHot, uAmber, smoothstep(0.0, 0.28, t));
-    col = mix(col, orangeDeep, smoothstep(0.24, 0.68, t));
-    col = mix(col, deepVioletRim, smoothstep(0.65, 1.0, t));
+    vec3 col = mix(whiteHot, uAmber, smoothstep(0.0, 0.30, t));
+    col = mix(col, orangeDeep, smoothstep(0.26, 0.70, t));
+    col = mix(col, deepVioletRim, smoothstep(0.68, 1.0, t));
 
-    float blueShift = smoothstep(0.05, 0.85, doppler);
-    vec3 coldShift = mix(uColdBlue, vec3(0.72, 0.90, 1.0), 1.0 - t * 0.65);
-    return mix(col, coldShift, blueShift * 0.65);
+    float blueShift = smoothstep(0.04, 0.78, doppler);
+    vec3 coldShift = mix(uColdBlue, vec3(0.56, 0.84, 1.0), 1.0 - t * 0.55);
+    return mix(col, coldShift, blueShift * 0.72);
   }
 
   vec3 retrogradePalette(float t) {

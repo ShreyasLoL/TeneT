@@ -71,17 +71,17 @@ export const diskFragmentShader = /* glsl */ `
     return v;
   }
 
-  // Analytical Planck-like blackbody temperature curve (Tnorm: 0.1 ember -> 1.0 white-hot -> >1.25 Doppler blue)
+  // Analytical Planck-like blackbody temperature curve (ember -> amber -> white-hot -> Doppler cold blue)
   vec3 blackbodyPlanck(float tObs) {
-    vec3 emberRed = vec3(0.14, 0.015, 0.004);
-    vec3 orangeDeep = vec3(0.72, 0.12, 0.016);
-    vec3 whiteHot = vec3(1.0, 0.97, 0.92);
-    vec3 dopplerBlue = mix(uColdBlue, vec3(0.72, 0.90, 1.0), clamp((tObs - 1.0) * 0.85, 0.0, 1.0));
+    vec3 emberRed = vec3(0.16, 0.018, 0.005);
+    vec3 orangeDeep = vec3(0.76, 0.14, 0.018);
+    vec3 whiteHot = vec3(1.0, 0.94, 0.84);
+    vec3 dopplerBlue = mix(uColdBlue, vec3(0.46, 0.80, 1.0), clamp((tObs - 0.92) * 0.75, 0.0, 1.0));
 
-    vec3 col = mix(emberRed, orangeDeep, smoothstep(0.10, 0.42, tObs));
-    col = mix(col, uAmber, smoothstep(0.38, 0.72, tObs));
-    col = mix(col, whiteHot, smoothstep(0.68, 1.04, tObs));
-    col = mix(col, dopplerBlue, smoothstep(1.02, 1.48, tObs));
+    vec3 col = mix(emberRed, orangeDeep, smoothstep(0.08, 0.38, tObs));
+    col = mix(col, uAmber, smoothstep(0.35, 0.68, tObs));
+    col = mix(col, whiteHot, smoothstep(0.65, 0.96, tObs));
+    col = mix(col, dopplerBlue, smoothstep(0.90, 1.24, tObs));
     return col;
   }
 
@@ -108,10 +108,10 @@ export const diskFragmentShader = /* glsl */ `
     float retro = clamp(-uMode, 0.0, 1.0) * uHue;
     float prog = clamp(uMode, 0.0, 1.0) * uHue;
 
-    float radialWarp = 1.0 - retro * uWarp * 0.22 + prog * uWarp * 0.38;
+    float radialWarp = 1.0 - retro * uWarp * 0.22 + prog * uWarp * 0.36;
     float r = length(vLocalPos) / max(0.35, radialWarp);
-    float rMin = 1.15;
-    float rMax = 5.25;
+    float rMin = 0.65;
+    float rMax = 2.42;
     if (diskIgnition <= 0.002 || r < rMin || r > rMax) discard;
 
     float rn = (r - rMin) / (rMax - rMin);
@@ -119,7 +119,7 @@ export const diskFragmentShader = /* glsl */ `
 
     float spinMult = mix(1.0, -0.55, retro) + prog * (1.8 * uWarp);
     float rRatio = max(0.3, r / rMin);
-    float omega = (inversesqrt(rRatio) / rRatio) * 1.35 * spinMult;
+    float omega = (inversesqrt(rRatio) / rRatio) * 1.45 * spinMult;
     float swirl = theta + uTime * omega + uSpin * (inversesqrt(rRatio) * 0.85);
 
     float spiral = curlFbm(vec2(cos(swirl) * 2.8 + rn * 7.2, sin(swirl) * 2.8 - uTime * 0.22));
@@ -128,7 +128,7 @@ export const diskFragmentShader = /* glsl */ `
       0.35 + 0.65 * smoothstep(-0.2, 0.6, sin(rn * 72.0)),
       retro * uWarp
     );
-    float fullShear = (0.52 + 0.85 * spiral) * ringDivisions;
+    float fullShear = (0.50 + 0.82 * spiral) * ringDivisions;
     float simpleShear = 0.76 + 0.24 * sin(swirl * 3.0 + rn * 18.0);
     float shear = mix(fullShear, simpleShear, step(0.5, uSimplified));
 
@@ -139,34 +139,35 @@ export const diskFragmentShader = /* glsl */ `
     float cosAngle = dot(worldTangent, viewDir);
 
     // Relativistic orbital beta, Lorentz gamma, Doppler factor D, and gravitational redshift gGrav
-    float beta = 0.46 * inversesqrt(rRatio);
-    float gamma = inversesqrt(max(0.22, 1.0 - beta * beta));
-    float dopplerD = 1.0 / max(0.35, gamma * (1.0 - beta * cosAngle));
-    float gGrav = sqrt(clamp(1.0 - 0.42 * (rMin / r), 0.38, 1.0));
+    float beta = 0.48 * inversesqrt(rRatio);
+    float gamma = inversesqrt(max(0.20, 1.0 - beta * beta));
+    float dopplerD = 1.0 / max(0.34, gamma * (1.0 - beta * cosAngle));
+    float gGrav = sqrt(clamp(1.0 - 0.40 * (rMin / r), 0.38, 1.0));
     float gTotal = dopplerD * gGrav;
-    float beaming = clamp(pow(gTotal, 2.35) * 1.26, 0.28, 2.75);
+    float beaming = clamp(pow(gTotal, 2.1) * 1.15, 0.26, 2.35);
 
-    // Shakura-Sunyaev emitted temperature T(r) ~ (rMin / r)^0.75 shifted by gTotal
+    // Shakura-Sunyaev emitted temperature T(r) ~ (rMin / r)^0.68 shifted into cold blue on approaching limb
     float breathe = 0.88 + 0.12 * sin(uTime * 0.70);
-    float tEmit = pow(clamp(rMin / r, 0.0, 1.0), 0.68) * 1.08;
-    float tObs = tEmit * mix(1.0, gTotal, 0.88);
-    float tempFalloff = pow(1.0 - rn, 1.65) * 0.92 + 0.08;
+    float tEmit = pow(clamp(rMin / r, 0.0, 1.0), 0.68) * 1.02;
+    float tObs = tEmit * mix(1.0, gTotal, 0.95);
+    float tempFalloff = pow(1.0 - rn, 1.65) * 0.90 + 0.10;
 
     vec3 col = blackbodyPlanck(tObs);
     col = mix(col, retrogradeRamp(rn), retro);
     col = mix(col, progradeRamp(rn), prog);
+    col = col / (1.0 + col * 0.24);
 
-    float innerRim = smoothstep(0.0, 0.036, rn);
-    float outerRim = 1.0 - smoothstep(0.52, 1.0, rn);
+    float innerRim = smoothstep(0.0, 0.04, rn);
+    float outerRim = 1.0 - smoothstep(0.54, 1.0, rn);
     float edgeFade = innerRim * outerRim;
 
-    float warpBoost = 1.0 + prog * uWarp * 1.15 - retro * uWarp * 0.12;
+    float warpBoost = 1.0 + prog * uWarp * 0.95 - retro * uWarp * 0.14;
     float intensity =
-      tempFalloff * shear * beaming * edgeFade * (0.46 + 0.58 * uHeat + 0.48 * uHold) * breathe * diskIgnition * warpBoost;
-    float alpha = clamp(intensity * 0.88, 0.0, 0.96);
+      tempFalloff * shear * beaming * edgeFade * (0.42 + 0.54 * uHeat + 0.45 * uHold) * breathe * diskIgnition * warpBoost;
+    float alpha = clamp(intensity * 0.82, 0.0, 0.92);
     if (alpha < 0.004) discard;
 
-    // AdditiveBlending (SRC_ALPHA, ONE) multiplies rgb by alpha on GPU; keep rgb linear in col
-    fragColor = vec4(col * 1.38, alpha);
+    // AdditiveBlending (SRC_ALPHA, ONE) multiplies rgb by alpha on GPU
+    fragColor = vec4(col * 1.18, alpha);
   }
 `;

@@ -13,9 +13,9 @@ function computeHoleScreenRadius(camera: unknown): number {
   if (camera instanceof PerspectiveCamera) {
     const dist = Math.max(1.8, camera.position.length());
     const halfH = dist * Math.tan(MathUtils.degToRad(camera.fov * 0.5));
-    return MathUtils.clamp(1.12 / Math.max(0.5, halfH * 2), 0.04, 0.36);
+    return MathUtils.clamp(0.62 / Math.max(0.5, halfH * 2), 0.04, 0.34);
   }
-  return 0.18;
+  return 0.14;
 }
 
 function SimplifiedLensQuad() {
@@ -121,9 +121,13 @@ export function Postfx() {
       const dt = Math.min(delta, 1 / 30);
       const aspect = size.width / Math.max(1, size.height);
       const horizonAppear = MathUtils.smoothstep(rig.introProgress, 0.55, 0.98);
+      const starTransitionFade = 1.0 - MathUtils.smoothstep(rig.forkWarp, 0.22, 0.68);
       const ritualAttenuation = mode === 'ritual' && rig.sealHold < 0.01 ? 0.62 : 1.0;
       const baseStrength =
-        (0.85 - 0.35 * density + rig.sealHold * 0.45) * ritualAttenuation * horizonAppear;
+        (0.85 - 0.35 * density + rig.sealHold * 0.45) *
+        ritualAttenuation *
+        horizonAppear *
+        starTransitionFade;
 
       const progradeFlare =
         profile.bloom && rig.forkMode > 0 ? rig.forkMode * rig.forkWarp * 0.85 : 0;
@@ -139,7 +143,7 @@ export function Postfx() {
       u.get('uStrength')!.value = MathUtils.damp(
         u.get('uStrength')!.value as number,
         baseStrength,
-        6.0,
+        rig.forkActive ? 18.0 : 6.0,
         dt,
       );
       u.get('uHold')!.value = rig.sealHold;

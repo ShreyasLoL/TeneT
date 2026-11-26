@@ -38,7 +38,7 @@ export const horizonFragmentShader = /* glsl */ `
 
     float ndv = clamp(abs(dot(normalize(vNormalView), normalize(vViewDir))), 0.0, 1.0);
     float rim = pow(1.0 - ndv, 14.0);
-    float doppler = clamp(-vLocalPos.x * 1.15, -1.0, 1.0);
+    float doppler = clamp(-vLocalPos.x * 1.45, -1.0, 1.0);
 
     float retro = clamp(-uMode, 0.0, 1.0) * uHue;
     float prog = clamp(uMode, 0.0, 1.0) * uHue;
@@ -53,15 +53,21 @@ export const horizonFragmentShader = /* glsl */ `
 
     vec3 col = rimCol * rim * (0.85 + uHold * 0.55) * (1.0 + 0.32 * doppler);
 
-    // Destination star emergence past throat:
-    // Retrograde -> old, dim, ringed ice-teal ember star
-    vec3 oldStarCore = mix(vec3(0.03, 0.14, 0.22), vec3(0.22, 0.52, 0.68), pow(ndv, 1.8));
-    float latBands = 0.82 + 0.18 * sin(vLocalPos.y * 26.0);
-    vec3 retroStar = oldStarCore * latBands + coldRim * pow(1.0 - ndv, 3.5) * 0.55;
+    // Multi-frequency non-aligned spherical turbulence for realistic stellar surfaces
+    vec3 gp = vLocalPos * 7.5;
+    float w1 = sin(gp.x * 1.9 + cos(gp.z * 2.4 + gp.y * 1.3));
+    float w2 = sin((gp.y + gp.z) * 3.1 - sin(gp.x * 2.7 - gp.y * 2.2));
+    float w3 = sin((gp.x - gp.z) * 5.2 + cos(gp.y * 4.8));
+    float gran = 0.80 + 0.20 * clamp(w1 * 0.5 + w2 * 0.32 + w3 * 0.18, -1.0, 1.0);
 
-    // Prograde -> young blazing star igniting white-hot / amber / orchid
-    vec3 youngStarCore = mix(uOrchid, mix(uAmber, vec3(1.0, 0.98, 0.94), pow(ndv, 0.85)), 0.78);
-    vec3 progStar = youngStarCore * (1.45 + 0.95 * pow(ndv, 1.4)) + hotRim * pow(1.0 - ndv, 2.2) * 1.3;
+    // Retrograde -> limb-darkened ancient ice-teal dwarf star with cool coronal glow
+    vec3 oldStarCore = mix(vec3(0.012, 0.048, 0.095), vec3(0.16, 0.42, 0.58), pow(ndv, 1.45));
+    vec3 retroStar = oldStarCore * gran + coldRim * pow(1.0 - ndv, 3.6) * 0.65;
+
+    // Prograde -> young blazing star with fiery convection cells + white-hot center
+    vec3 flameEdge = mix(uOrchid * 0.85, vec3(0.92, 0.28, 0.05), 0.72);
+    vec3 youngStarCore = mix(flameEdge, mix(uAmber, vec3(1.0, 0.96, 0.88), pow(ndv, 1.35)), pow(ndv, 0.65));
+    vec3 progStar = youngStarCore * (0.85 + 0.65 * gran) * (0.75 + 0.55 * pow(ndv, 0.85)) + hotRim * pow(1.0 - ndv, 3.2) * 0.9;
 
     col = mix(col, retroStar, starMorph * retro);
     col = mix(col, progStar, starMorph * prog);
@@ -132,15 +138,15 @@ export const haloFragmentShader = /* glsl */ `
     float horizonFade = smoothstep(0.58, 0.98, uIntro);
     if (diskIgnition <= 0.002) discard;
 
-    vec2 p = (vUv - 0.5) * 8.8;
+    vec2 p = (vUv - 0.5) * 6.4;
     float r = length(p);
-    float rH = 1.12 * (1.0 + uHold * 0.06);
+    float rH = 0.62 * (1.0 + uHold * 0.06);
 
     float retro = clamp(-uMode, 0.0, 1.0) * uHue;
     float prog = clamp(uMode, 0.0, 1.0) * uHue;
     float starMorph = smoothstep(0.35, 0.78, uWarp);
 
-    if (r > 4.2) discard;
+    if (r > 3.15) discard;
     if (r < rH * 0.96 && starMorph < 0.05) discard;
     float innerMask = mix(smoothstep(rH * 0.96, rH * 1.005, r), 1.0, starMorph);
 
@@ -148,8 +154,9 @@ export const haloFragmentShader = /* glsl */ `
     float theta = atan(p.y, p.x);
 
     float breathe = 0.84 + 0.16 * sin(uTime * 0.70);
-    float photonCore = exp(-pow((r - rH * 1.014) / 0.014, 2.0)) * horizonFade;
-    float photonSkirt = exp(-pow((r - rH * 1.022) / 0.036, 2.0)) * horizonFade;
+    float bhRingFade = 1.0 - starMorph;
+    float photonCore = exp(-pow((r - rH * 1.014) / 0.014, 2.0)) * horizonFade * bhRingFade;
+    float photonSkirt = exp(-pow((r - rH * 1.022) / 0.036, 2.0)) * horizonFade * bhRingFade;
 
     float glintTheta = mod(uTime * 0.58, 6.2831853) - 3.1415926;
     float dAng = abs(atan(sin(theta - glintTheta), cos(theta - glintTheta)));
@@ -160,7 +167,8 @@ export const haloFragmentShader = /* glsl */ `
     float rArc = mix(rH * (1.025 + 0.28 * vert), rH * (1.04 + 0.48 * vert), isUpper);
     float wArc = mix(0.028 + 0.14 * vert, 0.034 + 0.20 * vert, isUpper);
     float arcGain = mix(0.32, 0.56, isUpper);
-    float arcProfile = exp(-pow((r - rArc) / wArc, 2.0)) * smoothstep(0.05, 0.42, vert) * arcGain;
+    float arcProfile =
+      exp(-pow((r - rArc) / wArc, 2.0)) * smoothstep(0.05, 0.42, vert) * arcGain * bhRingFade;
 
     float dirSign = mix(1.0, -0.55, retro) + prog * 1.45;
     float rSafe = max(0.3, r);
@@ -193,13 +201,15 @@ export const haloFragmentShader = /* glsl */ `
     vec3 skirtCol = mix(mix(uOrchid, vec3(0.08, 0.38, 0.52), retro), uAmber, prog * 0.65);
     vec3 glintCol = mix(vec3(1.0, 0.99, 1.0), photonCol, 0.35);
 
-    // Prograde ignition anamorphic star flare vs Retrograde calm concentric memory halo
+    // Prograde ignition crisp anamorphic lens flare + atmospheric corona hugging condensed star
+    float rStar = rH * mix(1.0, 0.42, starMorph);
     float progradeFlare =
-      (exp(-abs(p.y) * 11.0) * exp(-abs(p.x) * 0.58) * 1.35 + exp(-r * 1.45) * 0.85) *
+      (exp(-abs(p.y) * 32.0) * exp(-abs(p.x) * 0.85) * 1.35 +
+        exp(-max(0.0, r - rStar) * 3.1) * smoothstep(rStar * 0.78, rStar * 1.08, r) * 0.92) *
       starMorph *
       prog;
     float retroRings =
-      exp(-abs(r - rH * 1.65) * 9.0) * (0.55 + 0.45 * sin(r * 28.0)) * starMorph * retro * 0.55;
+      exp(-abs(r - rH * 1.55) * 12.0) * (0.55 + 0.45 * sin(r * 34.0)) * starMorph * retro * 0.45;
 
     vec3 totalCol =
       (photonCol * photonCore * (1.85 * breathe + uHold * 0.65) * (0.82 + 0.36 * beaming) +
