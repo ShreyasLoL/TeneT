@@ -13,6 +13,7 @@ export default function StageCanvas() {
   const reducedMotion = useTenetStore((s) => s.quality.reducedMotion);
   const setQuality = useTenetStore((s) => s.setQuality);
   const [hidden, setHidden] = useState(false);
+
   const mediaReduced =
     typeof window !== 'undefined' &&
     (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
@@ -31,12 +32,13 @@ export default function StageCanvas() {
 
   return (
     <Canvas
+      flat
       dpr={[1, profile.dprMax]}
       frameloop={frameloop}
       camera={{ position: [0, 0, 10.6], fov: 45, near: 0.1, far: 160 }}
-      gl={{ alpha: true, antialias: false, powerPreference: 'high-performance', stencil: false }}
+      gl={{ alpha: false, antialias: false, powerPreference: 'high-performance', stencil: false }}
       onCreated={({ gl, invalidate }) => {
-        gl.setClearColor(0x000000, 0);
+        gl.setClearColor(0x0b0910, 1);
 
         const canvas = gl.domElement;
         const onLost = (e: Event) => {

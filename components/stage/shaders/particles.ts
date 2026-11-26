@@ -72,7 +72,7 @@ export const particlesVertexShader = /* glsl */ `
 
     float quantizedRing = floor(a * 2.4 + 0.5) / 2.4;
     a = mix(a, quantizedRing * 0.85, retroWarp * 0.72);
-    a *= 1.0 + progWarp * (0.65 + aSeed.y * 0.95);
+    a *= mix(1.42, 1.0, max(retroWarp, progWarp)) * (1.0 + progWarp * (0.65 + aSeed.y * 0.95));
 
     float aRatio = max(0.22, a / A0);
     float omegaFactor = (inversesqrt(aRatio) / aRatio) * mix(1.25, 0.38, isShell);
@@ -146,18 +146,19 @@ export const particlesVertexShader = /* glsl */ `
     float isMemoryBody = step(0.968, aSeed.y) * (1.0 - isShell);
     float bodyBoost = 1.0 + isMemoryBody * retroWarp * 1.35 + progWarp * 0.32;
 
-    float depthScale = clamp(10.6 / max(1.2, -mvPosition.z), 0.55, 3.4);
-    float basePt = mix(1.25 + 1.65 * aSeed.y * (0.5 + 0.5 * satisfied), 1.05 + 0.9 * aSeed.y, isShell);
-    gl_PointSize = clamp(basePt * bodyBoost * depthScale * uDpr, 0.95 * uDpr, 7.2 * uDpr);
+    float depthScale = clamp(10.6 / max(1.2, -mvPosition.z), 0.55, 3.0);
+    float basePt = mix(0.88 + 1.20 * aSeed.y * (0.5 + 0.5 * satisfied), 0.75 + 0.65 * aSeed.y, isShell);
+    gl_PointSize = clamp(basePt * bodyBoost * depthScale * uDpr, 0.75 * uDpr, 5.2 * uDpr);
     gl_Position = projectionMatrix * mvPosition;
 
     float introGlow = smoothstep(0.02, 0.58, uIntro);
-    float radialFade = mix(pow(1.0 - clamp((a - R_IN) / R_SPAN, 0.0, 1.0), 1.35), 0.24, isShell);
+    float radialFade = mix(pow(1.0 - clamp((a - R_IN * 1.42) / (R_SPAN * 1.42), 0.0, 1.0), 1.35), 0.22, isShell);
     radialFade = mix(radialFade, 0.78, max(retroWarp, progWarp) * 0.65);
 
-    // Keep dust-shell particles out of the inner obsidian event horizon silhouette
-    float viewSilhouette = smoothstep(0.58, 0.86, length(mvPosition.xy));
-    float shellMask = mix(1.0, viewSilhouette, isShell * (1.0 - max(retroWarp, progWarp)));
+    // Occlude dust particles behind the black hole shadow AND inner horizon silhouette
+    float behindHole = step(-10.4, -mvPosition.z);
+    float shadowMask = mix(1.0, smoothstep(0.95, 1.25, length(mvPosition.xy)), behindHole * (1.0 - max(retroWarp, progWarp)));
+    float shellMask = mix(1.0, smoothstep(0.98, 1.45, length(mvPosition.xy)), isShell * (1.0 - max(retroWarp, progWarp))) * shadowMask;
 
     vRadiusNorm = clamp((a - R_IN) / R_SPAN, 0.0, 1.0);
     vShell = isShell;

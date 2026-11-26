@@ -1,3 +1,13 @@
+import {
+  CAMERA_AZIMUTH_RAD,
+  CAMERA_DISTANCE_DEFAULT,
+  CAMERA_FOV_DEG,
+  CAMERA_INCLINATION_RAD,
+  CAMERA_ROLL_RAD,
+  DOPPLER_STRENGTH_DEFAULT,
+  INTEGRATOR_STEPS_FULL,
+} from '@/components/stage/blackhole/constants';
+
 export type CameraOverride = {
   active: boolean;
   px: number;
@@ -7,6 +17,16 @@ export type CameraOverride = {
   ty: number;
   tz: number;
   fov: number;
+};
+
+export type BlackHoleCameraState = {
+  distance: number;
+  inclination: number;
+  azimuth: number;
+  fov: number;
+  roll: number;
+  steps: number;
+  dopplerStrength: number;
 };
 
 /**
@@ -29,10 +49,10 @@ export const rig = {
   introTick: 0,
   introActive: false,
   canvasReady: false,
-  forkMode: 0,      // -1 retrograde (cold), 0 neutral landing, +1 prograde (hot)
-  forkWarp: 0,      // 0..1 dive through hole into destination star system
-  forkHue: 0,       // 0..1 palette lerp factor
-  forkFlash: 0,     // 0..1 peak veil/flash covering route swap
+  forkMode: 0,
+  forkWarp: 0,
+  forkHue: 0,
+  forkFlash: 0,
   forkActive: false,
   arrivalKind: null as 'retrograde' | 'prograde' | null,
   transitionProgress: 0,
@@ -47,6 +67,15 @@ export const rig = {
   recapCanSkip: false,
   recapSpike: 0,
   ringShift: 0,
+  bhCam: {
+    distance: CAMERA_DISTANCE_DEFAULT,
+    inclination: CAMERA_INCLINATION_RAD,
+    azimuth: CAMERA_AZIMUTH_RAD,
+    fov: CAMERA_FOV_DEG,
+    roll: CAMERA_ROLL_RAD,
+    steps: INTEGRATOR_STEPS_FULL,
+    dopplerStrength: DOPPLER_STRENGTH_DEFAULT,
+  } as BlackHoleCameraState,
   cameraOverride: {
     active: false,
     px: 0,

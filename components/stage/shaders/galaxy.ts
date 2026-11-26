@@ -67,8 +67,8 @@ export const galaxyVertexShader = /* glsl */ `
     vec4 mvPos = modelViewMatrix * vec4(finalPos, 1.0);
     float depthScale = clamp(10.8 / max(1.6, -mvPos.z), 0.35, 3.2);
 
-    // Keep background/foreground bulge & field stars from speckling inside the black hole horizon shadow
-    float bhClear = smoothstep(0.64, 1.24, length(mvPos.xy));
+    // Keep background/foreground bulge & field stars out of the black hole shadow + immediate inner core
+    float bhClear = smoothstep(1.08, 2.10, length(mvPos.xy));
 
     float isKnot = step(2.5, kind) * step(kind, 3.5);
     float isHeroStar = step(3.5, kind) * step(0.92, lum);
@@ -140,8 +140,8 @@ export const galaxyFragmentShader = /* glsl */ `
     baseCol = mix(baseCol, deepVioletEdge, smoothstep(0.72, 0.98, vRadiusNorm));
 
     baseCol = mix(baseCol, warmCore, isBulge * 0.88);
-    vec3 hiiKnotCol = mix(uOrchid, vec3(1.0, 0.76, 0.96), smoothstep(0.7, 1.0, vLum) * 0.35);
-    baseCol = mix(baseCol, hiiKnotCol, isKnot * 0.96);
+    vec3 hiiKnotCol = mix(uOrchid * 0.62, vec3(0.96, 0.72, 0.92), smoothstep(0.7, 1.0, vLum) * 0.42);
+    baseCol = mix(baseCol, hiiKnotCol, isKnot * 0.68);
 
     vec3 fgStarCol = mix(vec3(0.78, 0.90, 1.0), vec3(1.0, 0.86, 0.66), step(0.5, fract(vLum * 13.7)));
     baseCol = mix(baseCol, fgStarCol, isField * 0.85);

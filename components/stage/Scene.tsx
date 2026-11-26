@@ -7,11 +7,13 @@ import { FrameGovernor } from '@/lib/stage/governor';
 import { inspectRenderer, type QualityLevel } from '@/lib/stage/tiers';
 import { useTenetStore } from '@/lib/store';
 import { notifyCanvasReady, rig } from '@/lib/store/rig';
-import { BlackHole } from './BlackHole';
+import {
+  CAMERA_INCLINATION_RAD,
+  CAMERA_ROLL_RAD,
+} from './blackhole/constants';
+import { BlackHolePass } from './BlackHolePass';
 import { CameraRig } from './CameraRig';
-import { Disk } from './Disk';
 import { Galaxy } from './Galaxy';
-import { Intro } from './Intro';
 import { Particles } from './Particles';
 import { Postfx } from './Postfx';
 import { Recap } from './Recap';
@@ -37,18 +39,26 @@ export function Scene() {
   const lastFrameAtRef = useRef(0);
 
   useEffect(() => {
-    if (reducedMotion) invalidate();
-  }, [cursor, invalidate, lowPower, mode, reducedMotion, size.height, size.width]);
+    invalidate();
+  }, [cursor, invalidate, level, lowPower, mode, reducedMotion, size.height, size.width]);
 
   useEffect(() => {
     governorRef.current = new FrameGovernor(level, performance.now());
     const info = inspectRenderer(gl.getContext());
     rig.rendererName = info.renderer;
     rig.isSoftwareRenderer = info.isSoftware;
+    invalidate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gl]);
 
-  // Share one single RAF loop across R3F, GSAP (lagSmoothing(0)), and Lenis
+  useEffect(() => {
+    const onVis = () => {
+      if (!document.hidden) invalidate();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [invalidate]);
+
   useEffect(() => {
     if (reducedMotion) {
       stageClock.setExternalDriven(false);
@@ -79,6 +89,10 @@ export function Scene() {
     rig.drawCalls = gl.info.render.calls;
     rig.triangles = gl.info.render.triangles;
 
+    if ((mode !== 'fork' || rig.recapBeat > 0 || rig.forkActive) && !reducedMotion && !document.hidden) {
+      invalidate();
+    }
+
     if (reducedMotion) {
       lastFrameAtRef.current = 0;
       return;
@@ -105,16 +119,16 @@ export function Scene() {
   return (
     <>
       <CameraRig />
-      <BlackHole />
-      <group rotation={[0, 0, -0.39]}>
-        <group rotation={[0.65, 0, 0]}>
+      <BlackHolePass />
+      <group rotation={[0, 0, CAMERA_ROLL_RAD]}>
+        <group rotation={[0.58, 0, 0]}>
           <Galaxy />
-          <Disk />
+        </group>
+        <group rotation={[Math.PI / 2 - CAMERA_INCLINATION_RAD, 0, 0]}>
           <Particles />
         </group>
       </group>
       <Rings />
-      <Intro />
       <Recap />
       <Postfx />
     </>
