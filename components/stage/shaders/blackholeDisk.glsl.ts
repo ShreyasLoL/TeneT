@@ -140,6 +140,17 @@ export const blackHoleDiskGlsl = /* glsl */ `
     float density = clamp(radialMask * structure * rimBreakup * mix(0.68, 1.0, incSoft), 0.0, 1.0);
     mediump vec3 albedo = evalDiskPalette(rCross, gEff, uMode, uHue);
 
+    float sweep = clamp(uDiskSweep, 0.0, 1.0);
+    float relPhi = fract((phiDisk + 0.7) / 6.2831853 + 1.0);
+    float wrapSpan = smoothstep(0.02, 0.56, sweep);
+    float azLead = 1.0 - smoothstep(max(wrapSpan - 0.16, 0.0), wrapSpan + 0.06, relPhi);
+    float azMask = mix(azLead, 1.0, smoothstep(0.50, 0.70, sweep));
+    float rFront = mix(3.4, outerBound + 2.5, smoothstep(0.08, 0.96, sweep));
+    float radSweep = 1.0 - smoothstep(rFront - 2.6, rFront + 0.8, rCross);
+    float sweepMask = mix(azMask * radSweep, 1.0, smoothstep(0.92, 1.0, sweep));
+    density *= sweepMask;
+    albedo = mix(vec3(0.72, 0.14, 0.02), albedo, smoothstep(0.06, 0.74, uDiskReveal));
+
     float frontOcc = smoothstep(2.9, 4.0, rCross) * (1.0 - smoothstep(6.5, 12.5, rCross));
     opacity = clamp(density * (0.62 + 0.36 * frontOcc) * imageWeight, 0.0, 0.985);
     emission = albedo * (density * beaming * imageWeight * 0.94 * (1.0 + uHold * 0.35));

@@ -90,6 +90,7 @@ export function BlackHolePass() {
       uShadowReveal: { value: rig.introShadow },
       uLensStrength: { value: rig.introLens },
       uDiskReveal: { value: rig.introDisk },
+      uDiskSweep: { value: rig.introDiskSweep },
       uRingReveal: { value: rig.introRing },
       uOutputSrgb: { value: 0 },
       uBgColor: { value: new Vector3(0.003, 0.002, 0.006) },
@@ -227,6 +228,7 @@ export function BlackHolePass() {
     u.uShadowReveal.value = rig.introShadow;
     u.uLensStrength.value = rig.introLens;
     u.uDiskReveal.value = rig.introDisk;
+    u.uDiskSweep.value = rig.introDiskSweep;
     u.uRingReveal.value = rig.introRing;
     u.uOutputSrgb.value = composerActive ? 0.0 : 1.0;
   }, -10);

@@ -51,6 +51,7 @@ export const rig = {
   introSky: 1,
   introLens: 1,
   introDisk: 1,
+  introDiskSweep: 1,
   introRing: 1,
   introShadow: 1,
   introTremor: 0,
