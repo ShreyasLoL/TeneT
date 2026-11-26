@@ -78,7 +78,7 @@ export function PerfOverlay() {
     >
       <div className="flex items-center justify-between border-b border-line pb-1.5 text-text">
         <span>STAGE PERF</span>
-        <span className="text-accent">L{snap.level}</span>
+        <span className="text-accent">L{snap.level} · T{rig.bhTier}</span>
       </div>
 
       <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 tabular-nums">
@@ -130,6 +130,18 @@ export function PerfOverlay() {
         >
           L0
         </button>
+      </div>
+      <div className="mt-1.5 flex gap-1">
+        {([0, 1, 2, 3] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setQuality({ bhTier: t, ultraKerr: t === 3, lowPower: false })}
+            className="flex-1 rounded border border-line px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] hover:border-accent hover:text-text"
+          >
+            T{t}{t === 3 ? 'K' : ''}
+          </button>
+        ))}
       </div>
     </aside>
   );

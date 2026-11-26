@@ -13,6 +13,8 @@ export type Selection =
 
 export type QualityState = {
   level: 0 | 1 | 2 | 3 | 4;
+  bhTier: 0 | 1 | 2 | 3;
+  ultraKerr: boolean;
   lowPower: boolean;
   reducedMotion: boolean;
   webgl: 'ok' | 'none' | 'lost';
@@ -95,6 +97,8 @@ export const useTenetStore = create<TenetStore>()(
     introDone: false,
     quality: {
       level: 0,
+      bhTier: 0,
+      ultraKerr: false,
       lowPower: readInitialLowPower(),
       reducedMotion: false,
       webgl: 'ok',
@@ -136,6 +140,7 @@ export const useTenetStore = create<TenetStore>()(
           ...state.quality,
           lowPower,
           level: lowPower ? 4 : state.quality.level === 4 ? 0 : state.quality.level,
+          bhTier: lowPower ? 0 : state.quality.bhTier,
         },
       }));
     },

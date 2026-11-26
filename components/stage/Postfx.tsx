@@ -1,164 +1,184 @@
 'use client';
 
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
-import { MathUtils, PerspectiveCamera, type ShaderMaterial, Vector2, Vector3 } from 'three';
-import { isTouchDevice, profileForLevel, type QualityLevel } from '@/lib/stage/tiers';
+import { useEffect, useRef } from 'react';
 import { useTenetStore } from '@/lib/store';
 import { rig } from '@/lib/store/rig';
-import { hexToRgbNormalized, readPalette } from '@/lib/viz/palette';
-import { createTenetComposer, type TenetComposerRig } from './effects/TenetPostEffect';
+import { getBhAssets, setBhAssets } from '@/stage/blackhole/assetStore';
+import { BhPipelineRenderer, type BhTier } from '@/stage/blackhole/bhRenderer';
+import { createBootstrapAssets } from '@/stage/blackhole/bootstrapAssets';
+import { detectGpuCaps } from '@/stage/blackhole/gpuCaps';
+import { loadCoreBhAssets, loadKerrLut, loadSkyTier } from '@/stage/blackhole/lutLoader';
 
-function computeHoleScreenRadius(camera: unknown): number {
-  if (camera instanceof PerspectiveCamera) {
-    const dist = Math.max(1.8, camera.position.length());
-    const halfH = dist * Math.tan(MathUtils.degToRad(camera.fov * 0.5));
-    return MathUtils.clamp(0.62 / Math.max(0.5, halfH * 2), 0.04, 0.34);
-  }
-  return 0.14;
-}
-
-function SimplifiedLensQuad() {
-  const { size, camera } = useThree();
-  const matRef = useRef<ShaderMaterial | null>(null);
-  const uniforms = useMemo(() => {
-    const pal = readPalette();
-    const [ar, ag, ab] = hexToRgbNormalized(pal.accent);
-    return {
-      uOrchid: { value: new Vector3(ar, ag, ab) },
-      uCenter: { value: new Vector2(0.5, 0.5) },
-      uAspect: { value: 1.77 },
-      uRadiusS: { value: 0.18 },
-      uHold: { value: 0 },
+declare global {
+  interface Window {
+    __TENET_BH__?: {
+      getTier: () => BhTier;
+      setTier: (tier: BhTier) => void;
+      setCheatsEnabled: (enabled: boolean) => void;
+      setSimTime: (t: number | null) => void;
+      setCameraPose: (px: number, py: number, pz: number, tx?: number, ty?: number, tz?: number, fov?: number) => void;
+      getVramMb: () => number;
+      getInfo: () => Record<string, unknown>;
     };
-  }, []);
-
-  useFrame(() => {
-    const mat = matRef.current;
-    if (!mat) return;
-    const aspect = size.width / Math.max(1, size.height);
-    const center = mat.uniforms.uCenter.value as Vector2;
-    center.set(0.5, 0.5);
-    mat.uniforms.uAspect.value = aspect;
-    mat.uniforms.uRadiusS.value = computeHoleScreenRadius(camera);
-    mat.uniforms.uHold.value = rig.sealHold;
-  });
-
-  return (
-    <mesh renderOrder={99} frustumCulled={false}>
-      <planeGeometry args={[2, 2]} />
-      <shaderMaterial
-        ref={matRef}
-        transparent
-        depthWrite={false}
-        depthTest={false}
-        uniforms={uniforms}
-        vertexShader={/* glsl */ `
-          varying vec2 vUv;
-          void main() {
-            vUv = uv;
-            gl_Position = vec4(position.xy, 0.0, 1.0);
-          }
-        `}
-        fragmentShader={/* glsl */ `
-          precision mediump float;
-          uniform vec3 uOrchid;
-          uniform vec2 uCenter;
-          uniform float uAspect;
-          uniform float uRadiusS;
-          uniform float uHold;
-          varying vec2 vUv;
-          void main() {
-            vec2 d = (vUv - uCenter) * vec2(uAspect, 1.0);
-            float r = length(d);
-            float s = uRadiusS * (1.0 + uHold * 0.08);
-            float ring = exp(-pow((r - s * 1.04) / max(0.003, s * 0.07), 2.0));
-            gl_FragColor = vec4(uOrchid * ring * 0.55, ring * 0.65);
-          }
-        `}
-      />
-    </mesh>
-  );
+  }
 }
 
 export function Postfx() {
-  const { gl, scene, camera, size } = useThree();
-  const level = useTenetStore((s) => s.quality.level) as QualityLevel;
-  const lowPower = useTenetStore((s) => s.quality.lowPower);
-  const density = useTenetStore((s) => s.density);
+  const { gl, scene, camera, size, invalidate } = useThree();
   const mode = useTenetStore((s) => s.mode);
-  const profile = profileForLevel(level, isTouchDevice(), lowPower);
-  const composerActive = profile.lensMode === 'full';
+  const storeTier = useTenetStore((s) => s.quality.bhTier);
+  const lowPower = useTenetStore((s) => s.quality.lowPower);
+  const ultraKerr = useTenetStore((s) => s.quality.ultraKerr);
 
-  const rigRef = useRef<TenetComposerRig | null>(null);
+  const rendererRef = useRef<BhPipelineRenderer | null>(null);
+  const simOverrideRef = useRef<number | null>(null);
+  const loadedSkyRef = useRef<'bootstrap' | 'low' | 'mid' | 'high'>('bootstrap');
+  const kerrRequestedRef = useRef(false);
 
   useEffect(() => {
-    if (!composerActive) {
-      rigRef.current = null;
-      return;
+    const caps = detectGpuCaps(gl.getContext() as WebGL2RenderingContext);
+    rig.rendererName = caps.rendererName;
+    rig.isSoftwareRenderer = caps.isSoftwareRenderer;
+
+    const bootstrap = createBootstrapAssets();
+    setBhAssets(bootstrap);
+
+    const pipe = new BhPipelineRenderer(size.width, size.height, caps);
+    rendererRef.current = pipe;
+    void pipe.compileAsync(gl);
+
+    let cancelled = false;
+    void loadCoreBhAssets(gl)
+      .then((core) => {
+        if (cancelled) return;
+        loadedSkyRef.current = 'low';
+        setBhAssets(core);
+        invalidate();
+      })
+      .catch(() => {
+        // Keep bootstrap assets alive if offline/fetch fails
+      });
+
+    if (typeof window !== 'undefined') {
+      window.__TENET_BH__ = {
+        getTier: () => rig.bhTier,
+        setTier: (t: BhTier) => {
+          rig.bhTier = t;
+          useTenetStore.getState().setQuality({ bhTier: t, ultraKerr: t === 3 });
+          invalidate();
+        },
+        setCheatsEnabled: (enabled: boolean) => {
+          rig.bhCheatsEnabled = enabled;
+          invalidate();
+        },
+        setSimTime: (t: number | null) => {
+          simOverrideRef.current = t;
+          invalidate();
+        },
+        setCameraPose: (px, py, pz, tx = 0, ty = 0, tz = 0, fov = 42) => {
+          rig.cameraOverride.active = true;
+          rig.cameraOverride.px = px;
+          rig.cameraOverride.py = py;
+          rig.cameraOverride.pz = pz;
+          rig.cameraOverride.tx = tx;
+          rig.cameraOverride.ty = ty;
+          rig.cameraOverride.tz = tz;
+          rig.cameraOverride.fov = fov;
+          camera.position.set(px, py, pz);
+          camera.lookAt(tx, ty, tz);
+          invalidate();
+        },
+        getVramMb: () => (pipe.getEstimatedVramBytes() / (1024 * 1024)) + 12,
+        getInfo: () => ({
+          tier: rig.bhTier,
+          cheats: rig.bhCheatsEnabled,
+          renderScale: rig.bhRenderScale,
+          camMotion: rig.bhCamMotion,
+          drawCalls: rig.drawCalls,
+          triangles: rig.triangles,
+          p95: rig.p95FrameMs,
+        }),
+      };
     }
 
-    const composerRig = createTenetComposer(gl, scene, camera);
-    composerRig.syncBloom(profile.bloom);
-    rigRef.current = composerRig;
-
     return () => {
-      rigRef.current = null;
-      composerRig.dispose();
+      cancelled = true;
+      rendererRef.current = null;
+      pipe.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [camera, composerActive, gl, scene]);
+  }, [gl]);
 
+  // Progressive lazy upgrade for high-res sky & Kerr LUT when tier rises
   useEffect(() => {
-    rigRef.current?.syncBloom(profile.bloom);
-  }, [profile.bloom]);
+    const active = lowPower ? 0 : ultraKerr ? 3 : storeTier;
+    rig.bhTier = active as BhTier;
 
-  useFrame(
-    (_state, delta) => {
-      const composerRig = rigRef.current;
-      if (!composerActive || !composerRig) return;
+    const assets = getBhAssets();
+    if (!assets || assets.isBootstrap) return;
 
-      const dt = Math.min(delta, 1 / 30);
-      const aspect = size.width / Math.max(1, size.height);
-      const horizonAppear = MathUtils.smoothstep(rig.introProgress, 0.55, 0.98);
-      const starTransitionFade = 1.0 - MathUtils.smoothstep(rig.forkWarp, 0.22, 0.68);
-      const ritualAttenuation = mode === 'ritual' && rig.sealHold < 0.01 ? 0.62 : 1.0;
-      const baseStrength =
-        (0.85 - 0.35 * density + rig.sealHold * 0.45) *
-        ritualAttenuation *
-        horizonAppear *
-        starTransitionFade;
+    const targetSky: 'mid' | 'high' | null =
+      active >= 2 && loadedSkyRef.current !== 'high'
+        ? 'high'
+        : active === 1 && loadedSkyRef.current === 'low'
+          ? 'mid'
+          : null;
 
-      const progradeFlare =
-        profile.bloom && rig.forkMode > 0 ? rig.forkMode * rig.forkWarp * 0.85 : 0;
-      if (profile.bloom) {
-        composerRig.bloom.intensity = 0.68 + progradeFlare;
-      }
+    if (targetSky) {
+      loadedSkyRef.current = targetSky;
+      void loadSkyTier(gl, targetSky).then((tex) => {
+        const cur = getBhAssets();
+        if (!cur) return;
+        cur.skyCube = tex as typeof cur.skyCube;
+        cur.skyTier = targetSky;
+        setBhAssets(cur);
+        invalidate();
+      });
+    }
 
-      const u = composerRig.tenet.uniforms;
-      const center = u.get('uCenter')!.value as Vector2;
-      center.set(0.5, 0.5);
+    if (active === 3 && !assets.kerrLut && !kerrRequestedRef.current) {
+      kerrRequestedRef.current = true;
+      void loadKerrLut(gl).then((lut) => {
+        const cur = getBhAssets();
+        if (!cur) return;
+        cur.kerrLut = lut;
+        setBhAssets(cur);
+        invalidate();
+      });
+    }
+  }, [gl, invalidate, lowPower, storeTier, ultraKerr]);
 
-      u.get('uRadiusS')!.value = computeHoleScreenRadius(camera);
-      u.get('uStrength')!.value = MathUtils.damp(
-        u.get('uStrength')!.value as number,
-        baseStrength,
-        rig.forkActive ? 18.0 : 6.0,
-        dt,
-      );
-      u.get('uHold')!.value = rig.sealHold;
-      u.get('uAspect')!.value = aspect;
-      u.get('uSpike')!.value = rig.recapSpike + rig.turnstilePulse * 0.4;
-      u.get('uTime')!.value = rig.elapsedTime;
-      u.get('uChroma')!.value = lowPower || !profile.grain ? 0.0 : 0.0055;
-      u.get('uGrainEnabled')!.value = profile.grain && !lowPower ? 1.0 : 0.0;
+  useFrame((_state, delta) => {
+    const pipe = rendererRef.current;
+    const assets = getBhAssets();
+    if (!pipe || !assets) return;
 
-      composerRig.renderFrame(dt);
-    },
-    composerActive ? 1 : 0,
-  );
+    const dt = Math.min(delta, 1 / 30);
+    const simTime = simOverrideRef.current !== null ? simOverrideRef.current : rig.elapsedTime;
+    const spinSense = rig.forkMode < -0.05 ? -1 : 1;
+    const heat = rig.forkMode > 0 ? rig.forkMode * rig.forkWarp : rig.forkMode * 0.5;
+    const exposure = (mode === 'ritual' && rig.sealHold < 0.02 ? 0.45 : 1.0) * rig.bhExposureScale;
+    const isIdleReduced = rig.activityLevel === 'still' && !rig.introActive && !rig.forkActive;
 
-  if (profile.lensMode === 'none') return null;
-  if (profile.lensMode === 'quad') return <SimplifiedLensQuad />;
+    pipe.render(gl, scene, camera, assets, {
+      dt,
+      simTime,
+      tier: rig.bhTier as BhTier,
+      cheatsEnabled: rig.bhCheatsEnabled,
+      camMotion: rig.bhCamMotion,
+      renderScale: rig.bhRenderScale,
+      idleReducedRes: isIdleReduced,
+      spinSense,
+      hold: rig.sealHold,
+      heat,
+      exposureScale: exposure * Math.min(1, rig.introProgress * 1.35 + 0.05),
+      spike: rig.recapSpike + rig.turnstilePulse * 0.35,
+      viewportW: size.width,
+      viewportH: size.height,
+      dpr: gl.getPixelRatio(),
+    });
+  }, 1);
+
   return null;
 }

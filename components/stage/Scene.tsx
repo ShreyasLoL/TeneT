@@ -7,10 +7,8 @@ import { FrameGovernor } from '@/lib/stage/governor';
 import { inspectRenderer, type QualityLevel } from '@/lib/stage/tiers';
 import { useTenetStore } from '@/lib/store';
 import { notifyCanvasReady, rig } from '@/lib/store/rig';
-import { BlackHole } from './BlackHole';
+import { BrightStarSprites } from './BrightStarSprites';
 import { CameraRig } from './CameraRig';
-import { Disk } from './Disk';
-import { Galaxy } from './Galaxy';
 import { Intro } from './Intro';
 import { Particles } from './Particles';
 import { Postfx } from './Postfx';
@@ -105,14 +103,8 @@ export function Scene() {
   return (
     <>
       <CameraRig />
-      <BlackHole />
-      <group rotation={[0, 0, -0.39]}>
-        <group rotation={[0.65, 0, 0]}>
-          <Galaxy />
-          <Disk />
-          <Particles />
-        </group>
-      </group>
+      <BrightStarSprites />
+      <Particles />
       <Rings />
       <Intro />
       <Recap />
