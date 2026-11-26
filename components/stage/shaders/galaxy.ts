@@ -69,6 +69,16 @@ export const galaxyVertexShader = /* glsl */ `
     vec4 mvPos = modelViewMatrix * vec4(finalPos, 1.0);
     float depthScale = clamp(10.8 / max(1.6, -mvPos.z), 0.35, 3.2);
 
+    // Subtle outward gravitational lensing deflection on background spiral-arm stars behind the black hole
+    float behindMask = smoothstep(-10.2, -11.4, mvPos.z);
+    float rXY = length(mvPos.xy);
+    float lensPush =
+      (0.42 / (rXY + 0.55)) *
+      behindMask *
+      smoothstep(0.85, 1.5, rXY) *
+      (1.0 - smoothstep(4.5, 9.5, rXY));
+    mvPos.xy += normalize(mvPos.xy + vec2(1e-5)) * lensPush;
+
     // Keep background/foreground bulge & field stars out of the black hole shadow AND bottom-right M87* void
     vec2 ndc = (projectionMatrix * mvPos).xy / max((projectionMatrix * mvPos).w, 1e-4);
     float m87Void = smoothstep(0.28, 0.56, length((ndc - vec2(0.62, -0.58)) * vec2(1.6, 1.0)));

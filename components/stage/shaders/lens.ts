@@ -46,7 +46,7 @@ export const tenetPostFragmentShader = /* glsl */ `
       inputColor.rgb + vec3(colR - centerScene.r, 0.0, colB - centerScene.b) * caGate
     );
 
-    // Keep shadow void pure black and sky background faithful to --bg (#0B0910) while ACES maps bright disk highlights cleanly
+    // Keep shadow void pure black and sky background faithful to --bg (#0B0910) while ACES maps highlights cleanly
     vec3 col = acesFilm(hdr * 0.98);
     float vig = pow(clamp(1.0 - edgeR2 * 0.78, 0.0, 1.0), 1.32);
     col *= vig;

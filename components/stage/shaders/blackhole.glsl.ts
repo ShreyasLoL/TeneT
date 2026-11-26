@@ -210,7 +210,7 @@ export const blackHoleFragmentShader = /* glsl */ `
       fgBeltMask
     );
 
-    vec3 dStar = mix(dOut, rd, smoothstep(4.2, 12.8, b) * 0.84);
+    vec3 dStar = mix(dOut, rd, smoothstep(5.2, 17.5, b) * 0.46);
     float rot = uTime * 0.0018;
     float cr = cos(rot);
     float sr = sin(rot);
@@ -222,6 +222,8 @@ export const blackHoleFragmentShader = /* glsl */ `
     float outsideShadow = smoothstep(-0.5, 0.5, dPx);
 
     mediump vec3 skyCol = textureGrad(uSkyCube, rotStar, skyDx, skyDy).rgb;
+    float einsteinFocus = outsideShadow * exp(-pow((b - 3.65) / 1.15, 2.0));
+    skyCol *= 1.0 + einsteinFocus * 0.65;
 
     float posPx = max(dPx, 0.0);
     float breathe = 0.72 + 0.28 * sin(uTime * 0.34);
@@ -236,9 +238,11 @@ export const blackHoleFragmentShader = /* glsl */ `
     mediump vec3 pinkOrchid = mix(uAccent, vec3(0.96, 0.56, 0.80), 0.42);
     mediump vec3 fringeCol = mix(mix(uAmber * 0.45, pinkOrchid, 0.65), uAccentDim * 0.75, clamp(posPx * 0.24, 0.0, 1.0));
     mediump vec3 coreCol = mix(vec3(1.00, 0.95, 0.90), vec3(0.84, 0.92, 1.00), max(0.0, dopplerScreen) * 0.32);
+    mediump vec3 lensRimCol = mix(uAccentDim * 0.65, vec3(0.72, 0.84, 1.00), 0.35);
     mediump vec3 photonRing =
       (coreCol * (ringCore * 1.38 * breathe + glint) +
-        fringeCol * (ringFringe * 0.36)) *
+        fringeCol * (ringFringe * 0.36) +
+        lensRimCol * (einsteinFocus * 0.055)) *
       fgBeltMask;
 
     mediump vec3 backCol = skyCol * outsideShadow + photonRing;
