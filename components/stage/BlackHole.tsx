@@ -99,7 +99,7 @@ export function BlackHole() {
   return (
     <>
       <mesh ref={horizonMeshRef} renderOrder={0} frustumCulled={false}>
-        <sphereGeometry args={[1.12, 48, 32]} />
+        <sphereGeometry args={[0.62, 48, 32]} />
         <shaderMaterial
           ref={horizonMatRef}
           glslVersion={GLSL3}
@@ -113,7 +113,7 @@ export function BlackHole() {
       </mesh>
 
       <mesh ref={haloMeshRef} renderOrder={5} frustumCulled={false}>
-        <planeGeometry args={[8.8, 8.8, 1, 1]} />
+        <planeGeometry args={[6.4, 6.4, 1, 1]} />
         <shaderMaterial
           ref={haloMatRef}
           glslVersion={GLSL3}

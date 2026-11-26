@@ -2,11 +2,11 @@ import { NORMAL_GALAXY_PARTICLES } from '@/lib/stage/tiers';
 
 export const MAX_GALAXY_PARTICLES = NORMAL_GALAXY_PARTICLES; // 34,000 (+ 14,000 BH = 48,000 <= 50k)
 
-const R_BULGE_MIN = 1.35;
-const R_BULGE_MAX = 5.8;
-const R_ARM_MIN = 3.1;
-const R_ARM_MAX = 25.5;
-const SPIRAL_WINDING = 2.65;
+const R_BULGE_MIN = 1.05;
+const R_BULGE_MAX = 3.1;
+const R_ARM_MIN = 2.05;
+const R_ARM_MAX = 13.8;
+const SPIRAL_WINDING = 2.45;
 
 function mulberry32(seed: number) {
   let a = seed >>> 0;
@@ -46,22 +46,22 @@ export function buildGalaxyBuffers(capacity: number = MAX_GALAXY_PARTICLES): Gal
   const seeds = new Float32Array(count * 4);
   const meta = new Float32Array(count * 2);
 
-  // Prebuild 20 compact HII star-forming knot anchors along the 2 main logarithmic arms
+  // Prebuild 14 compact HII star-forming knot anchors along the 2 main logarithmic arms
   const knots: Array<{ r: number; theta: number }> = [];
-  for (let k = 0; k < 20; k++) {
+  for (let k = 0; k < 14; k++) {
     const arm = k % 2;
-    const kr = 4.2 + (k / 20) * 14.5 + (rng() - 0.5) * 0.8;
-    const kTheta = SPIRAL_WINDING * Math.log(kr / 2.8) + arm * Math.PI + (rng() - 0.5) * 0.12;
+    const kr = 3.2 + (k / 14) * 7.8 + (rng() - 0.5) * 0.4;
+    const kTheta = SPIRAL_WINDING * Math.log(kr / 2.2) + arm * Math.PI + (rng() - 0.5) * 0.06;
     knots.push({ r: kr, theta: kTheta });
   }
 
   for (let i = 0; i < count; i++) {
     const bucket = i % 25;
     // Interleaved populations:
-    // 0..10 (44%): 2 main spiral arms
-    // 11..14 (16%): 2 faint secondary spiral arms
-    // 15..19 (20%): dense central bulge
-    // 20..21 (8%): HII pink/orchid knots along main arms
+    // 0..12 (52%): 2 main spiral arms (cold-blue young O/B stars)
+    // 13..15 (12%): 2 faint secondary spiral arms
+    // 16..20 (20%): dense central bulge
+    // 21    (4%): HII pink/orchid knots along main arms (scarce accent <= 10%)
     // 22..24 (12%): scattered star field + bright foreground stars
     let kind = 0;
     let r = 6.0;
@@ -69,45 +69,45 @@ export function buildGalaxyBuffers(capacity: number = MAX_GALAXY_PARTICLES): Gal
     let yOff = 0;
     let lum = rng();
 
-    if (bucket <= 10) {
+    if (bucket <= 12) {
       kind = 0;
       const arm = i % 2;
-      r = R_ARM_MIN + Math.pow(rng(), 1.16) * (R_ARM_MAX - R_ARM_MIN);
-      const baseTheta = SPIRAL_WINDING * Math.log(r / 2.8) + arm * Math.PI;
-      const spread = 0.16 + 0.14 * ((r - R_ARM_MIN) / (R_ARM_MAX - R_ARM_MIN));
+      r = R_ARM_MIN + Math.pow(rng(), 1.15) * (R_ARM_MAX - R_ARM_MIN);
+      const baseTheta = SPIRAL_WINDING * Math.log(r / 2.2) + arm * Math.PI;
+      const spread = 0.13 + 0.11 * ((r - R_ARM_MIN) / (R_ARM_MAX - R_ARM_MIN));
       theta = baseTheta + gaussianRand(rng) * spread;
-      yOff = gaussianRand(rng) * (0.11 + 0.018 * r);
-    } else if (bucket <= 14) {
+      yOff = gaussianRand(rng) * (0.08 + 0.014 * r);
+    } else if (bucket <= 15) {
       kind = 1;
       const arm = i % 2;
-      r = R_ARM_MIN + 0.8 + Math.pow(rng(), 1.25) * (R_ARM_MAX - R_ARM_MIN - 2.0);
-      const baseTheta = SPIRAL_WINDING * Math.log(r / 2.8) + arm * Math.PI + Math.PI * 0.52;
-      theta = baseTheta + gaussianRand(rng) * 0.24;
-      yOff = gaussianRand(rng) * (0.14 + 0.02 * r);
-      lum *= 0.62;
-    } else if (bucket <= 19) {
+      r = R_ARM_MIN + 0.45 + Math.pow(rng(), 1.25) * (R_ARM_MAX - R_ARM_MIN - 1.2);
+      const baseTheta = SPIRAL_WINDING * Math.log(r / 2.2) + arm * Math.PI + Math.PI * 0.52;
+      theta = baseTheta + gaussianRand(rng) * 0.21;
+      yOff = gaussianRand(rng) * (0.11 + 0.016 * r);
+      lum *= 0.65;
+    } else if (bucket <= 20) {
       kind = 2;
-      r = R_BULGE_MIN + Math.pow(rng(), 1.9) * (R_BULGE_MAX - R_BULGE_MIN);
+      r = R_BULGE_MIN + Math.pow(rng(), 1.85) * (R_BULGE_MAX - R_BULGE_MIN);
       theta = rng() * Math.PI * 2;
-      const bulgeThickness = 0.55 * Math.exp(-(r - R_BULGE_MIN) * 0.35) + 0.08;
+      const bulgeThickness = 0.34 * Math.exp(-(r - R_BULGE_MIN) * 0.55) + 0.06;
       yOff = gaussianRand(rng) * bulgeThickness;
-      lum = 0.35 + 0.65 * lum;
-    } else if (bucket <= 21) {
+      lum = 0.38 + 0.62 * lum;
+    } else if (bucket === 21) {
       kind = 3;
       const knot = knots[i % knots.length];
-      r = Math.max(3.2, knot.r + gaussianRand(rng) * 0.32);
-      theta = knot.theta + (gaussianRand(rng) * 0.32) / Math.max(2.0, r);
-      yOff = gaussianRand(rng) * 0.09;
-      lum = 0.55 + 0.45 * lum;
+      r = Math.max(2.8, knot.r + gaussianRand(rng) * 0.14);
+      theta = knot.theta + (gaussianRand(rng) * 0.14) / Math.max(1.8, r);
+      yOff = gaussianRand(rng) * 0.06;
+      lum = 0.52 + 0.48 * lum;
     } else {
       kind = 4;
-      const isForegroundHero = rng() > 0.955;
+      const isForegroundHero = rng() > 0.94;
       r = isForegroundHero
-        ? 2.2 + rng() * 16.0
-        : 2.4 + Math.pow(rng(), 0.92) * (R_ARM_MAX + 2.0);
+        ? 1.9 + rng() * 11.2
+        : 2.0 + Math.pow(rng(), 0.92) * (R_ARM_MAX + 1.2);
       theta = rng() * Math.PI * 2;
-      yOff = gaussianRand(rng) * (isForegroundHero ? 1.85 : 0.75 + 0.05 * r);
-      lum = isForegroundHero ? 0.94 + 0.06 * rng() : 0.22 + 0.55 * lum;
+      yOff = gaussianRand(rng) * (isForegroundHero ? 1.45 : 0.62 + 0.04 * r);
+      lum = isForegroundHero ? 0.94 + 0.06 * rng() : 0.24 + 0.56 * lum;
     }
 
     seeds[i * 4] = r;

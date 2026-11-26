@@ -46,7 +46,7 @@ export function Disk() {
       uAmber: { value: new Vector3(amr, amg, amb) },
       uOrchid: { value: new Vector3(ar, ag, ab) },
       uViolet: { value: new Vector3(abr * 1.35 + 0.04, abg * 1.2 + 0.02, abb * 2.4 + 0.18) },
-      uColdBlue: { value: new Vector3(0.035, 0.22, 0.88) },
+      uColdBlue: { value: new Vector3(0.14, 0.52, 1.0) },
     };
   }, []);
 
@@ -92,7 +92,7 @@ export function Disk() {
       rotation={[-Math.PI / 2, 0, 0]}
       frustumCulled={false}
     >
-      <planeGeometry args={[10.8, 10.8, 1, 1]} />
+      <planeGeometry args={[9.6, 9.6, 1, 1]} />
       <shaderMaterial
         ref={matRef}
         glslVersion={GLSL3}

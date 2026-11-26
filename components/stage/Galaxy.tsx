@@ -70,7 +70,7 @@ export function Galaxy() {
         uAmber: { value: new Vector3(amr, amg, amb) },
         uOrchid: { value: new Vector3(ar, ag, ab) },
         uViolet: { value: new Vector3(abr * 1.3 + 0.03, abg * 1.1 + 0.015, abb * 2.2 + 0.12) },
-        uColdBlue: { value: new Vector3(0.20, 0.52, 1.0) },
+        uColdBlue: { value: new Vector3(0.28, 0.62, 1.0) },
       },
       dustUniforms: {
         uTime: { value: 0 },
