@@ -2,7 +2,6 @@
 
 import { memo, useMemo } from 'react';
 import type { ApiSealedDay, ApiTrackable } from '@/lib/api/types';
-import { Mirror } from '@/components/chrome/Mirror';
 import { COPY } from '@/lib/copy';
 import type { DayKey } from '@/lib/domain/types';
 
@@ -31,8 +30,9 @@ export const NightPanel = memo(function NightPanel({
     return (
       <section
         aria-label={`Night ${day}`}
-        className="rounded-xl border border-line bg-surface p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+        className="relative overflow-hidden rounded-md border border-line bg-bg/88 p-5"
       >
+        <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-px bg-text/25" />
         <div className="flex items-baseline justify-between gap-4 border-b border-line pb-4">
           <span className="font-mono text-xs uppercase tracking-[0.14em] text-text-dim tabular-nums">
             {day}
@@ -48,12 +48,21 @@ export const NightPanel = memo(function NightPanel({
     );
   }
 
+  const highNight = (sealedDay.score ?? 0) >= 85 || sealedDay.streak > 0;
+
   return (
     <section
       aria-label={`Night ${day}`}
-      className="rounded-xl border border-line bg-surface p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+      className="relative overflow-hidden rounded-md border border-line bg-bg/88 p-5"
     >
-      <div className="flex items-start justify-between gap-6 border-b border-line pb-5">
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute inset-x-0 top-0 h-px transition-colors duration-[var(--duration-ui)] ease-[var(--ease-out)] ${
+          highNight ? 'bg-accent/70' : 'bg-text/35'
+        }`}
+      />
+
+      <div className="flex items-start justify-between gap-6 border-b border-line pb-4">
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.14em] text-text-dim tabular-nums">
             {sealedDay.day}
@@ -63,14 +72,12 @@ export const NightPanel = memo(function NightPanel({
           </p>
         </div>
 
-        <Mirror>
-          <span className="font-mono text-4xl font-light tracking-[-0.04em] text-text tabular-nums">
-            {sealedDay.score === null ? '—' : sealedDay.score}
-          </span>
-        </Mirror>
+        <span className="font-mono text-4xl font-light tracking-[-0.04em] text-text tabular-nums">
+          {sealedDay.score === null ? '—' : sealedDay.score}
+        </span>
       </div>
 
-      <div className="mt-5 space-y-2.5">
+      <div className="mt-4 space-y-2.5">
         {sealedDay.results.map((r) => {
           const stateLabel =
             r.status === 'off'
@@ -103,7 +110,7 @@ export const NightPanel = memo(function NightPanel({
         })}
       </div>
 
-      <div className="mt-5 border-t border-line pt-4">
+      <div className="mt-4 border-t border-line pt-4">
         <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-faint">
           reflection
         </p>

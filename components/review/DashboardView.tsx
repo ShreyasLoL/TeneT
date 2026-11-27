@@ -3,19 +3,19 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { LoadingFallback } from '@/components/chrome/LoadingFallback';
-import { Mirror } from '@/components/chrome/Mirror';
 import { SatorGlyph } from '@/components/chrome/SatorGlyph';
 import { Scrim } from '@/components/chrome/Scrim';
-import { Ledger } from '@/components/review/Ledger';
 import { NightPanel } from '@/components/review/NightPanel';
 import { Pull } from '@/components/ritual/Pull';
-import { StaticOrbit } from '@/components/stage/StaticOrbit';
-import { Button } from '@/components/ui/button';
 import { useLivePreview, useStreaks, useTenetState, useToday } from '@/lib/api/hooks';
 import { COPY } from '@/lib/copy';
 import { activeTrackables } from '@/lib/domain/schedule';
 import { useTenetStore } from '@/lib/store';
 import { useSmoothScroll } from '@/lib/viz/useSmoothScroll';
+import { RetrogradeConstellation } from './views/RetrogradeConstellation';
+import { RetrogradeDial } from './views/RetrogradeDial';
+import { RetrogradeEditorial } from './views/RetrogradeEditorial';
+import { RetrogradeMatrix } from './views/RetrogradeMatrix';
 
 export function DashboardView() {
   useSmoothScroll();
@@ -27,12 +27,17 @@ export function DashboardView() {
   const selection = useTenetStore((s) => s.selection);
   const select = useTenetStore((s) => s.select);
   const setDensity = useTenetStore((s) => s.setDensity);
-  const quality = useTenetStore((s) => s.quality);
+  const retrogradeView = useTenetStore((s) => s.retrogradeView);
 
-  const [viewMode, setViewMode] = useState<'orbit' | 'ledger'>('orbit');
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setDensity(0.35);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    setDensity(0.28);
   }, [setDensity]);
 
   const selectedDay = useMemo(() => {
@@ -63,7 +68,7 @@ export function DashboardView() {
       .filter((t): t is NonNullable<typeof t> => t !== undefined);
   }, [data, today]);
 
-  if (isLoading) return <LoadingFallback variant="wide" />;
+  if (!hydrated || isLoading) return <LoadingFallback variant="wide" />;
 
   if (isError || !data) {
     return (
@@ -72,9 +77,6 @@ export function DashboardView() {
       </main>
     );
   }
-
-  const showStaticOrbit =
-    quality.lowPower || quality.reducedMotion || quality.level >= 4 || quality.webgl !== 'ok';
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-8 sm:px-8">
@@ -85,11 +87,9 @@ export function DashboardView() {
             <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-faint">
               streak
             </p>
-            <Mirror>
-              <span className="font-mono text-5xl font-light tracking-[-0.04em] text-text tabular-nums">
-                {streaks.current}
-              </span>
-            </Mirror>
+            <span className="font-mono text-5xl font-light tracking-[-0.04em] text-text tabular-nums">
+              {streaks.current}
+            </span>
           </div>
           <div>
             <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-faint">
@@ -119,15 +119,6 @@ export function DashboardView() {
               {area.name}
             </Link>
           ))}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setViewMode((v) => (v === 'orbit' ? 'ledger' : 'orbit'))}
-            className="min-h-10 font-mono text-[11px] uppercase tracking-[0.12em]"
-          >
-            {viewMode === 'orbit' ? 'view as list' : 'view as orbit'}
-          </Button>
         </div>
       </Scrim>
 
@@ -144,48 +135,40 @@ export function DashboardView() {
       ) : (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
           <div className="lg:col-span-7">
-            {viewMode === 'ledger' ? (
-              <Ledger
+            {retrogradeView === 'dial' && (
+              <RetrogradeDial
                 days={data.days}
                 trackables={data.definitions.trackables}
                 selectedDay={selectedDay}
+                endDay={today}
                 onSelectDay={(day) => select({ kind: 'ring', day })}
               />
-            ) : showStaticOrbit ? (
-              <StaticOrbit
+            )}
+            {retrogradeView === 'matrix' && (
+              <RetrogradeMatrix
                 days={data.days}
-                range={data.range}
+                selectedDay={selectedDay}
+                endDay={today}
+                onSelectDay={(day) => select({ kind: 'ring', day })}
+              />
+            )}
+            {retrogradeView === 'constellation' && (
+              <RetrogradeConstellation
+                days={data.days}
+                selectedDay={selectedDay}
+                endDay={today}
+                onSelectDay={(day) => select({ kind: 'ring', day })}
+              />
+            )}
+            {retrogradeView === 'editorial' && (
+              <RetrogradeEditorial
+                days={data.days}
                 areas={data.definitions.areas}
                 trackables={data.definitions.trackables}
                 selectedDay={selectedDay}
-                liveScore={preview.score}
+                endDay={today}
                 onSelectDay={(day) => select({ kind: 'ring', day })}
               />
-            ) : (
-              <div className="flex min-h-[420px] flex-col justify-end rounded-xl border border-line/50 p-5">
-                <div className="space-y-2.5 pt-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint sm:text-[11px]">
-                    <span>live orbital stage</span>
-                    <span>click ring or pick night</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {data.days.slice(-14).reverse().map((d) => (
-                      <button
-                        key={d.day}
-                        type="button"
-                        onClick={() => select({ kind: 'ring', day: d.day })}
-                        className={`min-h-9 rounded border px-2 font-mono text-[11px] tabular-nums transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] ${
-                          selectedDay === d.day
-                            ? 'border-accent text-accent'
-                            : 'border-line bg-bg/70 text-text-dim hover:text-text'
-                        }`}
-                      >
-                        {d.day.slice(5)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
             )}
           </div>
 
@@ -207,7 +190,7 @@ export function DashboardView() {
         days={data.days}
         liveScore={sealedToday ? sealedToday.score : preview.score}
         isSealed={Boolean(sealedToday)}
-        defaultExpanded
+        defaultExpanded={false}
       />
     </main>
   );

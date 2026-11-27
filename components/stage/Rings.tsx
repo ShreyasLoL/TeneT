@@ -121,7 +121,7 @@ export function Rings() {
 
   useFrame((_state, delta) => {
     const mesh = meshRef.current;
-    const isVisible = mode !== 'fork' && rig.introProgress > 0.72;
+    const isVisible = mode === 'time' && rig.introProgress > 0.72;
     if (mesh) mesh.visible = isVisible;
     if (!isVisible) return;
 
