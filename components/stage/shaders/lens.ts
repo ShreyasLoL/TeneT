@@ -35,16 +35,19 @@ export const tenetPostFragmentShader = /* glsl */ `
     vec2 vigUv = vUv - vec2(0.5);
     float edgeR2 = dot(vigUv, vigUv);
 
-    // Restrained radial chromatic aberration at viewport periphery only
+    // Restrained radial chromatic aberration at viewport periphery only (zero extra fetches in center/off)
     float caGate = step(0.00005, uChroma) * smoothstep(0.08, 0.42, edgeR2);
-    vec2 caShift = vigUv * edgeR2 * (uChroma * 0.45);
-    vec3 centerScene = texture2D(inputBuffer, uv).rgb;
-    float colR = texture2D(inputBuffer, clamp(uv + caShift, vec2(0.001), vec2(0.999))).r;
-    float colB = texture2D(inputBuffer, clamp(uv - caShift, vec2(0.001), vec2(0.999))).b;
-    vec3 hdr = max(
-      vec3(0.0),
-      inputColor.rgb + vec3(colR - centerScene.r, 0.0, colB - centerScene.b) * caGate
-    );
+    vec3 hdr = max(vec3(0.0), inputColor.rgb);
+    if (caGate > 0.001) {
+      vec2 caShift = vigUv * edgeR2 * (uChroma * 0.45);
+      vec3 centerScene = texture2D(inputBuffer, uv).rgb;
+      float colR = texture2D(inputBuffer, clamp(uv + caShift, vec2(0.001), vec2(0.999))).r;
+      float colB = texture2D(inputBuffer, clamp(uv - caShift, vec2(0.001), vec2(0.999))).b;
+      hdr = max(
+        vec3(0.0),
+        inputColor.rgb + vec3(colR - centerScene.r, 0.0, colB - centerScene.b) * caGate
+      );
+    }
 
     // Keep shadow void pure black and sky background faithful to --bg (#0B0910) while ACES maps highlights cleanly
     vec3 col = acesFilm(hdr * 1.06);
