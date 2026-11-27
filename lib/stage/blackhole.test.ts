@@ -10,6 +10,7 @@ import {
   impactParameterFromAngle,
   traceGeodesicCpu,
 } from '@/components/stage/blackhole/constants';
+import { blackHoleDiskGlsl } from '@/components/stage/shaders/blackholeDisk.glsl';
 
 describe('Schwarzschild constants & null geodesic integrator', () => {
   it('defines exact relativistic radii in G=c=rs=1 units', () => {
@@ -69,5 +70,22 @@ describe('Schwarzschild constants & null geodesic integrator', () => {
     expect(rk.captured).toBe(false);
     expect(impactParameterFromAngle(r0, Math.sin(alpha))).toBeCloseTo(ANALYTIC_B_START, 6);
     expect(Math.abs(rk.phiEsc - analyticPhi)).toBeLessThan(0.005);
+  });
+
+  it('uses C1-continuous variance-preserving two-phase flow weights and integrated uDiskTime', () => {
+    expect(blackHoleDiskGlsl).toContain('0.5 + 0.5 * cos(phaseA * 6.2831853)');
+    expect(blackHoleDiskGlsl).not.toContain('0.5 - 0.5 * cos(phaseA * 6.2831853)');
+    expect(blackHoleDiskGlsl).toContain('inversesqrt(wA * wA + wB * wB)');
+    expect(blackHoleDiskGlsl).toContain('sampleDiskStructure(rCross, phiDisk, uDiskTime, isTopFace)');
+    expect(blackHoleDiskGlsl).not.toContain('uTime * dirSign');
+
+    for (const phaseA of [0, 0.25, 0.5, 0.75, 1]) {
+      const wB = 0.5 + 0.5 * Math.cos(phaseA * 2 * Math.PI);
+      const wA = 1 - wB;
+      const invNorm = 1 / Math.sqrt(wA * wA + wB * wB);
+      if (phaseA === 0 || phaseA === 1) expect(wA).toBeCloseTo(0, 10);
+      if (phaseA === 0.5) expect(wB).toBeCloseTo(0, 10);
+      expect((wA * invNorm) ** 2 + (wB * invNorm) ** 2).toBeCloseTo(1, 10);
+    }
   });
 });

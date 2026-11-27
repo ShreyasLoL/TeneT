@@ -64,6 +64,7 @@ export function BlackHolePass() {
   const skyTargetRef = useRef<WebGLCubeRenderTarget | null>(null);
   const emaDtRef = useRef(1 / 60);
   const smoothTimeRef = useRef(0);
+  const diskTimeRef = useRef(0);
 
   const initialUniforms = useMemo(() => {
     const [amr, amg, amb] = readAmberLinear();
@@ -81,6 +82,7 @@ export function BlackHolePass() {
       uMaxSteps: { value: 64 },
       uSkyCube: { value: FALLBACK_CUBE },
       uTime: { value: 0 },
+      uDiskTime: { value: 0 },
       uDopplerStrength: { value: DOPPLER_STRENGTH_DEFAULT },
       uHold: { value: 0 },
       uMode: { value: 0 },
@@ -128,7 +130,7 @@ export function BlackHolePass() {
       baked.dispose();
       if (skyTargetRef.current === baked) skyTargetRef.current = null;
     };
-  }, [composerActive, cubeFaceSize, gl, invalidate, size.width, size.height]);
+  }, [composerActive, cubeFaceSize, gl, invalidate]);
 
   useFrame((_state, delta) => {
     const mat = matRef.current;
@@ -136,8 +138,12 @@ export function BlackHolePass() {
 
     const clampedDt = Math.min(delta, 1 / 30);
     emaDtRef.current = emaDtRef.current * 0.85 + clampedDt * 0.15;
+    const retro = Math.min(1, Math.max(0, -rig.forkMode)) * rig.forkHue;
+    const prog = Math.min(1, Math.max(0, rig.forkMode)) * rig.forkHue;
+    const diskDir = 1.0 - retro * 1.55 + prog * 0.9;
     if (!reducedMotion) {
       smoothTimeRef.current += emaDtRef.current;
+      diskTimeRef.current += emaDtRef.current * diskDir;
     }
     const t = smoothTimeRef.current;
 
@@ -219,6 +225,7 @@ export function BlackHolePass() {
     (u.uResolution.value as Vector2).set(size.width, size.height);
     u.uMaxSteps.value = cam.steps;
     u.uTime.value = t;
+    u.uDiskTime.value = diskTimeRef.current;
     u.uDopplerStrength.value = cam.dopplerStrength;
     u.uHold.value = rig.sealHold;
     u.uMode.value = rig.forkMode;

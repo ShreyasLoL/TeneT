@@ -39,7 +39,9 @@ export const blackHoleDiskGlsl = /* glsl */ `
 
     float phaseA = fract(time * 0.042);
     float phaseB = fract(time * 0.042 + 0.5);
-    float blend = 0.5 - 0.5 * cos(phaseA * 6.2831853);
+    float wB = 0.5 + 0.5 * cos(phaseA * 6.2831853);
+    float wA = 1.0 - wB;
+    float invNorm = inversesqrt(wA * wA + wB * wB);
 
     float span = 1.0 / 0.042;
     float angleOffsetA = (phaseA - 0.5) * omega * span;
@@ -52,13 +54,13 @@ export const blackHoleDiskGlsl = /* glsl */ `
         float dPhi = float(k) * blurArc;
         float nA = diskFbm(logR, phi - angleOffsetA + dPhi, logR * 2.15);
         float nB = diskFbm(logR, phi - angleOffsetB + dPhi, logR * 2.15);
-        density += mix(nA, nB, blend);
+        density += clamp(0.47 + ((nA - 0.47) * wA + (nB - 0.47) * wB) * invNorm, 0.0, 1.0);
       }
       density *= 0.333333;
     } else {
       float nA = diskFbm(logR, phi - angleOffsetA, logR * 2.15);
       float nB = diskFbm(logR, phi - angleOffsetB, logR * 2.15);
-      density = mix(nA, nB, blend);
+      density = clamp(0.47 + ((nA - 0.47) * wA + (nB - 0.47) * wB) * invNorm, 0.0, 1.0);
     }
 
     float rings = 0.68 + 0.32 * sin(logR * 25.0 + density * 4.4);
@@ -122,7 +124,7 @@ export const blackHoleDiskGlsl = /* glsl */ `
 
     float phiDisk = atan(pCross.z, pCross.x);
     float dirSign = mix(1.0, -0.55, clamp(-uMode, 0.0, 1.0) * uHue) + clamp(uMode, 0.0, 1.0) * uHue * 0.9;
-    float structure = sampleDiskStructure(rCross, phiDisk, uTime * dirSign, isTopFace);
+    float structure = sampleDiskStructure(rCross, phiDisk, uDiskTime, isTopFace);
 
     vec3 gasDir = normalize(vec3(pCross.z, 0.0, -pCross.x)) * sign(dirSign);
     float vOrb = sqrt(0.5 / max(rCross, 1.5));

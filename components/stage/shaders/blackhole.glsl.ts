@@ -28,6 +28,7 @@ export const blackHoleFragmentShader = /* glsl */ `
   uniform samplerCube uSkyCube;
 
   uniform float uTime;
+  uniform float uDiskTime;
   uniform float uDopplerStrength;
   uniform float uHold;
   uniform float uMode;
