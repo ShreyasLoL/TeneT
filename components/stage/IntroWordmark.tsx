@@ -22,7 +22,6 @@ const LETTERS = ['T', 'E', 'N', 'E', 'T'] as const;
 export function IntroWordmark() {
   const mode = useTenetStore((s) => s.mode);
   const webgl = useTenetStore((s) => s.quality.webgl);
-  const lowPower = useTenetStore((s) => s.quality.lowPower);
   const reducedMotion = useTenetStore((s) => s.quality.reducedMotion);
   const introDone = useTenetStore((s) => s.introDone);
   const setIntroDone = useTenetStore((s) => s.setIntroDone);
@@ -83,7 +82,7 @@ export function IntroWordmark() {
       typeof window !== 'undefined' &&
       new URLSearchParams(window.location.search).get('ui') === '1';
 
-    if (mode !== 'fork' || lowPower || reducedMotion || mediaReduced || webgl !== 'ok' || uiShortcut) {
+    if (mode !== 'fork' || reducedMotion || mediaReduced || webgl !== 'ok' || uiShortcut) {
       setSettledIntro();
       rig.cameraOverride.active = false;
       setIntroDone(true);
@@ -208,7 +207,7 @@ export function IntroWordmark() {
       resetRestingCameras();
       setSettledIntro();
     };
-  }, [introDone, lowPower, mode, reducedMotion, setIntroDone, webgl]);
+  }, [introDone, mode, reducedMotion, setIntroDone, webgl]);
 
   if (!visible || introDone) return null;
 

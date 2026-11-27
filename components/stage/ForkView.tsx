@@ -30,7 +30,7 @@ export function ForkView() {
   const tonightSealed = Boolean(state?.days.some((d) => d.day === today));
   const showChrome =
     hydrated &&
-    (introDone || quality.lowPower || quality.reducedMotion || quality.webgl !== 'ok');
+    (introDone || quality.reducedMotion || quality.webgl !== 'ok');
 
   const {
     holdingSide,
