@@ -161,11 +161,13 @@ export function BlackHolePass() {
             ? INTEGRATOR_STEPS_HIGH
             : INTEGRATOR_STEPS_FULL;
     if (!rig.forkActive && !rig.introActive && !reducedMotion) {
+      const holdPull = rig.sealHold * 6.5;
+      const holdBank = rig.forkMode * 0.08;
       cam.inclination = MathUtils.damp(cam.inclination, CAMERA_INCLINATION_RAD + Math.sin(t * 0.14) * 0.036, 3.2, clampedDt);
-      cam.distance = MathUtils.damp(cam.distance, CAMERA_DISTANCE_DEFAULT + Math.sin(t * 0.105 + 0.8) * 1.6, 3.2, clampedDt);
-      cam.azimuth = MathUtils.damp(cam.azimuth, Math.sin(t * 0.055) * 0.032, 3.2, clampedDt);
-      cam.roll = MathUtils.damp(cam.roll, CAMERA_ROLL_RAD + Math.sin(t * 0.095 + 1.4) * 0.016, 3.2, clampedDt);
-      cam.fov = MathUtils.damp(cam.fov, CAMERA_FOV_DEG, 3.2, clampedDt);
+      cam.distance = MathUtils.damp(cam.distance, CAMERA_DISTANCE_DEFAULT + Math.sin(t * 0.105 + 0.8) * 1.6 - holdPull, 4.5, clampedDt);
+      cam.azimuth = MathUtils.damp(cam.azimuth, Math.sin(t * 0.055) * 0.032 + holdBank, 4.5, clampedDt);
+      cam.roll = MathUtils.damp(cam.roll, CAMERA_ROLL_RAD + Math.sin(t * 0.095 + 1.4) * 0.016 + holdBank * 0.7, 4.5, clampedDt);
+      cam.fov = MathUtils.damp(cam.fov, CAMERA_FOV_DEG + rig.sealHold * 5.0, 4.5, clampedDt);
     }
 
     const u = mat.uniforms;
