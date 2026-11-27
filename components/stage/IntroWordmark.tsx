@@ -232,7 +232,7 @@ export function IntroWordmark() {
 
         <div
           ref={wordRef}
-          className="flex origin-center select-none items-center font-mono text-[clamp(2.25rem,6vw,4.5rem)] font-medium uppercase leading-none tracking-[0.22em] text-text"
+          className="flex origin-center select-none items-center pl-[0.42em] font-sans text-[clamp(1.75rem,4.2vw,3.0rem)] font-light uppercase leading-none tracking-[0.42em] text-text"
         >
           {LETTERS.map((ch, i) => (
             <span
