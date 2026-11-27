@@ -9,6 +9,7 @@ import {
   ShaderMaterial,
   Vector2,
   Vector3,
+  Vector4,
   type WebGLCubeRenderTarget,
 } from 'three';
 import { isTouchDevice, profileForLevel, type QualityLevel } from '@/lib/stage/tiers';
@@ -82,7 +83,10 @@ export function BlackHolePass() {
       uMaxSteps: { value: 64 },
       uSkyCube: { value: FALLBACK_CUBE },
       uTime: { value: 0 },
-      uDiskTime: { value: 0 },
+      uDiskFlow: { value: new Vector4(0, 0, 0, 1) },
+      uDiskQuality: { value: 1 },
+      uSkyRot: { value: new Vector2(1, 0) },
+      uRingAnim: { value: new Vector3(0.72, 0, 0) },
       uDopplerStrength: { value: DOPPLER_STRENGTH_DEFAULT },
       uHold: { value: 0 },
       uMode: { value: 0 },
@@ -149,66 +153,36 @@ export function BlackHolePass() {
 
     const cam = rig.bhCam;
     cam.steps =
-      lowPower || level >= 3
-        ? INTEGRATOR_STEPS_MID
-        : level === 0 && !touch
-          ? INTEGRATOR_STEPS_HIGH
-          : INTEGRATOR_STEPS_FULL;
+      lowPower || level >= 4
+        ? 36
+        : level >= 2
+          ? INTEGRATOR_STEPS_MID
+          : level === 0 && !touch
+            ? INTEGRATOR_STEPS_HIGH
+            : INTEGRATOR_STEPS_FULL;
     if (!rig.forkActive && !rig.introActive && !reducedMotion) {
-      cam.inclination = MathUtils.damp(
-        cam.inclination,
-        CAMERA_INCLINATION_RAD + Math.sin(t * 0.14) * 0.036,
-        3.2,
-        clampedDt,
-      );
-      cam.distance = MathUtils.damp(
-        cam.distance,
-        CAMERA_DISTANCE_DEFAULT + Math.sin(t * 0.105 + 0.8) * 1.6,
-        3.2,
-        clampedDt,
-      );
+      cam.inclination = MathUtils.damp(cam.inclination, CAMERA_INCLINATION_RAD + Math.sin(t * 0.14) * 0.036, 3.2, clampedDt);
+      cam.distance = MathUtils.damp(cam.distance, CAMERA_DISTANCE_DEFAULT + Math.sin(t * 0.105 + 0.8) * 1.6, 3.2, clampedDt);
       cam.azimuth = MathUtils.damp(cam.azimuth, Math.sin(t * 0.055) * 0.032, 3.2, clampedDt);
-      cam.roll = MathUtils.damp(
-        cam.roll,
-        CAMERA_ROLL_RAD + Math.sin(t * 0.095 + 1.4) * 0.016,
-        3.2,
-        clampedDt,
-      );
+      cam.roll = MathUtils.damp(cam.roll, CAMERA_ROLL_RAD + Math.sin(t * 0.095 + 1.4) * 0.016, 3.2, clampedDt);
       cam.fov = MathUtils.damp(cam.fov, CAMERA_FOV_DEG, 3.2, clampedDt);
     }
 
     const u = mat.uniforms;
-    const tremor = rig.introTremor;
-    const tremAz =
-      tremor > 1e-4
-        ? (Math.sin(rig.elapsedTime * 53.0) * 0.6 + Math.sin(rig.elapsedTime * 89.0 + 1.1) * 0.4) *
-          tremor *
-          0.0042
-        : 0;
-    const tremInc =
-      tremor > 1e-4
-        ? (Math.cos(rig.elapsedTime * 61.0 + 0.4) * 0.6 + Math.sin(rig.elapsedTime * 97.0) * 0.4) *
-          tremor *
-          0.0032
-        : 0;
+    const trem = rig.introTremor;
+    const tremAz = trem > 1e-4 ? (Math.sin(rig.elapsedTime * 53.0) * 0.6 + Math.sin(rig.elapsedTime * 89.0 + 1.1) * 0.4) * trem * 0.0042 : 0;
+    const tremInc = trem > 1e-4 ? (Math.cos(rig.elapsedTime * 61.0 + 0.4) * 0.6 + Math.sin(rig.elapsedTime * 97.0) * 0.4) * trem * 0.0032 : 0;
     const sinInc = Math.sin(cam.inclination + tremInc);
     const cosInc = Math.cos(cam.inclination + tremInc);
     const sinAz = Math.sin(cam.azimuth + tremAz);
     const cosAz = Math.cos(cam.azimuth + tremAz);
 
-    scratchCamPos.set(
-      cam.distance * sinInc * sinAz,
-      cam.distance * cosInc,
-      cam.distance * sinInc * cosAz,
-    );
+    scratchCamPos.set(cam.distance * sinInc * sinAz, cam.distance * cosInc, cam.distance * sinInc * cosAz);
 
     scratchForward.copy(scratchCamPos).negate().normalize();
     scratchRight.crossVectors(scratchForward, scratchWorldUp);
-    if (scratchRight.lengthSq() < 1e-6) {
-      scratchRight.set(1, 0, 0);
-    } else {
-      scratchRight.normalize();
-    }
+    if (scratchRight.lengthSq() < 1e-6) scratchRight.set(1, 0, 0);
+    else scratchRight.normalize();
     scratchUp.crossVectors(scratchRight, scratchForward).normalize();
 
     if (cam.roll !== 0) {
@@ -225,7 +199,20 @@ export function BlackHolePass() {
     (u.uResolution.value as Vector2).set(size.width, size.height);
     u.uMaxSteps.value = cam.steps;
     u.uTime.value = t;
-    u.uDiskTime.value = diskTimeRef.current;
+    const rawA = diskTimeRef.current * 0.042;
+    const phaseA = rawA - Math.floor(rawA);
+    const rawB = rawA + 0.5;
+    const phaseB = rawB - Math.floor(rawB);
+    const wB = 0.5 + 0.5 * Math.cos(phaseA * 6.2831853);
+    const wA = 1.0 - wB;
+    const invNorm = 1.0 / Math.sqrt(wA * wA + wB * wB);
+    (u.uDiskFlow.value as Vector4).set((phaseA - 0.5) / 0.042, (phaseB - 0.5) / 0.042, wA * invNorm, wB * invNorm);
+    const rot = Math.sin(t * 0.035) * 0.022;
+    (u.uSkyRot.value as Vector2).set(Math.cos(rot), Math.sin(rot));
+    const glintTheta = ((t * 0.19) % 6.2831853) - Math.PI;
+    const glintWave = Math.max(0.0, Math.sin(t * 0.28 + 0.9));
+    (u.uRingAnim.value as Vector3).set(0.72 + 0.28 * Math.sin(t * 0.34), glintTheta, Math.pow(glintWave, 6.0) * 0.75);
+    u.uDiskQuality.value = profile.simplifiedDisk ? 0.0 : 1.0;
     u.uDopplerStrength.value = cam.dopplerStrength;
     u.uHold.value = rig.sealHold;
     u.uMode.value = rig.forkMode;

@@ -31,36 +31,31 @@ export const blackHoleDiskGlsl = /* glsl */ `
     return sum;
   }
 
-  // C1-smooth two-phase Keplerian differential shear (period ~ r^1.5; ISCO ~7.7s, outer ~12x slower)
-  float sampleDiskStructure(float r, float phi, float time, bool isTopFace) {
+  // C1-smooth two-phase Keplerian differential shear driven by CPU-precomputed uDiskFlow
+  float sampleDiskStructure(float r, float phi, bool isTopFace) {
     float rClamped = max(r, 2.85);
     float omega = 0.82 * pow(rClamped / 3.0, -1.5);
     float logR = log(rClamped / 3.0);
 
-    float phaseA = fract(time * 0.042);
-    float phaseB = fract(time * 0.042 + 0.5);
-    float wB = 0.5 + 0.5 * cos(phaseA * 6.2831853);
-    float wA = 1.0 - wB;
-    float invNorm = inversesqrt(wA * wA + wB * wB);
-
-    float span = 1.0 / 0.042;
-    float angleOffsetA = (phaseA - 0.5) * omega * span;
-    float angleOffsetB = (phaseB - 0.5) * omega * span;
+    float angleOffsetA = uDiskFlow.x * omega;
+    float angleOffsetB = uDiskFlow.y * omega;
+    float wANorm = uDiskFlow.z;
+    float wBNorm = uDiskFlow.w;
 
     float density = 0.0;
-    if (isTopFace) {
+    if (isTopFace && uDiskQuality > 0.5) {
       float blurArc = clamp(0.11 * pow(3.2 / rClamped, 1.15), 0.012, 0.13);
       for (int k = -1; k <= 1; k++) {
         float dPhi = float(k) * blurArc;
         float nA = diskFbm(logR, phi - angleOffsetA + dPhi, logR * 2.15);
         float nB = diskFbm(logR, phi - angleOffsetB + dPhi, logR * 2.15);
-        density += clamp(0.47 + ((nA - 0.47) * wA + (nB - 0.47) * wB) * invNorm, 0.0, 1.0);
+        density += clamp(0.47 + (nA - 0.47) * wANorm + (nB - 0.47) * wBNorm, 0.0, 1.0);
       }
       density *= 0.333333;
     } else {
       float nA = diskFbm(logR, phi - angleOffsetA, logR * 2.15);
       float nB = diskFbm(logR, phi - angleOffsetB, logR * 2.15);
-      density = clamp(0.47 + ((nA - 0.47) * wA + (nB - 0.47) * wB) * invNorm, 0.0, 1.0);
+      density = clamp(0.47 + (nA - 0.47) * wANorm + (nB - 0.47) * wBNorm, 0.0, 1.0);
     }
 
     float rings = 0.68 + 0.32 * sin(logR * 25.0 + density * 4.4);
@@ -124,7 +119,7 @@ export const blackHoleDiskGlsl = /* glsl */ `
 
     float phiDisk = atan(pCross.z, pCross.x);
     float dirSign = mix(1.0, -0.55, clamp(-uMode, 0.0, 1.0) * uHue) + clamp(uMode, 0.0, 1.0) * uHue * 0.9;
-    float structure = sampleDiskStructure(rCross, phiDisk, uDiskTime, isTopFace);
+    float structure = sampleDiskStructure(rCross, phiDisk, isTopFace);
 
     vec3 gasDir = normalize(vec3(pCross.z, 0.0, -pCross.x)) * sign(dirSign);
     float vOrb = sqrt(0.5 / max(rCross, 1.5));

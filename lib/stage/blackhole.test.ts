@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   ANALYTIC_B_START,
@@ -10,6 +12,7 @@ import {
   impactParameterFromAngle,
   traceGeodesicCpu,
 } from '@/components/stage/blackhole/constants';
+import { blackHoleFragmentShader } from '@/components/stage/shaders/blackhole.glsl';
 import { blackHoleDiskGlsl } from '@/components/stage/shaders/blackholeDisk.glsl';
 
 describe('Schwarzschild constants & null geodesic integrator', () => {
@@ -72,12 +75,15 @@ describe('Schwarzschild constants & null geodesic integrator', () => {
     expect(Math.abs(rk.phiEsc - analyticPhi)).toBeLessThan(0.005);
   });
 
-  it('uses C1-continuous variance-preserving two-phase flow weights and integrated uDiskTime', () => {
-    expect(blackHoleDiskGlsl).toContain('0.5 + 0.5 * cos(phaseA * 6.2831853)');
-    expect(blackHoleDiskGlsl).not.toContain('0.5 - 0.5 * cos(phaseA * 6.2831853)');
-    expect(blackHoleDiskGlsl).toContain('inversesqrt(wA * wA + wB * wB)');
-    expect(blackHoleDiskGlsl).toContain('sampleDiskStructure(rCross, phiDisk, uDiskTime, isTopFace)');
+  it('uses C1-continuous variance-preserving two-phase flow weights, analytical crossings, and integrated uDiskTime', () => {
+    const passSrc = fs.readFileSync(
+      path.join(process.cwd(), 'components/stage/BlackHolePass.tsx'),
+      'utf8',
+    );
+    expect(passSrc).toContain('0.5 + 0.5 * Math.cos(phaseA * 6.2831853)');
+    expect(blackHoleDiskGlsl).toContain('uDiskFlow.x * omega');
     expect(blackHoleDiskGlsl).not.toContain('uTime * dirSign');
+    expect(blackHoleFragmentShader).toContain('kNext > kPrev');
 
     for (const phaseA of [0, 0.25, 0.5, 0.75, 1]) {
       const wB = 0.5 + 0.5 * Math.cos(phaseA * 2 * Math.PI);

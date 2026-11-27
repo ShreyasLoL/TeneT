@@ -28,7 +28,10 @@ export const blackHoleFragmentShader = /* glsl */ `
   uniform samplerCube uSkyCube;
 
   uniform float uTime;
-  uniform float uDiskTime;
+  uniform vec4 uDiskFlow;
+  uniform float uDiskQuality;
+  uniform vec2 uSkyRot;
+  uniform vec3 uRingAnim;
   uniform float uDopplerStrength;
   uniform float uHold;
   uniform float uMode;
@@ -89,7 +92,9 @@ export const blackHoleFragmentShader = /* glsl */ `
     float u = u0;
     float du = cosAlpha / max(b, 1e-5);
     float phi = 0.0;
-    vec3 pPrev = e1;
+    float yAmp = length(vec2(e1.y, e2.y));
+    float phiY0 = yAmp > 1e-5 ? atan(e1.y, e2.y) : 0.0;
+    float kPrev = floor(phiY0 / PI);
     captured = false;
     bool escaped = false;
     int crossings = 0;
@@ -121,17 +126,20 @@ export const blackHoleFragmentShader = /* glsl */ `
       float uNext = u + (h / 6.0) * (k1u + 2.0 * k2u + 2.0 * k3u + k4u);
       float duNext = du + (h / 6.0) * (k1du + 2.0 * k2du + 2.0 * k3du + k4du);
       float phiNext = phi + h;
-      vec3 pNext = cos(phiNext) * e1 + sin(phiNext) * e2;
+      float kNext = floor((phiNext + phiY0) / PI);
 
-      if (crossings < 3 && pPrev.y * pNext.y <= 0.0 && pPrev.y != pNext.y) {
-        float tCross = clamp(abs(pPrev.y) / max(abs(pPrev.y) + abs(pNext.y), 1e-6), 0.0, 1.0);
+      if (crossings < 3 && yAmp > 1e-5 && kNext > kPrev && uDiskReveal > 0.001) {
+        float phiCross = kNext * PI - phiY0;
+        float tCross = clamp((phiCross - phi) / max(h, 1e-6), 0.0, 1.0);
         float uCross = mix(u, uNext, tCross);
         float rCross = 1.0 / max(uCross, 1e-4);
         if (rCross >= 2.75 && rCross <= 17.8) {
-          float phiCross = phi + h * tCross;
-          vec3 pCross = normalize(cos(phiCross) * e1 + sin(phiCross) * e2);
-          vec3 rdCross = normalize(pNext / max(uNext, 1e-4) - pPrev / max(u, 1e-4));
-          bool isTopFace = (pPrev.y > 0.0) && (phiCross < 3.35);
+          float cPhi = cos(phiCross);
+          float sPhi = sin(phiCross);
+          vec3 pCross = cPhi * e1 + sPhi * e2;
+          float duCross = mix(du, duNext, tCross);
+          vec3 rdCross = normalize((-duCross / max(uCross, 1e-4)) * pCross + (-sPhi * e1 + cPhi * e2));
+          bool isTopFace = (abs(mod(kNext, 2.0) - 1.0) < 0.5) && (phiCross < 3.35);
           mediump vec3 emit;
           float opac;
           evalDiskCrossing(rCross, pCross, rdCross, isTopFace, emit, opac);
@@ -144,8 +152,9 @@ export const blackHoleFragmentShader = /* glsl */ `
           crossings++;
         }
       }
+      kPrev = kNext;
 
-      if (uNext >= 1.0) {
+      if (uNext >= 1.0 || (uNext > 0.37 && duNext > 0.0 && b < uShadowBc * 0.98)) {
         captured = true;
         phi = phiNext;
         break;
@@ -160,7 +169,6 @@ export const blackHoleFragmentShader = /* glsl */ `
       u = uNext;
       du = duNext;
       phi = phiNext;
-      pPrev = pNext;
     }
 
     if (!captured && !escaped && du < -1e-5) {
@@ -219,9 +227,8 @@ export const blackHoleFragmentShader = /* glsl */ `
 
     vec3 dLensed = normalize(mix(rd, dOut, clamp(uLensStrength, 0.0, 1.0)));
     vec3 dStar = mix(dLensed, rd, smoothstep(5.2, 17.5, b) * 0.46);
-    float rot = sin(uTime * 0.035) * 0.022;
-    float cr = cos(rot);
-    float sr = sin(rot);
+    float cr = uSkyRot.x;
+    float sr = uSkyRot.y;
     vec3 rotStar = vec3(dStar.x * cr + dStar.z * sr, dStar.y, -dStar.x * sr + dStar.z * cr);
     vec3 skyDx = dFdx(rotStar);
     vec3 skyDy = dFdy(rotStar);
@@ -234,13 +241,12 @@ export const blackHoleFragmentShader = /* glsl */ `
     skyCol *= 1.0 + einsteinFocus * 0.65 * clamp(uLensStrength, 0.0, 1.0);
 
     float posPx = max(dPx, 0.0);
-    float breathe = 0.72 + 0.28 * sin(uTime * 0.34);
+    float breathe = uRingAnim.x;
     float ringCore = outsideShadow * exp(-posPx * 1.15);
     float ringFringe = outsideShadow * exp(-max(posPx - 0.35, 0.0) * 0.22);
     float thetaScreen = atan(ndc.y, ndc.x);
-    float glintTheta = mod(uTime * 0.19, 6.2831853) - PI;
-    float dAng = abs(atan(sin(thetaScreen - glintTheta), cos(thetaScreen - glintTheta)));
-    float glint = exp(-dAng * dAng * 32.0) * ringCore * pow(max(0.0, sin(uTime * 0.28 + 0.9)), 6.0) * 0.75;
+    float dAng = abs(atan(sin(thetaScreen - uRingAnim.y), cos(thetaScreen - uRingAnim.y)));
+    float glint = exp(-dAng * dAng * 32.0) * ringCore * uRingAnim.z;
 
     float dopplerScreen = clamp(-ndc.x * 2.2, -1.0, 1.0);
     mediump vec3 pinkOrchid = mix(uAccent, vec3(0.96, 0.56, 0.80), 0.42);
@@ -261,8 +267,10 @@ export const blackHoleFragmentShader = /* glsl */ `
     mediump vec3 linearCol = diskCol * uDiskReveal + effTrans * backCol;
 
     if (uOutputSrgb > 0.5) {
-      linearCol = linearCol / (vec3(1.0) + max(linearCol - vec3(0.85), vec3(0.0)) * 0.45);
-      fragColor = vec4(linearToSrgbExact(linearCol), 1.0);
+      vec2 vigUv = vUv - vec2(0.5);
+      float vig = clamp(1.0 - dot(vigUv, vigUv) * 0.72, 0.0, 1.0);
+      vec3 mapped = (linearCol * (2.51 * linearCol + 0.03)) / (linearCol * (2.43 * linearCol + 0.59) + 0.14);
+      fragColor = vec4(linearToSrgbExact(clamp(mapped, vec3(0.0), vec3(1.0)) * vig), 1.0);
     } else {
       fragColor = vec4(linearCol, 1.0);
     }
