@@ -108,6 +108,7 @@ export function DeepStars() {
       uBrightness: { value: rig.introSky > 0.5 ? 1 : 0 },
       uLensStrength: { value: rig.introLens },
       uShadowReveal: { value: rig.introShadow },
+      uDiskReveal: { value: rig.introDisk },
     }),
     [],
   );
@@ -174,6 +175,7 @@ export function DeepStars() {
     u.uRoll.value = cam.roll;
     u.uLensStrength.value = rig.introLens;
     u.uShadowReveal.value = rig.introShadow;
+    u.uDiskReveal.value = rig.introDisk;
     const skyScale =
       rig.introSky > 1.0
         ? Math.min(2.2, 1.0 + (rig.introSky - 1.0) * 0.65)

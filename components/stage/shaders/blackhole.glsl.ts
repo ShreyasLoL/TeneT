@@ -216,7 +216,7 @@ export const blackHoleFragmentShader = /* glsl */ `
       fgBeltMask
     );
 
-    vec3 dLensed = normalize(mix(rd, dOut, uLensStrength));
+    vec3 dLensed = normalize(mix(rd, dOut, clamp(uLensStrength, 0.0, 1.0)));
     vec3 dStar = mix(dLensed, rd, smoothstep(5.2, 17.5, b) * 0.46);
     float rot = sin(uTime * 0.035) * 0.022;
     float cr = cos(rot);
@@ -230,7 +230,7 @@ export const blackHoleFragmentShader = /* glsl */ `
 
     mediump vec3 skyCol = textureGrad(uSkyCube, rotStar, skyDx, skyDy).rgb;
     float einsteinFocus = outsideShadow * exp(-pow((b - 3.65) / 1.15, 2.0));
-    skyCol *= 1.0 + einsteinFocus * 0.65 * uLensStrength;
+    skyCol *= 1.0 + einsteinFocus * 0.65 * clamp(uLensStrength, 0.0, 1.0);
 
     float posPx = max(dPx, 0.0);
     float breathe = 0.72 + 0.28 * sin(uTime * 0.34);

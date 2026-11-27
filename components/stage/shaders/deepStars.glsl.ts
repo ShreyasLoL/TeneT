@@ -14,6 +14,7 @@ export const deepStarsVertexShader = /* glsl */ `
   uniform float uBrightness;
   uniform float uLensStrength;
   uniform float uShadowReveal;
+  uniform float uDiskReveal;
 
   out float vAlpha;
   out float vTemp;
@@ -55,8 +56,9 @@ export const deepStarsVertexShader = /* glsl */ `
     float ndcY = dot(lensedDir, uCamUp) / (zCam * uTanHalfFov);
 
     float uRatio = thetaE > 1e-4 ? beta / thetaE : 100.0;
-    float tangentialStretch = mix(1.0, clamp(thetaPlus / max(beta, 0.025), 1.0, 2.8), uLensStrength);
-    float magBoost = mix(1.0, clamp(1.0 + 0.55 * exp(-uRatio * uRatio * 0.9), 1.0, 1.65), uLensStrength);
+    float lensArc = clamp(uLensStrength, 0.0, 1.3);
+    float tangentialStretch = mix(1.0, clamp(thetaPlus / max(beta, 0.025), 1.0, 2.8), lensArc);
+    float magBoost = mix(1.0, clamp(1.0 + 0.55 * exp(-uRatio * uRatio * 0.9), 1.0, 1.65), lensArc);
 
     vec2 pScreen = vec2(ndcX * uAspect, ndcY);
     vec2 screenRad = length(pScreen) > 1e-5 ? normalize(pScreen) : vec2(1.0, 0.0);
@@ -66,8 +68,8 @@ export const deepStarsVertexShader = /* glsl */ `
     float rs = sin(-uRoll);
     vec2 pDisk = vec2(pScreen.x * rc - pScreen.y * rs, pScreen.x * rs + pScreen.y * rc);
     float diskBox = abs(pDisk.y) + max(0.0, abs(pDisk.x) - 0.92) * 0.58;
-    float shadowCut = mix(1.0, smoothstep(0.32, 0.46, length(pScreen)), uShadowReveal);
-    float diskCut = mix(1.0, smoothstep(0.055, 0.145, diskBox), smoothstep(0.0, 0.45, uLensStrength));
+    float shadowCut = mix(1.0, smoothstep(0.28, 0.42, length(pScreen)), uShadowReveal);
+    float diskCut = mix(1.0, smoothstep(0.055, 0.145, diskBox), smoothstep(0.05, 0.55, uDiskReveal));
     float bhClear = shadowCut * diskCut;
 
     float twinkle = 0.88 + 0.12 * sin(uTime * 0.85 + aSeed.z * 6.2831853);
