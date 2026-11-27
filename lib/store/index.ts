@@ -4,6 +4,7 @@ import { dayKey } from '@/lib/domain/day';
 import type { DayKey } from '@/lib/domain/types';
 
 export type Mode = 'fork' | 'ritual' | 'orbit' | 'week' | 'time' | 'area';
+export type RetrogradeViewMode = 'dial' | 'matrix' | 'constellation' | 'editorial';
 
 export type Selection =
   | { kind: 'ring'; day: DayKey }
@@ -41,6 +42,7 @@ export interface TenetStore {
   quality: QualityState;
   alwaysAlive: boolean;
   soundEnabled: boolean;
+  retrogradeView: RetrogradeViewMode;
   rolloverNotice: string | null;
   offlineOutboxCount: number;
   isOffline: boolean;
@@ -59,12 +61,14 @@ export interface TenetStore {
   setLowPower: (lowPower: boolean) => void;
   setAlwaysAlive: (alwaysAlive: boolean) => void;
   setSoundEnabled: (enabled: boolean) => void;
+  setRetrogradeView: (view: RetrogradeViewMode) => void;
   setRolloverNotice: (notice: string | null) => void;
   setOfflineState: (isOffline: boolean, outboxCount: number) => void;
   setPaletteOpen: (open: boolean) => void;
 }
 
 const LOW_POWER_KEY = 'tenet.lowPower';
+const RETROGRADE_VIEW_KEY = 'tenet.retrogradeView';
 
 function readInitialLowPower(): boolean {
   if (typeof window === 'undefined') return false;
@@ -72,6 +76,19 @@ function readInitialLowPower(): boolean {
     return window.localStorage.getItem(LOW_POWER_KEY) === '1';
   } catch {
     return false;
+  }
+}
+
+function readInitialRetrogradeView(): RetrogradeViewMode {
+  if (typeof window === 'undefined') return 'dial';
+  try {
+    const val = window.localStorage.getItem(RETROGRADE_VIEW_KEY);
+    if (val === 'dial' || val === 'matrix' || val === 'constellation' || val === 'editorial') {
+      return val;
+    }
+    return 'dial';
+  } catch {
+    return 'dial';
   }
 }
 
@@ -110,6 +127,7 @@ export const useTenetStore = create<TenetStore>()(
     },
     alwaysAlive: false,
     soundEnabled: false,
+    retrogradeView: readInitialRetrogradeView(),
     rolloverNotice: null,
     offlineOutboxCount: 0,
     isOffline: false,
@@ -150,6 +168,16 @@ export const useTenetStore = create<TenetStore>()(
     },
     setAlwaysAlive: (alwaysAlive) => set({ alwaysAlive }),
     setSoundEnabled: (soundEnabled) => set({ soundEnabled }),
+    setRetrogradeView: (retrogradeView) => {
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem(RETROGRADE_VIEW_KEY, retrogradeView);
+        } catch {
+          // ignore storage failure
+        }
+      }
+      set({ retrogradeView });
+    },
     setRolloverNotice: (rolloverNotice) => set({ rolloverNotice }),
     setOfflineState: (isOffline, offlineOutboxCount) =>
       set({ isOffline, offlineOutboxCount }),
