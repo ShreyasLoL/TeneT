@@ -34,32 +34,40 @@ const STENCIL_STARS: ReadonlyArray<{
   fill: string;
   opacity: number;
 }> = [
-  { cx: 24, cy: 7, r: 0.9, fill: '#FFFFFF', opacity: 0.95 },
-  { cx: 31, cy: 15, r: 0.65, fill: '#D8ECFF', opacity: 0.85 },
-  { cx: 39, cy: 9, r: 0.55, fill: '#F0B8FF', opacity: 0.8 },
-  { cx: 47, cy: 14, r: 0.85, fill: '#FFFFFF', opacity: 0.92 },
-  { cx: 56, cy: 8, r: 0.6, fill: '#D8ECFF', opacity: 0.82 },
-  { cx: 64, cy: 16, r: 0.95, fill: '#FFE8BA', opacity: 0.95 },
-  { cx: 73, cy: 10, r: 0.55, fill: '#F0B8FF', opacity: 0.78 },
-  { cx: 81, cy: 13, r: 0.75, fill: '#FFFFFF', opacity: 0.9 },
-  { cx: 89, cy: 7, r: 0.65, fill: '#FFE8BA', opacity: 0.88 },
-  { cx: 97, cy: 16, r: 0.9, fill: '#FFFFFF', opacity: 0.96 },
-  { cx: 105, cy: 9, r: 0.7, fill: '#FFE8BA', opacity: 0.92 },
-  { cx: 113, cy: 14, r: 1.0, fill: '#FFFFFF', opacity: 1.0 },
-  { cx: 121, cy: 8, r: 0.65, fill: '#FFE8BA', opacity: 0.9 },
-  { cx: 129, cy: 15, r: 0.8, fill: '#FFFFFF', opacity: 0.94 },
-  { cx: 137, cy: 10, r: 0.6, fill: '#FFE8BA', opacity: 0.85 },
-  { cx: 145, cy: 16, r: 0.9, fill: '#FFFFFF', opacity: 0.92 },
-  { cx: 153, cy: 8, r: 0.65, fill: '#D8ECFF', opacity: 0.84 },
-  { cx: 161, cy: 13, r: 0.75, fill: '#FFFFFF', opacity: 0.9 },
-  { cx: 169, cy: 7, r: 0.55, fill: '#D8ECFF', opacity: 0.8 },
-  { cx: 177, cy: 15, r: 0.95, fill: '#FFFFFF', opacity: 0.95 },
-  { cx: 185, cy: 9, r: 0.6, fill: '#F0B8FF', opacity: 0.82 },
-  { cx: 193, cy: 14, r: 0.8, fill: '#D8ECFF', opacity: 0.9 },
-  { cx: 201, cy: 8, r: 0.65, fill: '#FFFFFF', opacity: 0.88 },
-  { cx: 208, cy: 16, r: 0.7, fill: '#D8ECFF', opacity: 0.86 },
-  { cx: 215, cy: 10, r: 0.9, fill: '#FFFFFF', opacity: 0.95 },
-  { cx: 221, cy: 14, r: 0.6, fill: '#FFE8BA', opacity: 0.84 },
+  { cx: 21, cy: 8, r: 0.75, fill: '#FFFFFF', opacity: 0.92 },
+  { cx: 26, cy: 15, r: 0.5, fill: '#C6DFFF', opacity: 0.78 },
+  { cx: 32, cy: 10, r: 0.9, fill: '#FFFFFF', opacity: 0.98 },
+  { cx: 38, cy: 16, r: 0.48, fill: '#F4DAA8', opacity: 0.72 },
+  { cx: 44, cy: 7, r: 0.65, fill: '#C6DFFF', opacity: 0.85 },
+  { cx: 50, cy: 13, r: 0.82, fill: '#FFFFFF', opacity: 0.95 },
+  { cx: 56, cy: 9, r: 0.5, fill: '#FFFFFF', opacity: 0.76 },
+  { cx: 63, cy: 16, r: 0.88, fill: '#F4DAA8', opacity: 0.85 },
+  { cx: 69, cy: 8, r: 0.55, fill: '#C6DFFF', opacity: 0.8 },
+  { cx: 76, cy: 12, r: 0.72, fill: '#FFFFFF', opacity: 0.9 },
+  { cx: 82, cy: 17, r: 0.48, fill: '#FFFFFF', opacity: 0.74 },
+  { cx: 89, cy: 7, r: 0.68, fill: '#C6DFFF', opacity: 0.84 },
+  { cx: 95, cy: 14, r: 0.92, fill: '#FFFFFF', opacity: 0.98 },
+  { cx: 101, cy: 9, r: 0.52, fill: '#F4DAA8', opacity: 0.76 },
+  { cx: 108, cy: 16, r: 0.7, fill: '#FFFFFF', opacity: 0.88 },
+  { cx: 114, cy: 11, r: 0.95, fill: '#FFFFFF', opacity: 1.0 },
+  { cx: 120, cy: 7, r: 0.55, fill: '#C6DFFF', opacity: 0.82 },
+  { cx: 126, cy: 15, r: 0.75, fill: '#F4DAA8', opacity: 0.84 },
+  { cx: 133, cy: 9, r: 0.6, fill: '#FFFFFF', opacity: 0.85 },
+  { cx: 139, cy: 17, r: 0.85, fill: '#FFFFFF', opacity: 0.94 },
+  { cx: 145, cy: 8, r: 0.48, fill: '#C6DFFF', opacity: 0.72 },
+  { cx: 151, cy: 13, r: 0.9, fill: '#FFFFFF', opacity: 0.96 },
+  { cx: 158, cy: 7, r: 0.55, fill: '#F4DAA8', opacity: 0.75 },
+  { cx: 164, cy: 16, r: 0.68, fill: '#C6DFFF', opacity: 0.86 },
+  { cx: 171, cy: 10, r: 0.8, fill: '#FFFFFF', opacity: 0.92 },
+  { cx: 177, cy: 14, r: 0.48, fill: '#FFFFFF', opacity: 0.75 },
+  { cx: 184, cy: 8, r: 0.72, fill: '#C6DFFF', opacity: 0.88 },
+  { cx: 190, cy: 16, r: 0.9, fill: '#FFFFFF', opacity: 0.95 },
+  { cx: 196, cy: 9, r: 0.52, fill: '#F4DAA8', opacity: 0.78 },
+  { cx: 202, cy: 14, r: 0.75, fill: '#FFFFFF', opacity: 0.9 },
+  { cx: 208, cy: 7, r: 0.58, fill: '#C6DFFF', opacity: 0.82 },
+  { cx: 213, cy: 15, r: 0.85, fill: '#FFFFFF', opacity: 0.94 },
+  { cx: 218, cy: 10, r: 0.5, fill: '#F4DAA8', opacity: 0.72 },
+  { cx: 222, cy: 13, r: 0.68, fill: '#C6DFFF', opacity: 0.85 },
 ];
 
 export function readCurrentIstSeconds(): number {
@@ -158,23 +166,20 @@ export function IntroDial({
             aria-hidden="true"
           >
             <defs>
-              <linearGradient id="tenet-cosmos-sweep" x1="0%" y1="15%" x2="100%" y2="85%">
-                <stop offset="0%" stopColor="#9C84EB" />
-                <stop offset="22%" stopColor="#DF88C4" />
-                <stop offset="46%" stopColor="#FFF6E6" />
-                <stop offset="62%" stopColor="#F6BE68" />
-                <stop offset="78%" stopColor="#7ADBC2" />
-                <stop offset="100%" stopColor="#C2DFFF" />
+              <linearGradient id="tenet-cosmos-void" x1="0%" y1="15%" x2="100%" y2="85%">
+                <stop offset="0%" stopColor="#06070C" />
+                <stop offset="48%" stopColor="#101420" />
+                <stop offset="100%" stopColor="#080A11" />
               </linearGradient>
-              <radialGradient id="tenet-cosmos-core" cx="48%" cy="48%" r="36%">
-                <stop offset="0%" stopColor="#FFFBF2" stopOpacity={0.9} />
-                <stop offset="55%" stopColor="#F4B860" stopOpacity={0.45} />
-                <stop offset="100%" stopColor="#F4B860" stopOpacity={0} />
+              <radialGradient id="tenet-cosmos-starlight-cool" cx="28%" cy="42%" r="36%">
+                <stop offset="0%" stopColor="#7DA8E0" stopOpacity={0.22} />
+                <stop offset="55%" stopColor="#4A6B9C" stopOpacity={0.08} />
+                <stop offset="100%" stopColor="#4A6B9C" stopOpacity={0} />
               </radialGradient>
-              <radialGradient id="tenet-cosmos-nebula" cx="18%" cy="35%" r="34%">
-                <stop offset="0%" stopColor="#E04DEA" stopOpacity={0.42} />
-                <stop offset="60%" stopColor="#8C74D8" stopOpacity={0.2} />
-                <stop offset="100%" stopColor="#8C74D8" stopOpacity={0} />
+              <radialGradient id="tenet-cosmos-starlight-warm" cx="70%" cy="54%" r="32%">
+                <stop offset="0%" stopColor="#E2C288" stopOpacity={0.18} />
+                <stop offset="55%" stopColor="#8F7448" stopOpacity={0.06} />
+                <stop offset="100%" stopColor="#8F7448" stopOpacity={0} />
               </radialGradient>
               <mask id="tenet-night-stencil">
                 <rect width={240} height={24} fill="#000000" />
@@ -193,9 +198,9 @@ export function IntroDial({
               </mask>
             </defs>
             <g mask="url(#tenet-night-stencil)">
-              <rect width={240} height={24} fill="url(#tenet-cosmos-sweep)" />
-              <rect width={240} height={24} fill="url(#tenet-cosmos-nebula)" />
-              <rect width={240} height={24} fill="url(#tenet-cosmos-core)" />
+              <rect width={240} height={24} fill="url(#tenet-cosmos-void)" />
+              <rect width={240} height={24} fill="url(#tenet-cosmos-starlight-cool)" />
+              <rect width={240} height={24} fill="url(#tenet-cosmos-starlight-warm)" />
               {STENCIL_STARS.map((st, idx) => (
                 <circle
                   key={idx}
@@ -207,6 +212,20 @@ export function IntroDial({
                 />
               ))}
             </g>
+            <text
+              x={122}
+              y={16.5}
+              textAnchor="middle"
+              fill="none"
+              stroke="rgba(245, 243, 247, 0.34)"
+              strokeWidth={0.55}
+              fontFamily="var(--font-data), ui-monospace, SFMono-Regular, monospace"
+              fontSize={12}
+              fontWeight={700}
+              letterSpacing="0.34em"
+            >
+              NIGHT BEGINS
+            </text>
           </svg>
         </span>
       </div>
