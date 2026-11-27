@@ -78,7 +78,8 @@
     color: var(--text);
     font-family: var(--font-ui);
     color-scheme: dark;
-    overscroll-behavior-y: none;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior: none;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.14) var(--bg);
   }
@@ -87,7 +88,7 @@
     background-color: var(--bg);
     color: var(--text);
     font-family: var(--font-ui);
-    overscroll-behavior-y: none;
+    overscroll-behavior: none;
   }
 
   h1,
@@ -104,9 +105,11 @@
     touch-action: manipulation;
     -webkit-user-select: none;
     user-select: none;
+    -webkit-touch-callout: none;
   }
 
   @media (pointer: coarse) {
+
     input,
     textarea,
     select {

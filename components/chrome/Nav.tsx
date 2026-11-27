@@ -48,7 +48,7 @@ export function Nav() {
           <div className="flex items-center gap-4">
             <Link
               href="/"
-              className="inline-flex min-h-11 items-center gap-2.5 font-mono text-xs uppercase tracking-[0.22em] text-text transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:text-accent"
+              className="inline-flex min-h-11 items-center gap-2.5 rounded-sm font-mono text-xs uppercase tracking-[0.22em] text-text transition-[color,opacity,transform] duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:text-accent active:scale-[0.97] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <span className="inline-block size-2 rounded-full bg-accent" aria-hidden="true" />
               <span>{COPY.brand}</span>
@@ -61,10 +61,16 @@ export function Nav() {
                     key={item.href}
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
-                    className={`inline-flex min-h-10 items-center px-2.5 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] ${active ? 'text-accent' : 'text-text-dim hover:text-text'
+                    className={`relative inline-flex min-h-10 items-center rounded-sm px-2.5 font-mono text-[11px] uppercase tracking-[0.12em] transition-[color,opacity,transform] duration-[var(--duration-micro)] ease-[var(--ease-out)] active:opacity-75 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${active ? 'text-accent' : 'text-text-dim hover:text-text'
                       }`}
                   >
                     {item.label}
+                    {active ? (
+                      <span
+                        className="pointer-events-none absolute inset-x-2.5 bottom-1.5 h-px bg-accent"
+                        aria-hidden="true"
+                      />
+                    ) : null}
                   </Link>
                 );
               })}
@@ -84,7 +90,7 @@ export function Nav() {
               type="button"
               onClick={() => setPaletteOpen(true)}
               aria-label="Open command palette"
-              className="inline-flex min-h-10 min-w-11 items-center justify-center rounded-md border border-line bg-surface px-2.5 font-mono text-[11px] uppercase tracking-[0.12em] text-text-dim transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:text-text"
+              className="inline-flex min-h-10 min-w-11 items-center justify-center rounded-md border border-line bg-surface px-2.5 font-mono text-[11px] uppercase tracking-[0.12em] text-text-dim transition-[color,border-color,background-color,transform] duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:border-text-dim/50 hover:text-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               ⌘K
             </button>
@@ -99,7 +105,7 @@ export function Nav() {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
-                className={`inline-flex min-h-9 items-center px-2 font-mono text-[11px] uppercase tracking-[0.12em] ${active ? 'text-accent' : 'text-text-dim'
+                className={`inline-flex min-h-9 items-center rounded-sm px-2 font-mono text-[11px] uppercase tracking-[0.12em] transition-[color,opacity] duration-[var(--duration-micro)] ease-[var(--ease-out)] active:opacity-75 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${active ? 'text-accent' : 'text-text-dim'
                   }`}
               >
                 {item.label}
@@ -131,7 +137,7 @@ export function Nav() {
             <button
               type="button"
               onClick={() => setRolloverNotice(null)}
-              className="ml-4 text-[11px] uppercase tracking-[0.12em] text-text-faint hover:text-text"
+              className="ml-4 rounded-sm text-[11px] uppercase tracking-[0.12em] text-text-faint transition-[color,transform] duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:text-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               dismiss
             </button>

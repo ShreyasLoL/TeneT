@@ -16,7 +16,7 @@ export function LowPowerToggle() {
       aria-pressed={lowPower}
       title={COPY.status.lowPowerDetail}
       onClick={() => setLowPower(!lowPower)}
-      className={`min-h-9 px-2.5 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors duration-[var(--duration-micro)] ease-[var(--ease-out)] ${
+      className={`min-h-9 px-2.5 font-mono text-[11px] uppercase tracking-[0.12em] transition-[color,border-color,background-color,transform] duration-[var(--duration-micro)] ease-[var(--ease-out)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
         lowPower ? 'text-accent' : 'text-text-dim hover:text-text'
       }`}
     >
