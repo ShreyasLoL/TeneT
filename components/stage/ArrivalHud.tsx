@@ -8,9 +8,9 @@ import { useTenetStore } from '@/lib/store';
 import { rig, subscribeArrivalHud, triggerArrivalHud } from '@/lib/store/rig';
 import { expoBezierEase } from './expoBezier';
 
-const TOTAL_HUD_MS = 1350;
-const COUNT_MS = 720;
-const SCAN_MS = 860;
+const TOTAL_HUD_MS = 1280;
+const COUNT_MS = 620;
+const BEAM_MS = 520;
 
 export function ArrivalHud() {
   const { data: state } = useTenetState();
@@ -18,7 +18,7 @@ export function ArrivalHud() {
   const [activeKind, setActiveKind] = useState<'retrograde' | 'prograde' | null>(null);
 
   const frameRef = useRef<HTMLDivElement | null>(null);
-  const scanRef = useRef<HTMLDivElement | null>(null);
+  const beamRef = useRef<HTMLDivElement | null>(null);
   const countRef = useRef<HTMLSpanElement | null>(null);
   const stateRef = useRef(state);
 
@@ -63,26 +63,21 @@ export function ArrivalHud() {
       unsubClock = stageClock.subscribe((now) => {
         const elapsed = now - startAt;
         const frameEl = frameRef.current;
-        const scanEl = scanRef.current;
+        const beamEl = beamRef.current;
         const countEl = countRef.current;
 
         if (frameEl) {
-          const fadeIn = Math.min(1, elapsed / 160);
+          const fadeIn = Math.min(1, elapsed / 180);
           const fadeOut =
-            elapsed > TOTAL_HUD_MS - 300 ? Math.max(0, (TOTAL_HUD_MS - elapsed) / 300) : 1;
-          const op = Math.min(fadeIn, fadeOut);
-          frameEl.style.opacity = `${op.toFixed(3)}`;
-          const lift = (1 - expoBezierEase(Math.min(1, elapsed / 320))) * 8;
+            elapsed > TOTAL_HUD_MS - 260 ? Math.max(0, (TOTAL_HUD_MS - elapsed) / 260) : 1;
+          frameEl.style.opacity = Math.min(fadeIn, fadeOut).toFixed(3);
+          const lift = (1 - expoBezierEase(Math.min(1, elapsed / 280))) * 6;
           frameEl.style.transform = `translate3d(0, ${lift.toFixed(2)}px, 0)`;
         }
 
-        if (scanEl && frameEl) {
-          const scanT = Math.min(1, elapsed / SCAN_MS);
-          const h = frameEl.offsetHeight || 116;
-          const y = expoBezierEase(scanT) * h;
-          const scanAlpha = scanT < 0.85 ? 0.9 : Math.max(0, (1 - scanT) / 0.15) * 0.9;
-          scanEl.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
-          scanEl.style.opacity = `${scanAlpha.toFixed(3)}`;
+        if (beamEl) {
+          const beamScale = expoBezierEase(Math.min(1, elapsed / BEAM_MS));
+          beamEl.style.transform = `scaleX(${beamScale.toFixed(3)})`;
         }
 
         if (countEl) {
@@ -110,10 +105,8 @@ export function ArrivalHud() {
   if (!activeKind) return null;
 
   const isRetro = activeKind === 'retrograde';
-  const sectorLabel = isRetro
-    ? 'sector // retrograde · memory star'
-    : 'sector // prograde · ignition core';
-  const metricLabel = isRetro ? 'sealed orbits' : 'active vectors';
+  const sectorLabel = isRetro ? 'retrograde // orbit' : 'prograde // ritual';
+  const metricLabel = isRetro ? 'sealed nights' : 'active trackables';
 
   return (
     <div
@@ -123,27 +116,19 @@ export function ArrivalHud() {
       <div
         ref={frameRef}
         data-arrival-hud={activeKind}
-        className="relative w-full max-w-sm overflow-hidden border border-line bg-surface px-5 py-3.5 opacity-0 shadow-[0_16px_48px_rgba(0,0,0,0.9)]"
+        className="relative w-full max-w-xs overflow-hidden rounded-md border border-line bg-bg/92 px-4 py-3 opacity-0"
         style={{ willChange: 'transform, opacity' }}
       >
         <div
-          ref={scanRef}
-          className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-0"
-          style={{
-            background: isRetro
-              ? 'linear-gradient(90deg, transparent, rgba(124, 200, 248, 0.85), transparent)'
-              : 'linear-gradient(90deg, transparent, var(--accent), transparent)',
-            willChange: 'transform, opacity',
-          }}
+          ref={beamRef}
+          className={`pointer-events-none absolute inset-x-0 top-0 h-px origin-left ${
+            isRetro ? 'bg-text-dim/60' : 'bg-accent'
+          }`}
+          style={{ willChange: 'transform' }}
         />
 
-        <span className="pointer-events-none absolute top-0 left-0 h-2 w-2 border-t border-l border-text-dim/60" />
-        <span className="pointer-events-none absolute top-0 right-0 h-2 w-2 border-t border-r border-text-dim/60" />
-        <span className="pointer-events-none absolute bottom-0 left-0 h-2 w-2 border-b border-l border-text-dim/60" />
-        <span className="pointer-events-none absolute right-0 bottom-0 h-2 w-2 border-r border-b border-text-dim/60" />
-
         <div className="flex items-center justify-between gap-4">
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             <p
               className={`font-mono text-[10px] uppercase tracking-[0.18em] ${
                 isRetro ? 'text-text-dim' : 'text-accent'
@@ -151,14 +136,14 @@ export function ArrivalHud() {
             >
               {sectorLabel}
             </p>
-            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+            <p className="font-mono text-[10px] tracking-[0.12em] text-text-faint">
               {metricLabel}
             </p>
           </div>
 
           <span
             ref={countRef}
-            className={`font-mono text-3xl font-light tracking-tight tabular-nums ${
+            className={`border-l border-line pl-4 font-mono text-2xl font-light tracking-[-0.03em] tabular-nums ${
               isRetro ? 'text-text' : 'text-accent'
             }`}
           >
