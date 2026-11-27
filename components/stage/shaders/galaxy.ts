@@ -46,7 +46,8 @@ export const galaxyVertexShader = /* glsl */ `
     float theta = theta0 + uTime * diffOmega * modeSpin + uSpin * pow(rSafe / 2.4, -1.5) * 0.85;
 
     float rNorm = clamp((rBase - 1.05) / 12.75, 0.0, 1.0);
-    float r = rBase * (1.0 - retro * 0.24 + prog * 0.36);
+    float pull = smoothstep(0.0, 1.0, uIntro);
+    float r = rBase * mix(1.48, 1.0, pull) * (1.0 - retro * 0.24 + prog * 0.36);
 
     vec3 galPos = vec3(r * cos(theta), yOff, r * sin(theta));
     // Vertex-shader curl clumping along spiral arms & HII regions
@@ -91,7 +92,8 @@ export const galaxyVertexShader = /* glsl */ `
     gl_Position = projectionMatrix * mvPos;
 
     float outerFade = 1.0 - smoothstep(0.55, 1.0, rNorm);
-    float introFade = smoothstep(0.02, 0.38, uIntro);
+    float innerWait = mix(smoothstep(0.24, 0.78, uIntro), 1.0, smoothstep(0.26, 0.65, rNorm));
+    float introFade = smoothstep(0.10, 0.52, uIntro) * innerWait;
 
     vKind = kind;
     vRadiusNorm = rNorm;

@@ -74,7 +74,7 @@ export const particlesVertexShader = /* glsl */ `
     float quantizedRing = floor(a * 2.4 + 0.5) / 2.4;
     a = mix(a, quantizedRing * 0.85, retroWarp * 0.72);
     a *= mix(1.42, 1.0, max(retroWarp, progWarp)) * (1.0 + progWarp * (0.65 + aSeed.y * 0.95));
-    a *= 1.0 + cloudPuff * (0.55 + aSeed.y * 0.45);
+    a *= 1.0 + cloudPuff * (0.65 + aSeed.y * 0.45);
 
     float aRatio = max(0.22, a / A0);
     float omegaFactor = (inversesqrt(aRatio) / aRatio) * mix(1.25, 0.38, isShell);
@@ -140,7 +140,7 @@ export const particlesVertexShader = /* glsl */ `
     gl_PointSize = clamp(basePt * bodyBoost * depthScale * uDpr, 0.75 * uDpr, 5.2 * uDpr);
     gl_Position = projectionMatrix * mvPosition;
 
-    float introGlow = smoothstep(stagger * 1.8, 0.72 + stagger * 0.4, uIntro);
+    float introGlow = smoothstep(0.20 + stagger * 1.4, 0.78 + stagger * 0.3, uIntro);
     float radialFade = mix(pow(1.0 - clamp((a - R_IN * 1.42) / (R_SPAN * 1.42), 0.0, 1.0), 1.35), 0.22, isShell);
     radialFade = mix(radialFade, 0.78, max(retroWarp, progWarp) * 0.65);
 
