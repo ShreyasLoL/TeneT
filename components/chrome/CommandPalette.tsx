@@ -1,18 +1,31 @@
 'use client';
 
 import { Command } from 'cmdk';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError } from '@/lib/api/client';
 import { useLogEntry, useTenetState, useToday } from '@/lib/api/hooks';
 import { COPY } from '@/lib/copy';
 import { activeTrackables } from '@/lib/domain/schedule';
 import { validateTrackableValue } from '@/lib/domain/validateValue';
-import { useTenetStore } from '@/lib/store';
+import { type RetrogradeViewMode, useTenetStore } from '@/lib/store';
 import { resolveJumpPreview, resolveQuickLogPreview } from './paletteCommands';
+
+const RETROGRADE_VIEWS: ReadonlyArray<{
+  id: RetrogradeViewMode;
+  label: string;
+  keywords: string;
+  isDefault?: boolean;
+}> = [
+  { id: 'dial', label: 'retrograde: precision dial', keywords: 'dial clock ruler default', isDefault: true },
+  { id: 'matrix', label: 'retrograde: ephemeris matrix', keywords: 'matrix grid calendar weeks' },
+  { id: 'constellation', label: 'retrograde: constellation arc', keywords: 'stars constellation spiral arc' },
+  { id: 'editorial', label: 'retrograde: editorial tape', keywords: 'editorial tape list momentum' },
+];
 
 export default function CommandPalette() {
   const router = useRouter();
+  const pathname = usePathname();
   const today = useToday();
   const { data: state } = useTenetState();
   const logMutation = useLogEntry();
@@ -24,6 +37,8 @@ export default function CommandPalette() {
   const setLowPower = useTenetStore((s) => s.setLowPower);
   const alwaysAlive = useTenetStore((s) => s.alwaysAlive);
   const setAlwaysAlive = useTenetStore((s) => s.setAlwaysAlive);
+  const retrogradeView = useTenetStore((s) => s.retrogradeView);
+  const setRetrogradeView = useTenetStore((s) => s.setRetrogradeView);
 
   const [query, setQuery] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -199,6 +214,33 @@ export default function CommandPalette() {
                 <span>focus seal control</span>
                 <span className="text-text-faint">/log</span>
               </Command.Item>
+            </Command.Group>
+
+            <Command.Group heading="retrograde view" className="mb-2 text-[10px] uppercase tracking-[0.14em] text-text-faint">
+              {RETROGRADE_VIEWS.map((view) => {
+                const active = retrogradeView === view.id;
+                return (
+                  <Command.Item
+                    key={view.id}
+                    value={`${view.label} ${view.keywords}`}
+                    onSelect={() => {
+                      setRetrogradeView(view.id);
+                      close();
+                      if (!pathname.startsWith('/dashboard')) {
+                        router.push('/dashboard');
+                      }
+                    }}
+                    className="mt-0.5 flex cursor-pointer items-center justify-between rounded-md px-3 py-2 text-xs normal-case tracking-normal text-text-dim aria-selected:bg-bg aria-selected:text-text"
+                  >
+                    <span>{view.label}</span>
+                    {active ? (
+                      <span className="text-accent">active</span>
+                    ) : view.isDefault ? (
+                      <span className="text-text-faint">default</span>
+                    ) : null}
+                  </Command.Item>
+                );
+              })}
             </Command.Group>
 
             <Command.Group heading="settings" className="text-[10px] uppercase tracking-[0.14em] text-text-faint">
