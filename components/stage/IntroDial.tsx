@@ -34,40 +34,40 @@ const STENCIL_STARS: ReadonlyArray<{
   fill: string;
   opacity: number;
 }> = [
-  { cx: 21, cy: 8, r: 0.75, fill: '#FFFFFF', opacity: 0.92 },
-  { cx: 26, cy: 15, r: 0.5, fill: '#C6DFFF', opacity: 0.78 },
-  { cx: 32, cy: 10, r: 0.9, fill: '#FFFFFF', opacity: 0.98 },
-  { cx: 38, cy: 16, r: 0.48, fill: '#F4DAA8', opacity: 0.72 },
-  { cx: 44, cy: 7, r: 0.65, fill: '#C6DFFF', opacity: 0.85 },
-  { cx: 50, cy: 13, r: 0.82, fill: '#FFFFFF', opacity: 0.95 },
-  { cx: 56, cy: 9, r: 0.5, fill: '#FFFFFF', opacity: 0.76 },
-  { cx: 63, cy: 16, r: 0.88, fill: '#F4DAA8', opacity: 0.85 },
-  { cx: 69, cy: 8, r: 0.55, fill: '#C6DFFF', opacity: 0.8 },
-  { cx: 76, cy: 12, r: 0.72, fill: '#FFFFFF', opacity: 0.9 },
-  { cx: 82, cy: 17, r: 0.48, fill: '#FFFFFF', opacity: 0.74 },
-  { cx: 89, cy: 7, r: 0.68, fill: '#C6DFFF', opacity: 0.84 },
-  { cx: 95, cy: 14, r: 0.92, fill: '#FFFFFF', opacity: 0.98 },
-  { cx: 101, cy: 9, r: 0.52, fill: '#F4DAA8', opacity: 0.76 },
-  { cx: 108, cy: 16, r: 0.7, fill: '#FFFFFF', opacity: 0.88 },
-  { cx: 114, cy: 11, r: 0.95, fill: '#FFFFFF', opacity: 1.0 },
-  { cx: 120, cy: 7, r: 0.55, fill: '#C6DFFF', opacity: 0.82 },
-  { cx: 126, cy: 15, r: 0.75, fill: '#F4DAA8', opacity: 0.84 },
-  { cx: 133, cy: 9, r: 0.6, fill: '#FFFFFF', opacity: 0.85 },
-  { cx: 139, cy: 17, r: 0.85, fill: '#FFFFFF', opacity: 0.94 },
-  { cx: 145, cy: 8, r: 0.48, fill: '#C6DFFF', opacity: 0.72 },
-  { cx: 151, cy: 13, r: 0.9, fill: '#FFFFFF', opacity: 0.96 },
-  { cx: 158, cy: 7, r: 0.55, fill: '#F4DAA8', opacity: 0.75 },
-  { cx: 164, cy: 16, r: 0.68, fill: '#C6DFFF', opacity: 0.86 },
-  { cx: 171, cy: 10, r: 0.8, fill: '#FFFFFF', opacity: 0.92 },
-  { cx: 177, cy: 14, r: 0.48, fill: '#FFFFFF', opacity: 0.75 },
-  { cx: 184, cy: 8, r: 0.72, fill: '#C6DFFF', opacity: 0.88 },
-  { cx: 190, cy: 16, r: 0.9, fill: '#FFFFFF', opacity: 0.95 },
-  { cx: 196, cy: 9, r: 0.52, fill: '#F4DAA8', opacity: 0.78 },
-  { cx: 202, cy: 14, r: 0.75, fill: '#FFFFFF', opacity: 0.9 },
-  { cx: 208, cy: 7, r: 0.58, fill: '#C6DFFF', opacity: 0.82 },
-  { cx: 213, cy: 15, r: 0.85, fill: '#FFFFFF', opacity: 0.94 },
-  { cx: 218, cy: 10, r: 0.5, fill: '#F4DAA8', opacity: 0.72 },
-  { cx: 222, cy: 13, r: 0.68, fill: '#C6DFFF', opacity: 0.85 },
+  { cx: 21, cy: 8, r: 0.9, fill: '#FFFFFF', opacity: 0.96 },
+  { cx: 26, cy: 15, r: 0.65, fill: '#DCEEFF', opacity: 0.9 },
+  { cx: 32, cy: 10, r: 1.08, fill: '#FFFFFF', opacity: 1.0 },
+  { cx: 38, cy: 16, r: 0.58, fill: '#FFF0CE', opacity: 0.86 },
+  { cx: 44, cy: 7, r: 0.8, fill: '#DCEEFF', opacity: 0.92 },
+  { cx: 50, cy: 13, r: 0.95, fill: '#FFFFFF', opacity: 0.98 },
+  { cx: 56, cy: 9, r: 0.6, fill: '#FFFFFF', opacity: 0.88 },
+  { cx: 63, cy: 16, r: 1.02, fill: '#FFF0CE', opacity: 0.94 },
+  { cx: 69, cy: 8, r: 0.68, fill: '#DCEEFF', opacity: 0.9 },
+  { cx: 76, cy: 12, r: 0.88, fill: '#FFFFFF', opacity: 0.95 },
+  { cx: 82, cy: 17, r: 0.56, fill: '#FFFFFF', opacity: 0.85 },
+  { cx: 89, cy: 7, r: 0.82, fill: '#DCEEFF', opacity: 0.92 },
+  { cx: 95, cy: 14, r: 1.1, fill: '#FFFFFF', opacity: 1.0 },
+  { cx: 101, cy: 9, r: 0.62, fill: '#FFF0CE', opacity: 0.88 },
+  { cx: 108, cy: 16, r: 0.85, fill: '#FFFFFF', opacity: 0.94 },
+  { cx: 114, cy: 11, r: 1.15, fill: '#FFFFFF', opacity: 1.0 },
+  { cx: 120, cy: 7, r: 0.68, fill: '#DCEEFF', opacity: 0.9 },
+  { cx: 126, cy: 15, r: 0.9, fill: '#FFF0CE', opacity: 0.92 },
+  { cx: 133, cy: 9, r: 0.72, fill: '#FFFFFF', opacity: 0.94 },
+  { cx: 139, cy: 17, r: 1.0, fill: '#FFFFFF', opacity: 0.98 },
+  { cx: 145, cy: 8, r: 0.58, fill: '#DCEEFF', opacity: 0.86 },
+  { cx: 151, cy: 13, r: 1.08, fill: '#FFFFFF', opacity: 1.0 },
+  { cx: 158, cy: 7, r: 0.65, fill: '#FFF0CE', opacity: 0.88 },
+  { cx: 164, cy: 16, r: 0.82, fill: '#DCEEFF', opacity: 0.92 },
+  { cx: 171, cy: 10, r: 0.95, fill: '#FFFFFF', opacity: 0.96 },
+  { cx: 177, cy: 14, r: 0.58, fill: '#FFFFFF', opacity: 0.86 },
+  { cx: 184, cy: 8, r: 0.88, fill: '#DCEEFF', opacity: 0.94 },
+  { cx: 190, cy: 16, r: 1.05, fill: '#FFFFFF', opacity: 0.98 },
+  { cx: 196, cy: 9, r: 0.62, fill: '#FFF0CE', opacity: 0.9 },
+  { cx: 202, cy: 14, r: 0.9, fill: '#FFFFFF', opacity: 0.95 },
+  { cx: 208, cy: 7, r: 0.7, fill: '#DCEEFF', opacity: 0.92 },
+  { cx: 213, cy: 15, r: 1.0, fill: '#FFFFFF', opacity: 0.98 },
+  { cx: 218, cy: 10, r: 0.58, fill: '#FFF0CE', opacity: 0.85 },
+  { cx: 222, cy: 13, r: 0.8, fill: '#DCEEFF', opacity: 0.92 },
 ];
 
 export function readCurrentIstSeconds(): number {
@@ -162,36 +162,36 @@ export function IntroDial({
         >
           <svg
             viewBox="0 0 240 24"
-            className="h-[22px] w-[220px] sm:h-[24px] sm:w-[240px]"
+            className="h-[23px] w-[228px] sm:h-[26px] sm:w-[252px]"
             aria-hidden="true"
           >
             <defs>
-              <linearGradient id="tenet-cosmos-void" x1="0%" y1="15%" x2="100%" y2="85%">
-                <stop offset="0%" stopColor="#06070C" />
-                <stop offset="48%" stopColor="#101420" />
-                <stop offset="100%" stopColor="#080A11" />
+              <linearGradient id="tenet-cosmos-void" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#1F273B" />
+                <stop offset="45%" stopColor="#0B0E17" />
+                <stop offset="100%" stopColor="#06070C" />
               </linearGradient>
-              <radialGradient id="tenet-cosmos-starlight-cool" cx="28%" cy="42%" r="36%">
-                <stop offset="0%" stopColor="#7DA8E0" stopOpacity={0.22} />
-                <stop offset="55%" stopColor="#4A6B9C" stopOpacity={0.08} />
-                <stop offset="100%" stopColor="#4A6B9C" stopOpacity={0} />
+              <radialGradient id="tenet-cosmos-starlight-cool" cx="30%" cy="44%" r="34%">
+                <stop offset="0%" stopColor="#9CC8FF" stopOpacity={0.4} />
+                <stop offset="55%" stopColor="#4D73A8" stopOpacity={0.14} />
+                <stop offset="100%" stopColor="#4D73A8" stopOpacity={0} />
               </radialGradient>
-              <radialGradient id="tenet-cosmos-starlight-warm" cx="70%" cy="54%" r="32%">
-                <stop offset="0%" stopColor="#E2C288" stopOpacity={0.18} />
-                <stop offset="55%" stopColor="#8F7448" stopOpacity={0.06} />
-                <stop offset="100%" stopColor="#8F7448" stopOpacity={0} />
+              <radialGradient id="tenet-cosmos-starlight-warm" cx="72%" cy="50%" r="30%">
+                <stop offset="0%" stopColor="#F5D89C" stopOpacity={0.34} />
+                <stop offset="55%" stopColor="#9C7F4D" stopOpacity={0.12} />
+                <stop offset="100%" stopColor="#9C7F4D" stopOpacity={0} />
               </radialGradient>
               <mask id="tenet-night-stencil">
                 <rect width={240} height={24} fill="#000000" />
                 <text
                   x={122}
-                  y={16.5}
+                  y={17}
                   textAnchor="middle"
                   fill="#FFFFFF"
-                  fontFamily="var(--font-data), ui-monospace, SFMono-Regular, monospace"
-                  fontSize={12}
-                  fontWeight={700}
-                  letterSpacing="0.34em"
+                  fontFamily="var(--font-ui), ui-sans-serif, system-ui, sans-serif"
+                  fontSize={13.5}
+                  fontWeight={800}
+                  letterSpacing="0.30em"
                 >
                   NIGHT BEGINS
                 </text>
@@ -214,15 +214,15 @@ export function IntroDial({
             </g>
             <text
               x={122}
-              y={16.5}
+              y={17}
               textAnchor="middle"
               fill="none"
-              stroke="rgba(245, 243, 247, 0.34)"
-              strokeWidth={0.55}
-              fontFamily="var(--font-data), ui-monospace, SFMono-Regular, monospace"
-              fontSize={12}
-              fontWeight={700}
-              letterSpacing="0.34em"
+              stroke="rgba(232, 240, 255, 0.80)"
+              strokeWidth={0.75}
+              fontFamily="var(--font-ui), ui-sans-serif, system-ui, sans-serif"
+              fontSize={13.5}
+              fontWeight={800}
+              letterSpacing="0.30em"
             >
               NIGHT BEGINS
             </text>
