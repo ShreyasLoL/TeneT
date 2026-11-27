@@ -102,6 +102,8 @@ export const rig = {
   activityLevel: 'still' as 'burst' | 'ambient' | 'still',
   rendererName: 'unknown',
   isSoftwareRenderer: false,
+  gpuTier: 'high' as 'high' | 'mid' | 'low',
+  gpuReason: 'default',
   injectedFrameMs: 0,
 };
 

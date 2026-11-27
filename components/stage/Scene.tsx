@@ -3,9 +3,10 @@
 import { addEffect, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import { stageClock } from '@/lib/stage/clock';
+import { classifyGpuRenderer, parseTierOverride, tierToQualityPatch } from '@/lib/stage/gpuDetect';
 import { FrameGovernor } from '@/lib/stage/governor';
-import { inspectRenderer, type QualityLevel } from '@/lib/stage/tiers';
-import { useTenetStore } from '@/lib/store';
+import { inspectRenderer, isTouchDevice, type QualityLevel } from '@/lib/stage/tiers';
+import { hasManualLowPowerOverride, useTenetStore } from '@/lib/store';
 import { notifyCanvasReady, rig } from '@/lib/store/rig';
 import {
   CAMERA_INCLINATION_RAD,
@@ -45,10 +46,36 @@ export function Scene() {
   }, [cursor, invalidate, level, lowPower, mode, reducedMotion, size.height, size.width]);
 
   useEffect(() => {
-    governorRef.current = new FrameGovernor(level, performance.now());
-    const info = inspectRenderer(gl.getContext());
+    const now = performance.now();
+    governorRef.current = new FrameGovernor(level, now);
+    const glCtx = gl.getContext();
+    const info = inspectRenderer(glCtx);
+    const maxTextureSize = Number(glCtx.getParameter(glCtx.MAX_TEXTURE_SIZE) ?? 8192);
+    const report = classifyGpuRenderer(info.renderer, {
+      cores: typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : undefined,
+      deviceMemory:
+        typeof navigator !== 'undefined'
+          ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory
+          : undefined,
+      touch: isTouchDevice(),
+      maxTextureSize,
+    });
+
     rig.rendererName = info.renderer;
-    rig.isSoftwareRenderer = info.isSoftware;
+    rig.isSoftwareRenderer = report.isSoftware || info.isSoftware;
+    rig.gpuTier = report.tier;
+    rig.gpuReason = report.reason;
+
+    const override = parseTierOverride();
+    if (override) {
+      const patch = tierToQualityPatch(override);
+      governorRef.current.setLevel(patch.level, now);
+      setQuality(patch);
+    } else if (!hasManualLowPowerOverride()) {
+      const patch = tierToQualityPatch(report.tier);
+      governorRef.current.setLevel(patch.level, now);
+      setQuality(patch);
+    }
     invalidate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gl]);

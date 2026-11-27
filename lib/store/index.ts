@@ -75,6 +75,15 @@ function readInitialLowPower(): boolean {
   }
 }
 
+export function hasManualLowPowerOverride(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(LOW_POWER_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
 export function modeForPathname(pathname: string): Mode {
   if (pathname.startsWith('/log')) return 'ritual';
   if (pathname.startsWith('/dashboard')) return 'orbit';

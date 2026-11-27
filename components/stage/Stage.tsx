@@ -2,8 +2,9 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect } from 'react';
+import { parseTierOverride, tierToQualityPatch } from '@/lib/stage/gpuDetect';
 import { detectInitialLevel, detectWebGL2Support } from '@/lib/stage/tiers';
-import { useTenetStore } from '@/lib/store';
+import { hasManualLowPowerOverride, useTenetStore } from '@/lib/store';
 import { IntroWordmark } from './IntroWordmark';
 import { StageErrorBoundary } from './StageErrorBoundary';
 
@@ -18,10 +19,19 @@ export function Stage() {
 
   useEffect(() => {
     const hasWebGL2 = detectWebGL2Support();
+    const override = parseTierOverride();
+    if (override) {
+      const patch = tierToQualityPatch(override);
+      setQuality({
+        webgl: hasWebGL2 ? 'ok' : 'none',
+        ...patch,
+      });
+      return;
+    }
     const initial = detectInitialLevel();
     setQuality({
       webgl: hasWebGL2 ? 'ok' : 'none',
-      level: useTenetStore.getState().quality.lowPower ? 4 : initial,
+      level: hasManualLowPowerOverride() && useTenetStore.getState().quality.lowPower ? 4 : initial,
     });
   }, [setQuality]);
 

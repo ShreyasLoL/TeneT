@@ -40,32 +40,32 @@ export const LADDER_PROFILES: Record<QualityLevel, LadderProfile> = {
   2: {
     level: 2,
     particles: 9_500,
-    dprMax: 1.25,
+    dprMax: 1.2,
     bloom: false,
     mirror: false,
     grain: false,
-    lensMode: 'full',
-    simplifiedDisk: false,
+    lensMode: 'none',
+    simplifiedDisk: true,
   },
   3: {
     level: 3,
     particles: LOW_POWER_PARTICLES,
-    dprMax: 1.15,
+    dprMax: 1.0,
     bloom: false,
     mirror: false,
     grain: false,
-    lensMode: 'full',
+    lensMode: 'none',
     simplifiedDisk: true,
   },
   4: {
     level: 4,
     particles: LOW_POWER_PARTICLES,
-    dprMax: 1.15,
+    dprMax: 1.0,
     bloom: false,
     mirror: false,
     grain: false,
-    lensMode: 'full',
-    simplifiedDisk: false,
+    lensMode: 'none',
+    simplifiedDisk: true,
   },
 };
 
@@ -77,12 +77,12 @@ const TOUCH_LEVEL_0_PROFILE: LadderProfile = {
 const LOW_POWER_PROFILE: LadderProfile = {
   level: 4,
   particles: LOW_POWER_PARTICLES,
-  dprMax: 1.25,
+  dprMax: 1.0,
   bloom: false,
   mirror: false,
   grain: false,
-  lensMode: 'full',
-  simplifiedDisk: false,
+  lensMode: 'none',
+  simplifiedDisk: true,
 };
 
 export function profileForLevel(
