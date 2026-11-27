@@ -34,7 +34,6 @@ export function IntroWordmark() {
   const hairlineRef = useRef<HTMLDivElement | null>(null);
   const dialGroupRef = useRef<SVGGElement | null>(null);
   const tickRefs = useRef<Array<SVGLineElement | null>>([]);
-  const timerRingRef = useRef<SVGCircleElement | null>(null);
   const clockReadoutRef = useRef<HTMLSpanElement | null>(null);
   const nightBeginsRef = useRef<HTMLSpanElement | null>(null);
   const statusRef = useRef<HTMLSpanElement | null>(null);
@@ -116,7 +115,6 @@ export function IntroWordmark() {
         wordRef.current,
         hairlineRef.current,
         dialGroupRef.current,
-        timerRingRef.current,
         clockReadoutRef.current,
         nightBeginsRef.current,
         statusRef.current,
@@ -163,7 +161,6 @@ export function IntroWordmark() {
           hairlineEl: hairlineRef.current,
           dialGroupEl: dialGroupRef.current,
           ticks,
-          timerRingEl: timerRingRef.current,
           clockEl: clockReadoutRef.current,
           nightEl: nightBeginsRef.current,
           statusEl: statusRef.current,
@@ -225,7 +222,6 @@ export function IntroWordmark() {
           hairlineRef={hairlineRef}
           dialGroupRef={dialGroupRef}
           tickRefs={tickRefs}
-          timerRingRef={timerRingRef}
           clockReadoutRef={clockReadoutRef}
           nightBeginsRef={nightBeginsRef}
         />

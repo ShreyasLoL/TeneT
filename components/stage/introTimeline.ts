@@ -7,7 +7,7 @@ import {
   CAMERA_ROLL_RAD,
 } from './blackhole/constants';
 import { expoBezierEase } from './expoBezier';
-import { formatSecondsHms, readCurrentIstSeconds, TIMER_RING_CIRC } from './IntroDial';
+import { formatSecondsHms, readCurrentIstSeconds } from './IntroDial';
 
 export type IntroDomNodes = {
   assemblyEl: HTMLDivElement;
@@ -16,7 +16,6 @@ export type IntroDomNodes = {
   hairlineEl: HTMLDivElement | null;
   dialGroupEl: SVGGElement | null;
   ticks: SVGLineElement[];
-  timerRingEl: SVGCircleElement | null;
   clockEl: HTMLSpanElement | null;
   nightEl: HTMLSpanElement | null;
   statusEl: HTMLSpanElement | null;
@@ -34,7 +33,6 @@ export function buildIntroTimeline(
     hairlineEl,
     dialGroupEl,
     ticks,
-    timerRingEl,
     clockEl,
     nightEl,
     statusEl,
@@ -94,7 +92,6 @@ export function buildIntroTimeline(
   if (hairlineEl) gsap.set(hairlineEl, { scaleX: 0, rotation: -35, opacity: 0.88 });
   if (dialGroupEl) gsap.set(dialGroupEl, { scale: 1, opacity: 1, transformOrigin: '50% 50%' });
   if (ticks.length > 0) gsap.set(ticks, { opacity: 0 });
-  if (timerRingEl) gsap.set(timerRingEl, { opacity: 0, strokeDashoffset: TIMER_RING_CIRC });
   if (clockEl) {
     clockEl.textContent = '00:00:00 IST';
     gsap.set(clockEl, { y: 5, opacity: 0 });
@@ -161,10 +158,6 @@ export function buildIntroTimeline(
     tl.to(outerPair, { x: 0, scale: 1, opacity: 1, duration: 0.54 * s, ease: expoBezierEase }, 0.70 * s);
   }
 
-  if (timerRingEl) {
-    tl.to(timerRingEl, { opacity: 0.65, duration: 0.24 * s, ease: expoBezierEase }, 0.45 * s);
-    tl.to(timerRingEl, { strokeDashoffset: 0, duration: 1.15 * s, ease: expoBezierEase }, 0.45 * s);
-  }
   if (clockEl) {
     tl.to(clockEl, { y: 0, opacity: 1, duration: 0.36 * s, ease: expoBezierEase }, 0.48 * s);
     tl.to(

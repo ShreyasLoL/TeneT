@@ -2,9 +2,6 @@
 
 import type { MutableRefObject, RefObject } from 'react';
 
-export const TIMER_RING_R = 136;
-export const TIMER_RING_CIRC = 2 * Math.PI * TIMER_RING_R;
-
 type TickSpec = {
   x1: number;
   y1: number;
@@ -96,14 +93,12 @@ export function IntroDial({
   hairlineRef,
   dialGroupRef,
   tickRefs,
-  timerRingRef,
   clockReadoutRef,
   nightBeginsRef,
 }: {
   hairlineRef: RefObject<HTMLDivElement | null>;
   dialGroupRef: RefObject<SVGGElement | null>;
   tickRefs: MutableRefObject<Array<SVGLineElement | null>>;
-  timerRingRef: RefObject<SVGCircleElement | null>;
   clockReadoutRef: RefObject<HTMLSpanElement | null>;
   nightBeginsRef: RefObject<HTMLSpanElement | null>;
 }) {
@@ -121,7 +116,7 @@ export function IntroDial({
         }}
       />
 
-      {/* 60 radial clock ticks + thin timer ring around TENET */}
+      {/* 60 radial clock ticks around TENET */}
       <svg
         viewBox="-150 -150 300 300"
         className="pointer-events-none absolute size-[min(78vw,380px)] overflow-visible"
@@ -143,21 +138,6 @@ export function IntroDial({
             />
           ))}
         </g>
-
-        <circle
-          ref={timerRingRef}
-          cx={0}
-          cy={0}
-          r={TIMER_RING_R}
-          fill="none"
-          stroke="var(--accent)"
-          strokeOpacity={0.55}
-          strokeWidth={0.85}
-          strokeDasharray={TIMER_RING_CIRC}
-          strokeDashoffset={TIMER_RING_CIRC}
-          transform="rotate(-90)"
-          opacity={0}
-        />
       </svg>
 
       {/* Act I inside symmetrical dial: IST HH:MM:SS count-up + cosmic-stencil NIGHT BEGINS */}
