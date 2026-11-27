@@ -110,8 +110,8 @@ export function IntroDial({
           r={TIMER_RING_R}
           fill="none"
           stroke="var(--accent)"
-          strokeOpacity={0.78}
-          strokeWidth={1}
+          strokeOpacity={0.55}
+          strokeWidth={0.85}
           strokeDasharray={TIMER_RING_CIRC}
           strokeDashoffset={TIMER_RING_CIRC}
           transform="rotate(-90)"
@@ -119,17 +119,17 @@ export function IntroDial({
         />
       </svg>
 
-      {/* 2.0-3.2s: IST HH:MM:SS count-up + NIGHT BEGINS */}
-      <div className="pointer-events-none absolute flex translate-y-[3.95rem] flex-col items-center gap-1 text-center sm:translate-y-[4.55rem]">
+      {/* Act I inside symmetrical dial: IST HH:MM:SS count-up + NIGHT BEGINS */}
+      <div className="pointer-events-none absolute flex translate-y-[3.25rem] flex-col items-center gap-1 text-center sm:translate-y-[3.75rem]">
         <span
           ref={clockReadoutRef}
-          className="rounded-sm bg-[var(--bg)]/85 px-2.5 py-0.5 font-mono text-[11px] tracking-[0.22em] text-text opacity-0 tabular-nums sm:text-xs"
+          className="font-mono text-[11px] tracking-[0.24em] text-text/90 opacity-0 tabular-nums sm:text-xs"
         >
           00:00:00 IST
         </span>
         <span
           ref={nightBeginsRef}
-          className="rounded-sm bg-[var(--bg)]/85 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.28em] text-accent opacity-0"
+          className="font-mono text-[10px] font-medium uppercase tracking-[0.30em] text-accent/90 opacity-0"
         >
           night begins
         </span>
