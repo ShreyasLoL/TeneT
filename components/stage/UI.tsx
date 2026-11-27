@@ -48,7 +48,7 @@ export function UI({ children }: { children: ReactNode }) {
 
   return (
     <div
-      className={`relative z-10 flex min-h-dvh flex-col transition-opacity duration-[var(--duration-scene)] ease-[var(--ease-out)] ${
+      className={`relative z-10 flex min-h-dvh flex-col transition-opacity duration-[var(--duration-ui)] ease-[var(--ease-out)] ${
         showUi ? 'opacity-100' : 'pointer-events-none opacity-0'
       }`}
     >

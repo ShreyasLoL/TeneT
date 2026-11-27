@@ -95,28 +95,27 @@ export function ForkCard({
           onCancelHold();
         }
       }}
-      className={`group relative flex min-h-44 touch-none select-none flex-col items-start justify-between overflow-hidden rounded-md border p-5 text-left transition-[transform,border-color,color] duration-[var(--duration-ui)] ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-52 sm:p-6 ${
+      className={`group relative flex min-h-44 touch-none select-none flex-col items-start justify-between overflow-hidden rounded-md border p-5 text-left transition-[transform,border-color,color] duration-[var(--duration-micro)] ease-[var(--ease-out)] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-52 sm:p-6 ${
         holding
-          ? 'scale-[0.985]'
+          ? 'scale-[0.975]'
           : recoiling
-            ? 'translate-y-0.5 scale-[0.992]'
-            : 'hover:-translate-y-1'
+            ? 'translate-y-0.5 scale-[0.99]'
+            : 'hover:-translate-y-0.5'
       } ${
         primary
-          ? 'border-accent/55 bg-surface/92 text-text hover:border-accent'
-          : 'border-line bg-surface/82 text-text-dim hover:border-text-dim/65 hover:text-text'
+          ? 'border-accent/50 bg-surface/90 text-text hover:border-accent'
+          : 'border-line bg-bg/85 text-text-dim hover:border-text-dim/55 hover:text-text'
       }`}
     >
       <span
         aria-hidden="true"
-        className={`pointer-events-none absolute inset-0 transition-opacity duration-[var(--duration-ui)] ease-[var(--ease-out)] ${
-          holding ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'
+        className={`pointer-events-none absolute inset-x-0 top-0 h-px origin-left transition-transform duration-[var(--duration-ui)] ease-[var(--ease-out)] motion-reduce:transition-none ${
+          primary ? 'bg-accent' : 'bg-text/40'
+        } ${
+          holding
+            ? 'scale-x-100'
+            : 'scale-x-0 group-hover:scale-x-100 group-focus-visible:scale-x-100'
         }`}
-        style={{
-          background: primary
-            ? 'radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 72%)'
-            : 'radial-gradient(circle at 50% 0%, rgba(161, 157, 170, 0.12), transparent 72%)',
-        }}
       />
 
       <div className="relative flex w-full items-center justify-between gap-2">
@@ -159,19 +158,19 @@ export function ForkCard({
       </div>
 
       <div className="relative my-3 space-y-1.5">
-        <span className="block text-base font-normal tracking-tight text-text sm:text-xl">
+        <span className="block text-lg font-normal leading-[1.15] tracking-[-0.03em] text-text sm:text-[1.375rem]">
           {title}
         </span>
         <span className="block font-mono text-[10px] tracking-[0.04em] text-text-faint sm:text-[11px]">
           {axiom}
         </span>
         <span
-          className={`block font-mono text-[10px] tracking-[0.06em] transition-[opacity,transform] duration-[var(--duration-ui)] ease-[var(--ease-out)] sm:text-[11px] ${
+          className={`block font-mono text-[10px] tracking-[0.06em] transition-[opacity,transform] duration-[var(--duration-ui)] ease-[var(--ease-out)] motion-reduce:transform-none sm:text-[11px] ${
             primary ? 'text-accent' : 'text-text-dim'
           } ${
             holding
               ? 'translate-y-0 opacity-100'
-              : 'translate-y-1 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100'
+              : 'translate-y-1 opacity-0 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-85 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100'
           }`}
         >
           {payoff}

@@ -80,10 +80,12 @@ export function ForkView() {
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-[minmax(240px,295px)_1fr_minmax(240px,295px)] md:items-center md:gap-6">
           <div
-            className={`transition-[transform,opacity] duration-[var(--duration-scene)] ease-[var(--ease-out)] delay-0 ${
+            className={`transition-[transform,opacity] duration-[380ms] ease-[var(--ease-out)] motion-reduce:transition-opacity motion-reduce:transform-none ${
+              tonightSealed ? 'delay-[40ms]' : 'delay-[95ms]'
+            } ${
               showChrome
                 ? 'translate-y-0 opacity-100'
-                : 'pointer-events-none translate-y-4 opacity-0'
+                : 'pointer-events-none translate-y-2.5 opacity-0'
             }`}
           >
             <ForkCard
@@ -110,10 +112,12 @@ export function ForkView() {
           <div aria-hidden="true" className="hidden min-h-[320px] md:block" />
 
           <div
-            className={`transition-[transform,opacity] duration-[var(--duration-scene)] ease-[var(--ease-out)] delay-100 ${
+            className={`transition-[transform,opacity] duration-[380ms] ease-[var(--ease-out)] motion-reduce:transition-opacity motion-reduce:transform-none ${
+              !tonightSealed ? 'delay-[40ms]' : 'delay-[95ms]'
+            } ${
               showChrome
                 ? 'translate-y-0 opacity-100'
-                : 'pointer-events-none translate-y-4 opacity-0'
+                : 'pointer-events-none translate-y-2.5 opacity-0'
             }`}
           >
             <ForkCard
@@ -141,7 +145,7 @@ export function ForkView() {
 
       <div className="flex flex-col items-center gap-1 pb-1 text-center">
         <p
-          className={`font-mono text-[10px] uppercase tracking-[0.2em] text-text-faint transition-opacity duration-[var(--duration-scene)] ease-[var(--ease-out)] ${
+          className={`font-mono text-[10px] uppercase tracking-[0.2em] text-text-faint transition-opacity duration-[var(--duration-ui)] ease-[var(--ease-out)] ${
             showChrome ? 'opacity-90' : 'opacity-0'
           }`}
         >
@@ -154,7 +158,7 @@ export function ForkView() {
         ) : (
           <Link
             href="/time"
-            className="inline-flex min-h-10 items-center px-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-faint transition-[opacity,color] duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:text-text"
+            className="inline-flex min-h-10 items-center rounded-sm px-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-faint transition-[opacity,color,transform] duration-[var(--duration-micro)] ease-[var(--ease-out)] hover:text-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             {COPY.doors.scrubTime}
           </Link>

@@ -39,7 +39,7 @@ export function TelemetryHud({
   return (
     <div
       aria-label="Observatory telemetry"
-      className={`pointer-events-none flex w-full max-w-6xl items-center justify-between gap-4 border-b border-line/40 pb-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-text-faint tabular-nums transition-[opacity,transform] duration-[var(--duration-scene)] ease-[var(--ease-out)] ${
+      className={`pointer-events-none flex w-full max-w-6xl items-center justify-between gap-4 border-b border-line/40 pb-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-text-faint tabular-nums transition-[opacity,transform] duration-[var(--duration-ui)] ease-[var(--ease-out)] motion-reduce:transition-opacity motion-reduce:transform-none ${
         visible ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0'
       }`}
     >
