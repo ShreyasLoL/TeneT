@@ -99,7 +99,7 @@ export function IntroWordmark() {
     rig.introRing = 0;
     rig.introTremor = 0;
     rig.introProgress = 0;
-    rig.introSpin = -6.5;
+    rig.introSpin = -7.0;
     rig.introTick = 1;
     rig.introActive = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect
