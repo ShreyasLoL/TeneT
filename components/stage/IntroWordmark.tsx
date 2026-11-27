@@ -232,7 +232,7 @@ export function IntroWordmark() {
 
         <div
           ref={wordRef}
-          className="flex origin-center select-none items-center pl-[0.42em] font-sans text-[clamp(1.75rem,4.2vw,3.0rem)] font-light uppercase leading-none tracking-[0.42em] text-text"
+          className="flex origin-center select-none items-center justify-center gap-[clamp(0.45rem,1.2vw,0.78rem)] font-sans text-[clamp(1.4rem,3.2vw,2.25rem)] font-light uppercase leading-none text-text"
         >
           {LETTERS.map((ch, i) => (
             <span
@@ -240,7 +240,7 @@ export function IntroWordmark() {
               ref={(el) => {
                 letterRefs.current[i] = el;
               }}
-              className="inline-block opacity-0"
+              className="inline-flex h-[1em] w-[0.82em] items-center justify-center leading-none opacity-0"
             >
               {ch}
             </span>

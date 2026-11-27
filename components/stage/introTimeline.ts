@@ -87,6 +87,7 @@ export function buildIntroTimeline(
       y: idx === 2 ? 4 : 0,
       scale: 0.94,
       rotation: idx >= 3 ? 180 : 0,
+      transformOrigin: '50% 45%',
       opacity: 0,
     });
   });
